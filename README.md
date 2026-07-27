@@ -147,6 +147,7 @@ real transpose equals adjoint  pass         computation      identity           
 linearity                      pass         computation      identity              1
 block consistency              pass         computation      identity              1
 shape and dtype                pass         computation      identity              1
+complex linearity              pass         computation      identity              1
 declared capabilities          pass         probe            heuristic             -
 purity                         pass         computation      identity              1
 gemm agreement                 pass         computation      identity              1
@@ -221,8 +222,8 @@ three matrix products.
 ## Status
 
 The finite object model, the expression graph, the capability and evidence
-lattices, the adapters and the conformance suite are in place, with 10,214
-assertions across 76 tests. The propagation suite alone is 9,892 brute-force
+lattices, the adapters and the conformance suite are in place, with 10,233
+assertions across 78 tests. The propagation suite alone is 9,892 brute-force
 soundness checks against materialised matrices.
 
 Krylov solvers and the `solve()`, `eigs()` and `svds()` front doors are the next

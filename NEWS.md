@@ -31,8 +31,12 @@ First development release. The finite object model and the expression graph.
 
 ## Checking
 
-* `verify()` runs a ten-check conformance suite over an operator and returns a
-  certificate. Declared capabilities are probed, and a contradiction fails.
+* `verify()` runs an eleven-check conformance suite over an operator and returns
+  a certificate. Declared capabilities are probed, and a contradiction fails.
+* The `complex linearity` check tests `A(x + iy) = A(x) + i A(y)`. A real
+  operator that discards the imaginary part of its input satisfies every other
+  check, because the promotion in the apply path upcasts the real result it
+  returned.
 * `preconditioner()` carries a contract that each method enforces at the point
   the preconditioner is accepted.
 

@@ -130,14 +130,25 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
   Xr <- matrix(stats::rnorm(n * 2), n, 2)
   Yr <- linop_apply(A, Xr, "N")
   if (!identical(dim(Yr), c(m, 2L))) { ok <- FALSE; note <- c(note, "real block shape") }
-  Xz <- Xr + 1i * matrix(stats::rnorm(n * 2), n, 2)
-  Yz <- linop_apply(A, Xz, "N")
+  Xi <- matrix(stats::rnorm(n * 2), n, 2)
+  Yz <- linop_apply(A, Xr + 1i * Xi, "N")
   if (!identical(dim(Yz), c(m, 2L))) { ok <- FALSE; note <- c(note, "complex block shape") }
   if (!is.complex(Yz)) { ok <- FALSE; note <- c(note, "complex input did not promote") }
   add("shape and dtype", if (ok) "pass" else "fail",
       if (ok) "real and complex blocks" else paste(note, collapse = "; "))
 
-  ## 6. declared capabilities probed. A contradiction is an error. Agreement adds
+  ## 6. complex linearity. Section 5.5 requires that a real operator applied to a
+  ##    complex block promotes the result rather than dropping the imaginary
+  ##    part. linop_apply() upcasts a real result to complex, which satisfies
+  ##    check 5 on its own, so an apply that discarded the imaginary part of its
+  ##    input passes every check above. A linear operator satisfies
+  ##    A(x + iy) = A(x) + i A(y), and that is what fails when it does.
+  gapC <- max(Mod(Yz - (Yr + 1i * linop_apply(A, Xi, "N"))))
+  refC <- max(nrm(Yz), .Machine$double.eps)
+  add("complex linearity", if (gapC <= tol * refC) "pass" else "fail",
+      sprintf("A(x + iy) against A(x) + i A(y); max gap %.3e", gapC))
+
+  ## 7. declared capabilities probed. A contradiction is an error. Agreement adds
   ##    a probe record beside the declaration and never upgrades it further.
   probe_rows <- probe_capabilities(A, tol = tol, n_probe = n_probe, rnd = rnd)
   if (nrow(probe_rows)) {
@@ -151,7 +162,7 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
         source = "probe", guarantee = "heuristic", confidence = NA_real_)
   }
 
-  ## 7. purity
+  ## 8. purity
   X <- rnd(n, 2); Xcopy <- X
   Y1 <- linop_apply(A, X, "N"); Y2 <- linop_apply(A, X, "N")
   pure <- identical(Y1, Y2) && identical(X, Xcopy)
@@ -159,14 +170,14 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
       if (pure) "two applies agree, input unmodified"
       else "output differs between applies, or the input was modified")
 
-  ## 8. gemm agreement with the synthesised form
+  ## 9. gemm agreement with the synthesised form
   X <- rnd(n, 2); Y0 <- rnd(m, 2)
   g <- linop_gemm(A, X, Y0, alpha = 2, beta = -3, mode = "N")
   ref2 <- 2 * linop_apply(A, X, "N") - 3 * Y0
   gd <- max(Mod(g - ref2))
   add("gemm agreement", if (gd <= tol) "pass" else "fail", sprintf("max gap %.3e", gd))
 
-  ## 9. materialisation agreement with column-by-column application
+  ## 10. materialisation agreement with column-by-column application
   if (prod(as.numeric(A$dim)) <= 1e6) {
     M <- linop_materialize(A)
     E <- diag(1, n); if (cplx) storage.mode(E) <- "complex"
