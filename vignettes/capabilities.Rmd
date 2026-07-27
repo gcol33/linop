@@ -1,0 +1,328 @@
+---
+title: "Capabilities and evidence"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Capabilities and evidence}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+set.seed(3)
+```
+
+A solver needs to know things about an operator that it cannot afford to find
+out. Conjugate gradients converges on a Hermitian positive definite operator and
+can silently produce nonsense on one that is neither, and checking positive
+definiteness costs more than the solve. So the operator has to carry the claim.
+
+The moment it carries a claim, a second question arrives: on whose word. A
+property established by construction, one measured exactly on stored data, one
+asserted by whoever wrote the adapter, and one guessed from ten random probes are
+all "positive definite is TRUE", and they are not interchangeable. This vignette
+is about keeping the two apart and keeping both correct through the algebra.
+
+## Ten capabilities, three values
+
+```{r names}
+caps <- c("hermitian", "symmetric", "positive_definite", "positive_semidefinite",
+          "unitary", "diagonal", "triangular_upper", "triangular_lower",
+          "full_rank", "real")
+```
+
+`hermitian` and `symmetric` are separate entries. For a complex operator
+`A = A^H` and `A = A^T` are different statements, and a solver that takes one for
+the other takes a wrong branch. For a real operator they coincide, and the
+package records that coincidence as a rule instead of merging the fields.
+
+Each capability holds `TRUE`, `FALSE` or `NA`. `NA` means unknown, and it is
+never read as `FALSE`.
+
+```{r three-valued}
+S <- linop(function(X) X[c(2, 1), , drop = FALSE],
+           adjoint = function(X) X[c(2, 1), , drop = FALSE],
+           dim = c(2, 2))
+cap(S, "positive_definite")
+```
+
+That operator is a swap. It is Hermitian and it is not positive definite, and
+`linop` says neither, because nothing has established either one. Propagation is
+conservative in the same direction: a rule that cannot prove `TRUE` returns `NA`
+and never `FALSE`.
+
+`cap()` reads one entry. `summary()` reads them all:
+
+```{r summary}
+A <- linop(matrix(c(2, 1, 0,
+                    1, 3, 1,
+                    0, 1, 2), 3, 3))
+summary(A)$caps[, c("capability", "value")]
+```
+
+The dense leaf filled those in by checking the stored matrix exactly. Symmetry
+came from `all.equal(M, t(M))`, diagonality from testing the off-diagonal
+entries. Positive definiteness is absent because establishing it would have cost
+a factorisation the constructor did not run.
+
+## Evidence is three independent fields
+
+```{r evidence-fields}
+evidence(source = "computation", guarantee = "identity", confidence = 1)
+```
+
+**source** is where the claim came from: `construction`, `adapter_contract`,
+`user_declaration`, `probe`, `computation`, `theorem`.
+
+**guarantee** is the kind of statement being made: `identity`,
+`deterministic_bound`, `probabilistic_bound`, `estimate`, `heuristic`.
+
+**confidence** is `1`, a stated probability, or `NA`.
+
+The three are independent on purpose, and none of them is a rank. A randomised
+trace estimator carries a `probabilistic_bound` with a rigorous confidence; a
+deterministic heuristic carries no bound at all; an adapter contract can be worth
+more than a hundred probes. Collapsing that into one "strength" number loses
+exactly the distinctions a solver needs.
+
+The fourth field is what makes it work: `depends_on`, a list of the evidence a
+rule relied on. It is empty when the rule is unconditional.
+
+## Declaring what you know
+
+`properties` takes a named logical vector and records each entry as a user
+declaration.
+
+```{r declare}
+P <- linop(function(X) X, adjoint = function(X) X, dim = c(4, 4),
+           properties = c(hermitian = TRUE, positive_definite = TRUE))
+cap(P, "positive_definite")
+```
+
+A bare character vector is shorthand for all-`TRUE`, and an unknown name is an
+error naming the ten that exist.
+
+```{r declare-bad, error = TRUE}
+linop(matrix(1:4, 2, 2), properties = c(hermitiann = TRUE))
+```
+
+Some implications hold by definition and are closed once at construction, so
+declaring the strong form does not oblige you to also declare the weak one:
+
+```{r closure}
+cap(P, "positive_semidefinite")
+```
+
+Positive definite implies positive semidefinite; diagonal implies both
+triangularities; a real Hermitian operator is symmetric and the converse. Each
+closure records what it depended on. A `"double"` operator is `real` by
+construction, unconditionally.
+
+```{r closure-real}
+cap(linop(matrix(1:4, 2, 2)), "real")
+```
+
+Declaring `hermitian` or `symmetric` on a non-square operator is an error rather
+than a stored contradiction:
+
+```{r declare-nonsquare, error = TRUE}
+linop(matrix(1:6, 2, 3), properties = c(symmetric = TRUE))
+```
+
+## Propagation
+
+Every composite recomputes its capabilities from its operands. The rules are
+sound in the direction that matters: they claim `TRUE` only where the conclusion
+follows, and answer `NA` everywhere else.
+
+**Sums.** `hermitian`, `symmetric`, `positive_definite`, `positive_semidefinite`,
+`real`, `diagonal` and both triangularities survive addition when every term has
+them.
+
+```{r prop-sum}
+D1 <- linop_scaling(c(1, 2, 3))
+D2 <- linop_scaling(c(4, 5, 6))
+cap(D1 + D2, "diagonal")$value
+cap(D1 + D2, "positive_definite")$value
+```
+
+**Scaling.** A real scalar preserves `hermitian`; any scalar preserves
+`symmetric`; a positive real scalar preserves definiteness. A nonzero scalar
+preserves `full_rank`, and structure such as `diagonal` survives any scalar.
+
+```{r prop-scale}
+Pd <- linop(function(X) X, adjoint = function(X) X, dim = c(3, 3),
+            properties = c(hermitian = TRUE, positive_definite = TRUE))
+
+cap(2 * Pd, "positive_definite")$value
+cap(-2 * Pd, "positive_definite")$value    # the rule cannot conclude
+cap(-2 * Pd, "hermitian")$value            # a real scalar keeps this one
+```
+
+A diagonal leaf answers `FALSE` to the same question, and the difference is
+worth understanding. Scaling a `diag` is a simplification rule: the result is a
+fresh diagonal leaf, whose constructor computes definiteness exactly from the
+stored vector rather than inheriting a propagated claim.
+
+```{r prop-scale-diag}
+cap(-2 * D1, "positive_definite")$value
+(-2 * D1)$node
+```
+
+**Transpose, adjoint, conjugate.** `adjoint()` preserves `hermitian`,
+definiteness, `unitary`, `diagonal`, `full_rank` and `real`, and preserves
+`symmetric` when the operand is also real. `t()` preserves `symmetric` and
+preserves `hermitian` when the operand is real. Both flip the triangularities.
+`Conj()` preserves everything.
+
+```{r prop-views}
+U <- linop(matrix(c(1, 0, 2, 1), 2, 2))      # upper triangular
+cap(U, "triangular_upper")$value
+cap(t(U), "triangular_upper")$value
+cap(t(U), "triangular_lower")$value
+```
+
+**Products.** A product of two arbitrary operators tells you nothing, and the
+rules say so. Two exceptions are structural, and they hold whatever is known
+about the operand:
+
+```{r prop-gram}
+K <- linop(matrix(rnorm(12), 4, 3))
+G <- adjoint(K) %*% K
+cap(G, "hermitian")
+cap(G, "positive_semidefinite")$value
+cap(G, "positive_definite")$value            # NA until K is known full rank
+```
+
+`adjoint(X) %*% X` is Hermitian and positive semidefinite for every `X`, so the
+evidence has nothing underneath it. Positive definiteness needs `X` to have full
+rank, so it appears only when that is known, and then it records the dependency.
+
+The product node finds this by structural recognition, comparing the two factors
+rather than testing the result. It is conservative: it may fail to notice that
+two separately built operators are equal, and it never claims that two different
+operators are the same.
+
+```{r prop-gram-real}
+Kr <- linop(matrix(rnorm(12), 4, 3))
+cap(crossprod(Kr), "symmetric")$value        # t(A) A is symmetric for any A
+cap(crossprod(Kr), "hermitian")$value        # and Hermitian too, since A is real
+```
+
+For a complex operator the two come apart, which is the point of keeping them
+separate:
+
+```{r prop-gram-complex}
+Kz <- linop(matrix(c(1 + 1i, 2, 0, 3 - 2i), 2, 2))
+cap(crossprod(Kz), "symmetric")$value        # A^T A is symmetric
+cap(crossprod(Kz), "hermitian")$value        # and is not Hermitian
+cap(adjoint(Kz) %*% Kz, "hermitian")$value   # A^H A is
+```
+
+Structure that survives any product is carried through: a product of diagonals is
+diagonal, of upper triangulars is upper triangular, of unitaries is unitary, of
+reals is real.
+
+```{r prop-structure}
+cap(D1 %*% D2, "diagonal")$value
+```
+
+## The case this design exists for
+
+Take two operators whose author declared them positive definite. The sum rule is
+unconditionally sound. So the sum is positive definite, by construction:
+
+```{r launder}
+P <- linop(function(X) X, adjoint = function(X) X, dim = c(4, 4),
+           properties = c(hermitian = TRUE, positive_definite = TRUE))
+Q <- linop(function(X) 2 * X, adjoint = function(X) 2 * X, dim = c(4, 4),
+           properties = c(hermitian = TRUE, positive_definite = TRUE))
+
+cap(P + Q, "positive_definite")
+```
+
+Read the evidence. The source is `construction`, which is true and is not the
+whole story: underneath it sit the two user declarations the rule consumed. Had
+the composite reported a bare `construction`, two unverified assertions would
+have been laundered into a fact by one addition, and a solver reading only the
+top-level source would accept them.
+
+## Requirements
+
+A solver states what it will accept. The statement is a predicate over evidence,
+not a threshold on a strength number.
+
+```{r requirement}
+strict <- requirement(sources = c("construction", "computation", "theorem"),
+                      guarantees = "identity")
+```
+
+`evidence_satisfies()` checks the evidence against it, and recurses into
+`depends_on`, so a requirement the inputs would have failed is failed by anything
+built from them.
+
+```{r satisfies}
+evidence_satisfies(cap(P, "positive_definite")$evidence, strict)
+evidence_satisfies(cap(P + Q, "positive_definite")$evidence, strict)
+```
+
+The Gram matrix passes the same requirement, because there is nothing underneath
+its evidence to fail it:
+
+```{r satisfies-gram}
+evidence_satisfies(cap(G, "positive_semidefinite")$evidence, strict)
+```
+
+A solver willing to take the author's word says so explicitly, and then the same
+chain passes:
+
+```{r satisfies-lenient}
+lenient <- requirement(sources = c("construction", "computation", "theorem",
+                                   "user_declaration"))
+evidence_satisfies(cap(P + Q, "positive_definite")$evidence, lenient)
+```
+
+`min_confidence` adds a numeric floor, applied at every level of the chain:
+
+```{r min-conf}
+probabilistic <- evidence("probe", "probabilistic_bound", confidence = 0.99)
+evidence_satisfies(probabilistic, requirement(min_confidence = 0.999))
+evidence_satisfies(probabilistic, requirement(min_confidence = 0.95))
+```
+
+This is the shape of the contract Phase 2 solvers will use: CG will require
+Hermitian positive definiteness under a requirement it publishes, and an operator
+whose claim rests on an unverified declaration will be turned away by name rather
+than converge to something wrong.
+
+## Probing a declaration
+
+`verify()` tests declared capabilities against the operator's actual behaviour.
+Agreement is recorded beside the declaration as a probe and never promoted to
+proof; a contradiction fails the certificate.
+
+```{r probe}
+Good <- linop(function(X) X, adjoint = function(X) X, dim = c(4, 4),
+              properties = c(hermitian = TRUE))
+verify(Good)$probes
+```
+
+```{r probe-bad}
+Liar <- linop(function(X) rbind(X[-1, , drop = FALSE], 0),
+              adjoint = function(X) rbind(0, X[-4, , drop = FALSE]),
+              dim = c(4, 4), properties = c(hermitian = TRUE))
+verify(Liar)$probes
+verify(Liar)$overall
+```
+
+Positive definiteness is the one case where a probe can only ever disagree. A
+positive Rayleigh quotient on ten random vectors is not evidence of definiteness,
+so the check looks for a negative one and reports `consistent` otherwise. The
+certificate records the guarantee as `heuristic` for exactly this reason.
+
+## Where to next
+
+- `vignette("adapters")` covers the rest of the certificate, and the contracts
+  that preconditioners and solve objects carry.
+- `vignette("expressions")` covers the tree these capabilities travel up.

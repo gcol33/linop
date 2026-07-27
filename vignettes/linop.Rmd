@@ -1,0 +1,289 @@
+---
+title: "Getting started with linop"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with linop}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+set.seed(1)
+```
+
+## What a linop is
+
+A matrix in R is a rectangle of numbers. Many of the linear maps that turn up in
+practice are described more directly by what they do than by the numbers they
+would contain: a finite-difference stencil, a convolution, a projection onto a
+subspace, the Jacobian of a simulation, a Gram matrix of a design you already
+hold in another form. Writing out the entries is possible for all of them and
+affordable for few.
+
+A `linop` is that map as an object. You supply the action, `linop` supplies
+everything a matrix would have given you.
+
+```{r first}
+n <- 8
+S <- linop(
+  function(X) rbind(X[-1, , drop = FALSE], 0),
+  adjoint = function(X) rbind(0, X[-n, , drop = FALSE]),
+  dim = c(n, n)
+)
+S
+```
+
+`S` shifts a vector up by one position and pads with a zero. Its conjugate
+transpose shifts down. Two closures and a shape, and the object is complete.
+
+```{r apply-vector}
+v <- 1:8
+S %*% v
+```
+
+A vector goes in and a vector comes out, as it would with a matrix. Handing it a
+matrix gives a matrix, one column at a time:
+
+```{r apply-block}
+S %*% cbind(1:8, rep(1, 8))
+```
+
+## Building one
+
+`linop()` is a single generic dispatching on its first argument, with methods
+for the inputs below and a clear error for anything else.
+
+A base matrix wraps the storage you already have:
+
+```{r from-matrix}
+M <- matrix(c(2, 1, 0,
+              1, 3, 1,
+              0, 1, 2), 3, 3)
+A <- linop(M)
+A
+```
+
+Notice what it says about itself. The dense leaf checks symmetry, diagonality and
+triangularity exactly, on data it already holds, and records the outcome. That
+check is `all.equal()` against the transpose, not a guess.
+
+A `Matrix` from the **Matrix** package wraps sparse storage:
+
+```{r from-sparse, eval = requireNamespace("Matrix", quietly = TRUE)}
+Sp <- Matrix::sparseMatrix(i = c(1, 2, 3), j = c(1, 2, 3), x = c(2, 3, 4))
+linop(Sp) %*% c(1, 1, 1)
+```
+
+A function is the callback form used above. `dim` is required, `adjoint` is
+optional, and omitting the adjoint means the transposed modes raise an error
+naming what is missing rather than returning something wrong.
+
+```{r no-adjoint, error = TRUE}
+Twice <- linop(function(X) 2 * X, dim = c(4, 4))
+t(Twice) %*% rep(1, 4)
+```
+
+An object with no `linop()` method gets an error that names the method to write:
+
+```{r no-method, error = TRUE}
+linop(list(1, 2))
+```
+
+Two named constructors cover the operators that appear constantly inside
+expressions:
+
+```{r constructors}
+linop_eye(4)
+linop_scaling(c(2, 4, 8))
+```
+
+## The algebra is lazy
+
+Every arithmetic operation returns a new operator. Nothing is applied, nothing is
+allocated.
+
+```{r lazy}
+B <- crossprod(S) + 0.1 * linop_eye(n)
+B
+```
+
+The tree printed underneath is the expression as written. `crossprod(S)` became a
+product of a transpose view and the original leaf; the scaled identity became a
+`scale` over `I`; the sum holds both. Applying `B` walks that tree right to left,
+one block at a time.
+
+```{r lazy-apply}
+B %*% rep(1, n)
+```
+
+Everything R offers for matrices is routed through one `matrixOps` group method,
+so all three products behave the same way:
+
+```{r matrixops}
+X <- matrix(rnorm(n * 2), n, 2)
+all.equal(crossprod(S) %*% X, t(S) %*% (S %*% X))
+all.equal(tcrossprod(S) %*% X, S %*% (t(S) %*% X))
+```
+
+Two operations are deliberately absent, because for matrices they mean something
+this package cannot mean. Adding a scalar to an operator would have to guess
+between `A + c` elementwise and `A + cI`, and `*` between two operators is the
+elementwise product:
+
+```{r not-defined, error = TRUE}
+A + 1
+```
+
+```{r not-defined-2, error = TRUE}
+A * A
+```
+
+## Transpose, adjoint and conjugate are three things
+
+For a real operator, the transpose and the conjugate transpose have the same
+action. They stay separate objects anyway, so that the expression you printed is
+the expression you wrote, and so that a real subgraph inside a complex expression
+keeps the distinction at the point where it starts to matter.
+
+```{r views}
+Rect <- linop(matrix(1:6, 2, 3))
+t(Rect)$node
+adjoint(Rect)$node
+Conj(Rect)$node
+```
+
+Composing them collapses through the identities you would expect, at construction
+time:
+
+```{r view-identities}
+t(t(Rect))$node              # involution
+Conj(adjoint(Rect))$node     # adjoint then conjugate is the transpose
+adjoint(t(Rect))$node        # transpose then adjoint is the conjugate
+```
+
+Internally these are four apply modes in the BLAS sense, composed through a Klein
+four-group: `N` for `A X`, `T` for `A^T X`, `C` for `A^H X`, `R` for
+`conj(A) X`. A callback leaf supplies two of them and the other two are derived
+by conjugation, which is why nobody writes four functions.
+
+## Complex operators, and one thing to know about crossprod
+
+An operator is `"double"` or `"complex"`. No path silently drops an imaginary
+part: a real operator applied to a complex block promotes the result.
+
+```{r dtype}
+dtype(A)
+A %*% c(1 + 2i, 0, 0)
+```
+
+Base R's `crossprod(A)` is `A^T A`, the transpose and not the conjugate
+transpose. For a complex operator that product is symmetric and is generally not
+Hermitian. `linop` follows base R, because the promise of the package is that a
+`linop` behaves like a matrix:
+
+```{r crossprod-complex}
+Z <- linop(matrix(c(1 + 1i, 2, 0, 3 - 2i), 2, 2))
+cap(crossprod(Z), "symmetric")$value
+cap(crossprod(Z), "hermitian")$value
+```
+
+The Hermitian Gram matrix is spelled out:
+
+```{r gram}
+cap(adjoint(Z) %*% Z, "hermitian")$value
+```
+
+## Looking at an expression
+
+`print()` shows the tree. `explain()` adds the shape, dtype and cost of every
+node:
+
+```{r explain}
+explain(B)
+```
+
+The cost column is flops per column, and it is an ordering heuristic. Measurement
+during design found operators where a wider block is *slower* per column, which a
+flop count cannot express, so this number orders candidate plans and never
+predicts wall time.
+
+`summary()` reports the capability table with the evidence behind each entry:
+
+```{r summary}
+summary(B)$caps[, c("capability", "value")]
+```
+
+## Forming a matrix, when you mean to
+
+Materialisation is an explicit request with a guard, because the entire point of
+the object is that it normally does not happen.
+
+```{r materialize}
+as.matrix(A)
+round(as.matrix(B), 3)
+```
+
+The guard is on the entry count and refuses politely:
+
+```{r guard, error = TRUE}
+big <- linop(function(X) X, adjoint = function(X) X, dim = c(1e5, 1e5))
+as.matrix(big)
+```
+
+`collapse()` is the middle path. It walks the expression and replaces
+subexpressions that are cheaper to hold as a dense leaf, and it reports what it
+did, so a wrong cost model costs a suboptimal plan and never a surprise
+allocation.
+
+```{r collapse}
+K <- linop(matrix(rnorm(200 * 200), 200, 200))
+E <- crossprod(K) + 0.5 * linop_eye(200)
+linop_cost(E)
+
+Ec <- collapse(E, expected_applies = 500)
+linop_cost(Ec)
+```
+
+```{r collapse-report}
+report <- attr(Ec, "report")
+class(report) <- "linop_collapse_report"
+report
+```
+
+## Checking that it is what it claims
+
+`verify()` runs the contract. It is the function to reach for after writing a
+hand-rolled operator, and the one an adapter author runs before shipping.
+
+```{r verify}
+verify(S)
+```
+
+The interesting line is the first. `adjoint consistency` tests
+`<y, A x> = <A^H y, x>` over random probes, which is what catches a missing or
+misplaced conjugation. Here is the same operator with its adjoint replaced by a
+copy of the forward action:
+
+```{r verify-bad}
+Bad <- linop(function(X) rbind(X[-1, , drop = FALSE], 0),
+             adjoint = function(X) rbind(X[-1, , drop = FALSE], 0),
+             dim = c(6, 6))
+verify(Bad)$overall
+```
+
+The full certificate, and what each check is for, is covered in
+`vignette("adapters")`.
+
+## Where to next
+
+- `vignette("expressions")` covers the expression graph: the simplification
+  rules, the cost model, `collapse()` and materialisation.
+- `vignette("capabilities")` covers what an operator knows about itself and how
+  a solver states what it will accept.
+- `vignette("adapters")` covers writing `linop.myclass()`, reading a
+  certificate, registering a node type, and the preconditioner contract.
+
+Krylov solvers, `solve()`, `eigs()` and `svds()` are the next phase of the
+package.
