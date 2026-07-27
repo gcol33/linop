@@ -222,13 +222,15 @@ three matrix products.
 ## Status
 
 The finite object model, the expression graph, the capability and evidence
-lattices, the adapters and the conformance suite are in place, with 10,233
-assertions across 78 tests. The propagation suite alone is 9,892 brute-force
+lattices, the adapters and the conformance suite are in place, with 10,403
+assertions across 120 tests. The propagation suite alone is 9,892 brute-force
 soundness checks against materialised matrices.
 
-Krylov solvers and the `solve()`, `eigs()` and `svds()` front doors are the next
-phase, together with the certificates that belong to a result rather than to an
-operator.
+The solver layer is under way. Conjugate gradients, the certificate that belongs
+to a result rather than to an operator, and the operator-norm estimate its
+arithmetic floor rests on are written and checked against closed-form truth. The
+remaining six Krylov methods and the `solve()`, `eigs()` and `svds()` front doors
+follow, and the front doors open once `method = "auto"` has a choice to make.
 
 ## Related packages
 

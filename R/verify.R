@@ -242,38 +242,3 @@ probe_capabilities <- function(A, tol, n_probe, rnd) {
   }
   do.call(rbind, rows)
 }
-
-build_certificate <- function(df, subject, probes = NULL) {
-  overall <- if (any(df$status == "fail")) "fail"
-             else if (any(df$status %in% c("qualified", "not_checked"))) "qualified"
-             else "pass"
-  weak <- df$check[df$guarantee != "identity" | df$status == "not_checked"]
-  structure(list(subject = subject, checks = df, overall = overall,
-                 without_deterministic_bound = weak, probes = probes),
-            class = "linop_certificate")
-}
-
-#' @export
-print.linop_certificate <- function(x, ...) {
-  df <- x$checks
-  cat(sprintf("%-30s %-12s %-16s %-21s %s\n", "check", "status", "source", "guarantee", "conf"))
-  cat(strrep("-", 90), "\n", sep = "")
-  for (i in seq_len(nrow(df))) {
-    conf <- if (is.na(df$confidence[i])) "-" else format(df$confidence[i])
-    cat(sprintf("%-30s %-12s %-16s %-21s %s\n",
-                df$check[i], df$status[i], df$source[i], df$guarantee[i], conf))
-  }
-  cat(strrep("-", 90), "\n", sep = "")
-  cat(sprintf("%-30s %s", "overall", x$overall))
-  if (length(x$without_deterministic_bound)) {
-    cat(sprintf("   no deterministic bound on: %s",
-                paste(x$without_deterministic_bound, collapse = ", ")))
-  }
-  cat("\n")
-  failed <- df[df$status == "fail", ]
-  if (nrow(failed)) {
-    cat("\nfailures:\n")
-    for (i in seq_len(nrow(failed))) cat(sprintf("  %s: %s\n", failed$check[i], failed$detail[i]))
-  }
-  invisible(x)
-}

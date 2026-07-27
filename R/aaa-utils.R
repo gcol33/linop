@@ -17,6 +17,35 @@ undo_block <- function(Y, was_vector) {
 
 stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 
+## Column-wise reductions over a block, written in real arithmetic so they work
+## on complex and real storage through one path. Re(<x, y>) = Re(x).Re(y) +
+## Im(x).Im(y), which is the only part of the inner product the Krylov scalars
+## use, since the quantities they form are real for a hermitian operator.
+col_norms <- function(X) {
+  if (is.complex(X)) sqrt(colSums(Re(X)^2 + Im(X)^2)) else sqrt(colSums(X^2))
+}
+
+col_dot <- function(X, Y) {
+  if (is.complex(X) || is.complex(Y)) colSums(Re(X) * Re(Y) + Im(X) * Im(Y))
+  else colSums(X * Y)
+}
+
+## Y[, j] * v[j], without transposing twice.
+scale_cols <- function(X, v) X * rep(v, each = nrow(X))
+
+## A report is reproducible only if it fixes a seed, and a solver has no business
+## moving the user's stream while doing it.
+with_preserved_seed <- function(seed, expr) {
+  if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+    old <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit(assign(".Random.seed", old, envir = globalenv()), add = TRUE)
+  } else {
+    on.exit(suppressWarnings(rm(".Random.seed", envir = globalenv())), add = TRUE)
+  }
+  set.seed(seed)
+  expr
+}
+
 is_scalar_string <- function(x) is.character(x) && length(x) == 1L && !is.na(x)
 
 ## Three-valued logic. NA means unknown and never reads as FALSE (section 5.3).
