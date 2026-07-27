@@ -30,8 +30,24 @@ col_dot <- function(X, Y) {
   else colSums(X * Y)
 }
 
+## Im(<x, y>), the part col_dot() discards. Zero for real storage, and nonzero
+## for a quantity a hermitian operator requires to vanish, which is what makes it
+## a contradiction test rather than a diagnostic.
+col_dot_im <- function(X, Y) {
+  if (is.complex(X) || is.complex(Y)) colSums(Re(X) * Im(Y) - Im(X) * Re(Y))
+  else numeric(ncol(as_block(Y)))
+}
+
 ## Y[, j] * v[j], without transposing twice.
 scale_cols <- function(X, v) X * rep(v, each = nrow(X))
+
+## A block of zeros in the storage mode of an existing one, so a recurrence that
+## starts from zero does not silently demote a complex iterate to real.
+zero_block <- function(X) {
+  Z <- matrix(0, nrow(X), ncol(X))
+  if (is.complex(X)) storage.mode(Z) <- "complex"
+  Z
+}
 
 ## A report is reproducible only if it fixes a seed, and a solver has no business
 ## moving the user's stream while doing it.
