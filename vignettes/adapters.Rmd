@@ -341,6 +341,11 @@ is the method designed to accept it. The requirement table covers `cg`, `minres`
 `gmres`, `fgmres`, `bicgstab`, `lsqr` and `lsmr`, and it is enforced at the point
 the preconditioner is accepted rather than at the point the iteration misbehaves.
 
+`side` is enforced on the same footing. FGMRES forms its update from the
+right-preconditioned basis, so it takes `side = "right"` and refuses the other
+two; the remaining methods admit more than one standard formulation and accept
+all three.
+
 ## Solve objects are not operators
 
 One boundary is worth knowing before the solvers land. An object is an operator

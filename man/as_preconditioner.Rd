@@ -2,20 +2,35 @@
 % Please edit documentation in R/preconditioner.R
 \name{as_preconditioner}
 \alias{as_preconditioner}
-\title{Treat an operator M ~ A as a preconditioner}
+\alias{as_preconditioner.linop}
+\alias{as_preconditioner.linsolve}
+\alias{as_preconditioner.default}
+\title{Treat an approximate inverse as a preconditioner}
 \usage{
-as_preconditioner(M, solver, ...)
+as_preconditioner(x, ...)
+
+\method{as_preconditioner}{linop}(x, solver, ...)
+
+\method{as_preconditioner}{linsolve}(x, side = NULL, ...)
+
+\method{as_preconditioner}{default}(x, ...)
 }
 \arguments{
-\item{M}{A `linop` approximating `A`.}
-
-\item{solver}{`function(M, R)` performing the solve.}
+\item{x}{A `linop` approximating `A`, or a `linsolve`.}
 
 \item{...}{Passed to [preconditioner()].}
+
+\item{solver}{`function(M, R)` performing the solve. `linop` method only.}
+
+\item{side}{`"left"`, `"right"` or `"split"`. Defaults by contract; see
+details.}
 }
 \value{
 A `preconditioner`.
 }
 \description{
-Applied by solving `M z = r`.
+A `linop` `M ~ A` is applied by solving `M z = r`, so it needs a solver; the
+inverse is never formed here. A `linsolve` already applies `A^-1`, so it needs
+nothing further, and its contract (section 4.2) determines whether the
+resulting preconditioner is fixed.
 }

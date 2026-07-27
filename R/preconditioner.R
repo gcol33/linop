@@ -30,21 +30,59 @@ preconditioner <- function(apply_inverse, fixed = TRUE, hermitian = NA,
 
 is_preconditioner <- function(x) inherits(x, "preconditioner")
 
-#' Treat an operator M ~ A as a preconditioner
+#' Treat an approximate inverse as a preconditioner
 #'
-#' Applied by solving `M z = r`.
-#' @param M A `linop` approximating `A`.
-#' @param solver `function(M, R)` performing the solve.
+#' A `linop` `M ~ A` is applied by solving `M z = r`, so it needs a solver; the
+#' inverse is never formed here. A `linsolve` already applies `A^-1`, so it needs
+#' nothing further, and its contract (section 4.2) determines whether the
+#' resulting preconditioner is fixed.
+#'
+#' @param x A `linop` approximating `A`, or a `linsolve`.
+#' @param solver `function(M, R)` performing the solve. `linop` method only.
 #' @param ... Passed to [preconditioner()].
 #' @return A `preconditioner`.
 #' @export
-as_preconditioner <- function(M, solver, ...) {
-  if (!is_linop(M)) stopf("as_preconditioner() expects a linop")
+as_preconditioner <- function(x, ...) UseMethod("as_preconditioner")
+
+#' @rdname as_preconditioner
+#' @export
+as_preconditioner.linop <- function(x, solver, ...) {
   if (missing(solver)) stopf("as_preconditioner() needs a solver; M^-1 is not formed here")
-  preconditioner(apply_inverse = function(R) solver(M, R),
-                 hermitian = capv(M, "hermitian"),
-                 positive_definite = capv(M, "positive_definite"),
-                 dim = M$dim, ...)
+  preconditioner(apply_inverse = function(R) solver(x, R),
+                 hermitian = capv(x, "hermitian"),
+                 positive_definite = capv(x, "positive_definite"),
+                 dim = x$dim, ...)
+}
+
+#' @rdname as_preconditioner
+#' @param side `"left"`, `"right"` or `"split"`. Defaults by contract; see
+#'   details.
+#' @export
+as_preconditioner.linsolve <- function(x, side = NULL, ...) {
+  ## A solve is a fixed linear map only when its contract says so on all three
+  ## axes. This mirrors verify.linsolve(), which holds a solve to repeatability
+  ## under exactly this condition.
+  fixed <- x$contract$fidelity %in% c("exact", "linear_approximation") &&
+           x$contract$determinacy == "fixed" &&
+           x$contract$randomness == "deterministic"
+
+  ## FGMRES is the only method that accepts a flexible preconditioner and it is
+  ## defined for right preconditioning only, so "right" is the default there
+  ## rather than the "left" default the constructor carries.
+  if (is.null(side)) side <- if (fixed) "left" else "right"
+
+  ## hermitian and positive_definite stay NA: a linsolve declares a fidelity and
+  ## a determinacy, never a symmetry. An exact solve of an SPD operator is not
+  ## the same claim as a preconditioner declaring itself SPD, and CG refusing it
+  ## by name is the three-valued rule working rather than a gap.
+  preconditioner(apply_inverse = x$apply_inverse, fixed = fixed,
+                 side = side, dim = x$dim, ...)
+}
+
+#' @rdname as_preconditioner
+#' @export
+as_preconditioner.default <- function(x, ...) {
+  stopf("as_preconditioner() expects a linop or a linsolve, not %s", class(x)[1L])
 }
 
 #' Treat an operator P ~ A^-1 as a preconditioner
@@ -62,16 +100,23 @@ as_preconditioner_inverse <- function(P, ...) {
                  dim = P$dim, ...)
 }
 
-## Section 4.3 requirement table. A fixed = FALSE preconditioner passed to CG is
-## an error naming the flag, not a warning.
+## Section 4.3 requirement table: the properties each method requires of a
+## preconditioner, and the sides it can consume. A fixed = FALSE preconditioner
+## passed to CG is an error naming the flag, not a warning.
+##
+## FGMRES is the one row restricted by side: it forms its update from the
+## right-preconditioned basis, so right is the only side it is defined for.
+## Every other method admits more than one standard formulation, left in the
+## M-inner product, split through M = L L^H, or right, so all three sides are
+## accepted there.
 PRECOND_REQUIREMENTS <- list(
-  cg       = c("fixed", "hermitian", "positive_definite"),
-  minres   = c("fixed", "hermitian", "positive_definite"),
-  gmres    = c("fixed"),
-  fgmres   = character(),
-  bicgstab = c("fixed"),
-  lsqr     = c("fixed"),
-  lsmr     = c("fixed")
+  cg       = list(flags = c("fixed", "hermitian", "positive_definite"), sides = PRECOND_SIDES),
+  minres   = list(flags = c("fixed", "hermitian", "positive_definite"), sides = PRECOND_SIDES),
+  gmres    = list(flags = "fixed",     sides = PRECOND_SIDES),
+  fgmres   = list(flags = character(), sides = "right"),
+  bicgstab = list(flags = "fixed",     sides = PRECOND_SIDES),
+  lsqr     = list(flags = "fixed",     sides = PRECOND_SIDES),
+  lsmr     = list(flags = "fixed",     sides = PRECOND_SIDES)
 )
 
 check_preconditioner <- function(P, method) {
@@ -79,17 +124,25 @@ check_preconditioner <- function(P, method) {
   if (!is_preconditioner(P)) stopf("preconditioner must come from preconditioner()")
   req <- PRECOND_REQUIREMENTS[[method]]
   if (is.null(req)) stopf("unknown method '%s'", method)
-  for (flag in req) {
+  for (flag in req$flags) {
     v <- P[[flag]]
     if (!isTRUE(v)) {
       stopf(paste0("method '%s' requires a preconditioner with %s = TRUE; this one has %s = %s.\n",
                    "  %s"),
             method, flag, flag, format(v),
             if (flag == "fixed")
-              "A flexible preconditioner changes between applications; use fgmres instead."
+              "A flexible preconditioner changes between applications; use fgmres, which takes a right-side preconditioner."
             else
               sprintf("Declare it with preconditioner(..., %s = TRUE) if you can justify it.", flag))
     }
+  }
+  if (!P$side %in% req$sides) {
+    stopf("method '%s' does not accept a '%s' preconditioner; it takes %s.%s",
+          method, P$side, paste(sprintf("'%s'", req$sides), collapse = " or "),
+          if (identical(method, "fgmres"))
+            paste0("\n  FGMRES forms its update from the right-preconditioned basis, ",
+                   "so 'right' is the only side it is defined for.")
+          else "")
   }
   invisible(TRUE)
 }
