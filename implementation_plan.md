@@ -492,14 +492,21 @@ as_preconditioner_inverse(P)  # from an operator P ~ A^{-1}: applies P %*% r
 
 Solver requirements, enforced:
 
-| Solver | Requires |
-|---|---|
-| CG | `fixed`, `hermitian`, `positive_definite` |
-| MINRES | `fixed`, `hermitian`, `positive_definite` |
-| GMRES | `fixed` |
-| FGMRES | `fixed` may be `FALSE` |
-| BiCGSTAB | `fixed` |
-| LSQR, LSMR | `fixed`, acting on the normal equations |
+| Solver | Requires | Side |
+|---|---|---|
+| CG | `fixed`, `hermitian`, `positive_definite` | unrestricted |
+| MINRES | `fixed`, `hermitian`, `positive_definite` | unrestricted |
+| GMRES | `fixed` | unrestricted |
+| FGMRES | `fixed` may be `FALSE` | `right` only |
+| BiCGSTAB | `fixed` | unrestricted |
+| LSQR, LSMR | `fixed`, acting on the normal equations | unrestricted |
+
+`side` is enforced rather than merely recorded. FGMRES forms its update from the
+right-preconditioned basis, so `right` is the only side it is defined for, and PETSc's
+`KSPFGMRES` states the same restriction. The rows marked unrestricted admit more than one
+standard formulation; each needs checking against Saad before it is narrowed, and until
+then the table accepts all three sides, which is the conservative reading rather than a
+finding.
 
 A `fixed = FALSE` preconditioner passed to CG is an error naming the flag, not a warning.
 A `preconditioner` whose `apply_inverse` is a fixed linear map can be converted to a
@@ -887,9 +894,20 @@ one question.
 | `cg` | SPD square | requires `positive_definite` at declared minimum evidence |
 | `minres` | hermitian indefinite | not on CRAN elsewhere; careful recurrence and breakdown tests |
 | `gmres(m)` | general square | restarted, MGS with reorthogonalisation |
+| `fgmres(m)` | general square, flexible preconditioner | right preconditioning only; stores the preconditioned basis |
 | `bicgstab` | general square | |
 | `lsqr` | rectangular least squares | not on CRAN elsewhere |
 | `lsmr` | rectangular least squares, ill-conditioned | not on CRAN elsewhere; stopping tests are the risk |
+
+Seven methods. An earlier version of this table listed six and omitted FGMRES, which was
+the outlier rather than a decision: section 4.3 always carried an FGMRES row, section 16
+cites Saad on FGMRES as the source of the `fixed = FALSE` rules, and the enforcement code
+and its Gate 1 test both name it. FGMRES is also the only v0.1 consumer of the
+`variable_inexact` contract of section 4.2, so without it the inexact half of the fidelity
+lattice ships with nothing that reads it until Phase 3. It shares the GMRES implementation
+rather than sitting beside it: the Arnoldi loop, the rotations and the residual recurrence
+are the same, and the difference is storing the preconditioned basis `Z` and forming the
+update from it, at the cost of one further `n x m` array.
 
 ```r
 solve(A, b, method = "auto", preconditioner = NULL, tol = , maxit = , x0 = , control = )
@@ -1192,7 +1210,7 @@ surface stays at the six names of section 1.1 throughout.
 
 ### Phase 2: solvers, ships as v0.1
 
-Six Krylov methods, the preconditioner model, certificates with evidence, the `solve()`
+Seven Krylov methods, the preconditioner model, certificates with evidence, the `solve()`
 method, vignettes, pkgdown. `linsolve()` and `solver()` exist internally and are not
 exported.
 
@@ -1203,7 +1221,10 @@ exported.
 - MINRES and LSMR agree with a trusted reference on ill-conditioned problems, including
   breakdown and near-breakdown cases.
 - Every solver refuses a preconditioner whose declared properties it requires and does not
-  have, tested per row of the table in 4.3.
+  have, and refuses a side it is not defined for, tested per row of the table in 4.3.
+- FGMRES with a fixed right preconditioner reproduces right-preconditioned GMRES to
+  machine precision. Two paths that should be identical, so a divergence there is a bug
+  and not a tuning question.
 - Benchmark harness runs end to end with committed results.
 
 ### Phase 3: `linop.primme`, ships as v0.2

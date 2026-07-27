@@ -98,8 +98,30 @@ test_that("each solver refuses a preconditioner lacking a property it requires",
     expect_error(linop:::check_preconditioner(flexible, m), "fixed = TRUE")
     expect_silent(linop:::check_preconditioner(indefinite, m))
   }
-  ## FGMRES is the one that accepts a flexible preconditioner
-  expect_silent(linop:::check_preconditioner(flexible, "fgmres"))
+  ## FGMRES is the one that accepts a flexible preconditioner, and it takes it on
+  ## the right
+  flexible_right <- preconditioner(function(R) R, fixed = FALSE, side = "right")
+  expect_silent(linop:::check_preconditioner(flexible_right, "fgmres"))
+})
+
+test_that("side is enforced, not merely stored", {
+  for (s in c("left", "split")) {
+    p <- preconditioner(function(R) R, fixed = FALSE, side = s)
+    expect_error(linop:::check_preconditioner(p, "fgmres"), "'right'")
+  }
+  expect_silent(linop:::check_preconditioner(
+    preconditioner(function(R) R, fixed = FALSE, side = "right"), "fgmres"))
+})
+
+test_that("the rows that admit more than one formulation accept every side", {
+  ## the side check must not over-refuse where the plan leaves the row open
+  for (s in c("left", "right", "split")) {
+    p <- preconditioner(function(R) R, fixed = TRUE, hermitian = TRUE,
+                        positive_definite = TRUE, side = s)
+    for (m in c("cg", "minres", "gmres", "bicgstab", "lsqr", "lsmr")) {
+      expect_silent(linop:::check_preconditioner(p, m))
+    }
+  }
 })
 
 test_that("an unknown property is refused, not assumed", {
@@ -128,4 +150,48 @@ test_that("both preconditioner directions produce the same internal form", {
 
 test_that("as_preconditioner refuses to invent a solver", {
   expect_error(as_preconditioner(linop(diag(3))), "needs a solver")
+})
+
+## ------------------------------------------------- linsolve -> preconditioner --
+## An inner solve run to a loose tolerance is the canonical flexible
+## preconditioner, so the fidelity lattice of section 4.2 needs a path into
+## section 4.3 rather than only out of a linop.
+
+test_that("an exact fixed solve converts to a fixed preconditioner", {
+  S <- mk_exact_solve(diag(c(2, 3, 4)))
+  P <- as_preconditioner(S)
+  expect_s3_class(P, "preconditioner")
+  expect_true(P$fixed)
+  expect_equal(P$side, "left")
+  r <- matrix(c(1, 1, 1), 3, 1)
+  expect_equal(P$apply_inverse(r), S$apply_inverse(r))
+})
+
+test_that("an inexact solve converts to a flexible preconditioner fgmres accepts", {
+  S <- mk_history_solve(4)
+  P <- as_preconditioner(S)
+  expect_false(P$fixed)
+  ## right, because fgmres is the only consumer and takes it on the right
+  expect_equal(P$side, "right")
+  expect_silent(linop:::check_preconditioner(P, "fgmres"))
+  expect_error(linop:::check_preconditioner(P, "cg"), "fixed = TRUE")
+})
+
+test_that("a converted solve declares no symmetry it was never given", {
+  S <- mk_exact_solve(diag(c(2, 3, 4)))
+  P <- as_preconditioner(S)
+  ## a linsolve declares a fidelity and a determinacy, never a symmetry, so NA,
+  ## and CG refuses it by name rather than reading NA as TRUE
+  expect_true(is.na(P$hermitian))
+  expect_true(is.na(P$positive_definite))
+  expect_error(linop:::check_preconditioner(P, "cg"), "hermitian")
+})
+
+test_that("a declared side survives conversion", {
+  S <- mk_exact_solve(diag(c(2, 3, 4)))
+  expect_equal(as_preconditioner(S, side = "split")$side, "split")
+})
+
+test_that("as_preconditioner refuses an object that is neither", {
+  expect_error(as_preconditioner(diag(3)), "linop or a linsolve")
 })
