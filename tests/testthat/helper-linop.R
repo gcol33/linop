@@ -41,6 +41,29 @@ laplacian_1d <- function(n) {
 
 laplacian_1d_eigenvalues <- function(n) 4 * sin(seq_len(n) * pi / (2 * (n + 1)))^2
 
+## Its eigenvectors are exact too, sin(j k pi / (n+1)) normalised, which makes the
+## whole eigendecomposition closed form and lets a shifted system be solved
+## without factoring anything.
+laplacian_1d_eigenvectors <- function(n) {
+  sqrt(2 / (n + 1)) * sin(outer(seq_len(n), seq_len(n)) * pi / (n + 1))
+}
+
+## The same Laplacian shifted by sigma. Indefinite whenever sigma falls inside the
+## spectrum, with the inertia known by counting eigenvalues below the shift: an
+## indefinite fixture with closed-form truth, which is what MINRES needs and CG
+## cannot be given.
+shifted_laplacian_1d <- function(n, sigma) {
+  linop(function(X) laplacian_1d_apply(X) - sigma * X,
+        adjoint = function(X) laplacian_1d_apply(X) - sigma * X,
+        dim = c(n, n), properties = c(hermitian = TRUE))
+}
+
+shifted_laplacian_solve <- function(n, sigma, b) {
+  B <- if (is.null(dim(b))) matrix(b, length(b), 1L) else b
+  V <- laplacian_1d_eigenvectors(n)
+  V %*% (crossprod(V, B) / (laplacian_1d_eigenvalues(n) - sigma))
+}
+
 ## KMS, rho^|i-j|. Positive definite for |rho| < 1, with a tridiagonal inverse in
 ## closed form.
 kms_matrix <- function(n, rho) rho^abs(outer(seq_len(n), seq_len(n), "-"))

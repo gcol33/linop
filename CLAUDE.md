@@ -5,10 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and CG,
-the first of the seven Krylov methods, are in. MINRES, GMRES/FGMRES, BiCGSTAB, LSQR and
-LSMR are not, and `solve()`, `eigs()` and `svds()` stay unexported until there is more than
-one method for `method = "auto"` to choose between.
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and two
+of the seven Krylov methods, CG and MINRES, are in. GMRES/FGMRES, BiCGSTAB, LSQR and LSMR
+are not.
+
+`solve()`, `eigs()` and `svds()` stay unexported. The reason has changed: with CG and MINRES
+there are now two methods for `method = "auto"` to choose between, and the capability that
+separates them is `positive_definite`, so the dispatch is writable. What is missing is the
+dispatch itself and a deliberate edit to `BUDGET` in `test-api-budget.R`. Promoting them is
+now a decision rather than a blocked one.
 
 Two documents govern:
 
@@ -18,15 +23,16 @@ Two documents govern:
 - `dev_notes/` — what was actually measured, including **seven corrections to the plan**
   from the spikes. Where the two disagree, `dev_notes/` wins: it has executed evidence and
   the plan does not. `dev_notes/GATE1.md` lists the spike corrections in one table;
-  `dev_notes/cg-and-the-arithmetic-floor.md` and
-  `dev_notes/fgmres-and-preconditioner-sides.md` carry the Phase 2 ones.
+  `dev_notes/cg-and-the-arithmetic-floor.md`,
+  `dev_notes/fgmres-and-preconditioner-sides.md` and
+  `dev_notes/minres-and-the-preconditioned-norm.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~30 s, 10,403 assertions
+devtools::test(".")                      # ~30 s, 10,524 assertions
 ```
 
 ```powershell
@@ -117,13 +123,21 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 10,403 assertions across 120
+**Tests are recovery and contract tests, not shape tests.** 10,524 assertions across 150
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
 section 10 fixtures with their closed forms: `laplacian_1d()` with
-`laplacian_1d_eigenvalues()`, `kms_matrix()` with `kms_inverse()`, and `spd_prescribed()` /
-`hpd_prescribed()` for a dialled-in spectrum.
+`laplacian_1d_eigenvalues()`, `kms_matrix()` with `kms_inverse()`, `spd_prescribed()` /
+`hpd_prescribed()` for a dialled-in spectrum, and `shifted_laplacian_1d()` with
+`shifted_laplacian_solve()` for an indefinite system whose eigenvalues *and* eigenvectors
+are both closed form.
+
+**A test that compares two configurations must give them the same budget.** The first draft
+of the MINRES suite claimed a preconditioner rescued a solve, on a scalar preconditioner that
+leaves the Krylov space untouched and produces bitwise identical iterates; it passed only
+because the two sides ran to different `maxit`. Before asserting that a knob helped, check
+that it changed the iterates at all.
 
 **Certificates carry an arithmetic floor, and it is load-bearing.** S0.6 found that the a
 posteriori residual bound keeps decaying past machine epsilon while the true error plateaus
@@ -174,7 +188,8 @@ internally with their contracts and enforcement already tested; `solver()` stays
 until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
 section 1.1), and that defer is only safe while `preconditioner()` is public.
 
-`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining six. Three things it
+`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining five, and
+`minres_solve()` (`R/solvers-minres.R`) is the evidence that it generalises. Three things CG
 established that the others inherit rather than re-decide:
 
 - **Several right-hand sides run in lockstep**, not one after another. Each column's
@@ -188,9 +203,25 @@ established that the others inherit rather than re-decide:
   the capability: `p^H A p <= 0` far from convergence means the operator is not what it
   said it was.
 
-The evidence minimum (`CG_PD_REQUIREMENT`) filters `method = "auto"` and does not gate
-`method = "cg"`. Naming a method is the caller asserting their own declaration; `auto` is
-the package choosing. Do not collapse the two.
+MINRES carried all three and forced two refinements, both in
+`dev_notes/minres-and-the-preconditioned-norm.md`:
+
+- **The two loops can measure different quantities.** MINRES minimises `||r||_{M^-1}`, so
+  with a preconditioner the recurrence scalar is not the certificate's residual. The outer
+  loop converts the target into the recurrence's currency going in and re-measures in the
+  caller's coming out. Any method whose natural residual is preconditioned inherits this.
+- **A contradiction test has to be on a quantity rounding does not move.** CG thresholds a
+  sign. MINRES has to threshold a magnitude, and the identity the recurrence already carries
+  (`v_{j-1}^H A v_j = beta_j`) is a test of Lanczos orthogonality, not of symmetry: it
+  reaches a relative violation of 1e0 on *correct* hermitian operators with clustered
+  spectra. The test that works is the definition, `<x, A y> = <A x, y>`, which needs no extra
+  apply and stays at 1e-10. Measure the noise floor on correct operators before choosing any
+  such threshold.
+
+The evidence minima (`CG_PD_REQUIREMENT`, `MINRES_HERMITIAN_REQUIREMENT`) filter
+`method = "auto"` and do not gate `method = "cg"` or `method = "minres"`. Naming a method is
+the caller asserting their own declaration; `auto` is the package choosing. Do not collapse
+the two.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is
