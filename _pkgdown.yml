@@ -1,0 +1,98 @@
+url: https://gillescolling.com/linop/
+
+template:
+  bootstrap: 5
+  bootswatch: sandstone
+  light-switch: yes
+
+navbar:
+  structure:
+    left: [intro, reference, articles]
+    right: [search, github, lightswitch]
+
+articles:
+- title: Getting started
+  navbar: Getting started
+  contents:
+  - linop
+- title: Core concepts
+  navbar: Core concepts
+  contents:
+  - expressions
+  - capabilities
+- title: Extending
+  navbar: Extending
+  contents:
+  - adapters
+
+reference:
+- title: Build an operator
+  desc: >
+    One generic dispatching on its first argument, plus named constructors for
+    the operators that appear constantly inside expressions.
+  contents:
+  - linop
+  - linop_eye
+  - linop_scaling
+  - is_linop
+  - dtype
+- title: Views
+  desc: The conjugate transpose, distinct from the transpose.
+  contents:
+  - adjoint
+- title: Inspect and cost an expression
+  desc: >
+    Read the structure of a lazy expression, estimate its cost, and trade cost
+    for memory where that pays.
+  contents:
+  - explain
+  - linop_cost
+  - collapse
+- title: Form a matrix, deliberately
+  desc: Explicit materialisation, guarded on size.
+  contents:
+  - as.matrix.linop
+  - as_sparse
+- title: Capabilities and evidence
+  desc: >
+    What an operator knows about itself, the argument that established it, and
+    what a solver will accept.
+  contents:
+  - cap
+  - capability
+  - evidence
+  - evidence_satisfies
+  - requirement
+- title: Check a claim
+  desc: The conformance suite an adapter author runs before shipping.
+  contents:
+  - verify
+- title: Extend the package
+  desc: >
+    Register a node type through the same door the built-in nodes use.
+  contents:
+  - linop_register_node
+  - linop_nodes
+- title: Preconditioners
+  desc: >
+    One direction internally, and a contract each method enforces at the point
+    the preconditioner is accepted.
+  contents:
+  - preconditioner
+  - as_preconditioner
+  - as_preconditioner_inverse
+- title: Provenance
+  desc: >
+    An opaque envelope back to the provider of an operator that came from a
+    continuous problem. The core never looks inside.
+  contents:
+  - provenance
+  - set_provenance
+  - strip_provenance
+  - provenance_lift
+  - provenance_refine
+  - provenance_original_residual
+  - provenance_summary
+- title: internal
+  contents:
+  - promote

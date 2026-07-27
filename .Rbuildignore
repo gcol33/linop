@@ -1,0 +1,12 @@
+^CLAUDE\.md$
+^implementation_plan\.md$
+^dev_notes$
+^linop\.Rcheck$
+^linop_.*\.tar\.gz$
+^\.Rproj\.user$
+^.*\.Rproj$
+^\.github$
+^_pkgdown\.yml$
+^docs$
+^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$

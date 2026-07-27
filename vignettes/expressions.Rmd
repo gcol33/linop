@@ -1,0 +1,294 @@
+---
+title: "The expression graph"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The expression graph}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+set.seed(2)
+```
+
+Every arithmetic operation on a `linop` returns a new operator holding its
+operands. The result is a tree, and everything the package does afterwards is a
+walk over that tree: applying, printing, costing, materialising, propagating what
+is known. This vignette is about the tree.
+
+## Leaves and composites
+
+```{r nodes}
+linop_nodes()
+```
+
+Five of those are leaves and hold data or a callback:
+
+| node | holds | applied as |
+|---|---|---|
+| `dense` | a base matrix | `M %*% X` |
+| `sparse` | a `Matrix` | `M %*% X`, real storage only |
+| `fun` | one or two closures | `f(X)` |
+| `identity` | a size | `X` |
+| `diag` | a vector | `d * X` |
+
+Six are composites and hold other operators:
+
+| node | built by | applied as |
+|---|---|---|
+| `transpose` | `t()` | the operand under mode `T` |
+| `adjoint` | `adjoint()` | the operand under mode `C` |
+| `conjugate` | `Conj()` | the operand under mode `R` |
+| `scale` | `a * A` | `a` times the operand |
+| `sum` | `A + B` | the operands added |
+| `product` | `A %*% B` | the operands applied right to left |
+
+The list is closed on purpose for this release. Low-rank, Kronecker, stacked,
+block-diagonal, permutation, power and inverse nodes are deferred until an
+external adapter has exercised the registry, and a test asserts they are absent
+so that the deferral is a mechanism rather than an intention.
+
+## What the tree looks like
+
+```{r tree}
+n <- 6
+S <- linop(function(X) rbind(X[-1, , drop = FALSE], 0),
+           adjoint = function(X) rbind(0, X[-n, , drop = FALSE]),
+           dim = c(n, n))
+
+E <- crossprod(S) + 0.1 * linop_eye(n)
+E
+```
+
+`explain()` gives the same tree as a table, with the estimated cost of each node:
+
+```{r explain}
+explain(E)
+```
+
+Depth zero is the root. The `product` under it came from `crossprod`, which is
+`t(S) %*% S`, so its first child is a `transpose` view over the same `fun` leaf
+that appears again as its second child. The leaf is shared, not copied: a `linop`
+is immutable, so an operator that appears twice in an expression is the same
+object twice.
+
+## Simplification happens at construction
+
+A handful of rewrites are applied as the expression is built. They are local,
+they never consult a cost model, and they exist so that the tree stays small and
+the obvious identities hold on the nose.
+
+Views involute and compose:
+
+```{r simplify-views}
+Rect <- linop(matrix(1:6, 2, 3))
+t(t(Rect))$node
+adjoint(adjoint(Rect))$node
+Conj(Conj(Rect))$node
+adjoint(t(Rect))$node
+Conj(adjoint(Rect))$node
+```
+
+Scales fold together, and a scale of a diagonal is a diagonal:
+
+```{r simplify-scale}
+D <- linop_scaling(c(1, 2, 3))
+(2 * (3 * D))$node
+(2 * (3 * D))$args$d
+```
+
+Sums flatten and drop zero terms, products flatten and drop identities:
+
+```{r simplify-sum}
+A <- linop(matrix(rnorm(9), 3, 3))
+length(((A + D) + A)$args$ops)
+(A %*% linop_eye(3))$node
+```
+
+Adjacent diagonals in a product fuse into one:
+
+```{r simplify-diag}
+D2 <- linop_scaling(c(4, 5, 6))
+(D %*% D2)$node
+(D %*% D2)$args$d
+```
+
+Diagonal and identity leaves absorb a view outright, since transposing them is
+either nothing or a conjugation of the stored vector:
+
+```{r simplify-absorb}
+Dz <- linop_scaling(c(1 + 1i, 2))
+t(Dz)$node
+adjoint(Dz)$node
+adjoint(Dz)$args$d
+```
+
+One rewrite that deliberately does **not** happen: for a real operator, `t()` and
+`adjoint()` have identical action, and neither is rewritten into the other.
+Keeping them distinct is what lets `print()` show the expression as written, and
+it keeps the distinction alive at the boundary where a real subgraph sits inside
+a complex expression. The collapse to a common mode happens at apply time
+instead.
+
+```{r no-rewrite}
+Areal <- linop(matrix(1:4, 2, 2))
+t(Areal)$node
+adjoint(Areal)$node
+all.equal(t(Areal) %*% c(1, 1), adjoint(Areal) %*% c(1, 1))
+```
+
+## Applying the tree
+
+An apply carries a mode: `N` for `A X`, `T` for `A^T X`, `C` for `A^H X`, `R` for
+`conj(A) X`. A view node does not do arithmetic. It composes its own mode with
+the incoming one and passes the block down, which is why `t(adjoint(A))` costs
+exactly what `A` costs.
+
+The composition table is the Klein four-group, so two views always collapse to
+one mode and nesting is free:
+
+|  | N | T | C | R |
+|---|---|---|---|---|
+| **N** | N | T | C | R |
+| **T** | T | N | R | C |
+| **C** | C | R | N | T |
+| **R** | R | C | T | N |
+
+A product applies right to left under `N` and `R`, and left to right under `T`
+and `C`, because `(A B)^T = B^T A^T`. A sum applies each term to the same block
+and adds. Neither ever forms an intermediate operator, only intermediate blocks
+the width of the one you passed in.
+
+```{r apply-cost}
+X <- matrix(rnorm(n * 3), n, 3)
+dim(E %*% X)
+```
+
+## The cost model, and what it is not
+
+`linop_cost()` reports estimated flops per column.
+
+```{r cost}
+linop_cost(S)
+linop_cost(E)
+```
+
+Leaves declare their own cost, composites add up their children, and the number
+is used to order candidate plans. It is not a prediction of wall time, and the
+package is explicit about why. Timing during design found that a wider block is
+*slower per column* for memory-bound operators: a pure diagonal scale at
+n = 1e5 ran at 0.65x the per-column throughput at block width 64 compared with
+width 1, because `d * X` recycled down a tall matrix leaves cache. Dense leaves
+gained 2.2x over the same change, since a wide block turns BLAS-2 into BLAS-3.
+A flop count cannot express either effect.
+
+Read the cost as an ordering, and measure when the answer matters.
+
+## Materialisation
+
+Three things could reasonably be called forming a matrix, and the package treats
+them differently. Building the operator you were handed is refused unless asked
+for in as many words. Tall solver workspace of shape n by k is ordinary and
+allowed. Small projected problems of shape k by k are ordinary and allowed.
+
+The explicit request is `as.matrix()`, guarded on the entry count:
+
+```{r as-matrix}
+round(as.matrix(E), 3)
+```
+
+```{r as-matrix-guard, error = TRUE}
+huge <- linop(function(X) X, adjoint = function(X) X, dim = c(50000, 50000))
+as.matrix(huge)
+```
+
+The guard names the size in gigabytes and the argument that raises it, so
+overriding it is a decision rather than an accident. `as_sparse()` does the same
+through **Matrix**, returning the stored matrix untouched when the operator is
+already a sparse leaf.
+
+## collapse()
+
+Between "never form anything" and "form the whole thing" sits the case where a
+subexpression is applied many times and is small enough to hold. `collapse()`
+walks the tree, replaces such subexpressions with dense leaves, and hands back a
+report.
+
+```{r collapse}
+K <- linop(matrix(rnorm(200 * 200), 200, 200))
+G <- crossprod(K) + 0.5 * linop_eye(200)
+
+linop_cost(G)
+Gc <- collapse(G, expected_applies = 500, max_entries = 1e6)
+linop_cost(Gc)
+Gc$node
+```
+
+```{r collapse-report}
+report <- attr(Gc, "report")
+class(report) <- "linop_collapse_report"
+report
+```
+
+Two arguments control it. `expected_applies` is how many times you expect to use
+the operator, and `max_entries` is the largest leaf `collapse()` may build. The
+report states the memory it added and the number of applications at which that
+memory pays for itself, so the decision is inspectable after the fact.
+
+Raise `max_entries` and nothing else changes about the object: the result is a
+`linop` with the same action, verified by the same suite.
+
+```{r collapse-same}
+x <- rnorm(200)
+all.equal(as.vector(G %*% x), as.vector(Gc %*% x))
+```
+
+## Immutability
+
+Every operation returns a new object and none mutates its operands. This is what
+makes an operator safe to share between expressions, safe to hold in a closure,
+and safe to apply twice and compare, which the conformance suite does under the
+name `purity`.
+
+```{r immutable}
+A1 <- linop(matrix(1:4, 2, 2))
+A2 <- 2 * A1
+A1$args$a          # A1 is untouched; the scale lives in A2
+A2$args$a
+```
+
+## Dtype promotion
+
+An operator is `"double"` or `"complex"`, and no path downcasts. A real operator
+applied to a complex block promotes its output, and a sum or product of a real
+and a complex operator is complex.
+
+```{r dtype}
+Ar <- linop(matrix(c(1, 0, 0, 1), 2, 2))
+Az <- linop(matrix(c(1i, 0, 0, 1i), 2, 2))
+dtype(Ar)
+dtype(Az)
+dtype(Ar + Az)
+dtype(Ar %*% Az)
+Ar %*% c(1 + 2i, 3)
+```
+
+The one place this is worth spelling out is the sparse leaf. **Matrix** 1.7.5
+declares the virtual complex classes but not the concrete ones, so a complex
+sparse operator cannot be built at all. A real sparse operator applied to a
+complex block still works: the block is split into real and imaginary parts,
+applied separately, and recombined.
+
+```{r sparse-complex, eval = requireNamespace("Matrix", quietly = TRUE)}
+Sp <- linop(Matrix::sparseMatrix(i = 1:3, j = 1:3, x = c(2, 3, 4)))
+Sp %*% c(1 + 1i, 1, 1)
+```
+
+## Where to next
+
+- `vignette("capabilities")` covers what travels up the tree alongside the
+  action: what is known about an operator and the argument behind it.
+- `vignette("adapters")` covers adding a node type of your own to the registry
+  listed at the top of this vignette.
