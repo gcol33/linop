@@ -63,6 +63,31 @@ test_that("verify() catches a block apply that disagrees with single columns", {
   expect_true("block consistency" %in% cert$checks$check[cert$checks$status == "fail"])
 })
 
+test_that("verify() catches a real operator that discards the imaginary part", {
+  ## Section 5.5: a real operator applied to a complex block promotes the result.
+  ## linop_apply() upcasts a real result to complex, so shape and dtype alone are
+  ## satisfied by an apply that dropped the imaginary part of its input. Only
+  ## A(x + iy) = A(x) + i A(y) distinguishes the two.
+  n <- 4
+  bad <- linop(function(X) apply(X, 2, function(v) as.numeric(2 * v)),
+               adjoint = function(X) apply(X, 2, function(v) as.numeric(2 * v)),
+               dim = c(n, n))
+  cert <- suppressWarnings(verify(bad))
+  expect_equal(cert$overall, "fail")
+  expect_true("complex linearity" %in% cert$checks$check[cert$checks$status == "fail"])
+  ## the checks it slipped past before this one existed
+  expect_equal(cert$checks$status[cert$checks$check == "shape and dtype"], "pass")
+  expect_equal(cert$checks$status[cert$checks$check == "linearity"], "pass")
+})
+
+test_that("complex linearity passes on every node type", {
+  for (f in all_node_fixtures()) {
+    cert <- verify(f$A)
+    expect_equal(cert$checks$status[cert$checks$check == "complex linearity"], "pass",
+                 info = sprintf("node fixture '%s'", f$label))
+  }
+})
+
 test_that("verify() catches an impure operator", {
   n <- 4
   counter <- 0

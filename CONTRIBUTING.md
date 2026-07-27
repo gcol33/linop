@@ -80,8 +80,10 @@ package, and the deferred node types are waiting on exactly that. See
 `vignette("adapters")`.
 
 **A conformance check the suite is missing.** `verify()` tests the contract every
-solver relies on. If you can write an operator that is wrong in a way the ten
-current checks do not notice, that is a bug report worth more than a fix.
+solver relies on. If you can write an operator that is wrong in a way the eleven
+current checks do not notice, that is a bug report worth more than a fix. The
+`complex linearity` check came from exactly that: a real operator that discarded
+the imaginary part of its input passed the other ten.
 
 ## Documentation
 

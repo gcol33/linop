@@ -97,8 +97,8 @@ linop_cost(C)
 verify(C)
 ```
 
-Ten checks, each reporting its own status, its source and the kind of guarantee
-it gives.
+Eleven checks, each reporting its own status, its source and the kind of
+guarantee it gives.
 
 **adjoint consistency** tests `<y, A x> = <A^H y, x>` over random probe pairs.
 This is the check that earns its keep. A missing or misplaced conjugation is the
@@ -129,6 +129,12 @@ vector passes every scalar test and fails here.
 
 **shape and dtype** applies real and complex blocks and checks the result shape,
 and that a complex input produces a complex output.
+
+**complex linearity** tests `A(x + iy) = A(x) + i A(y)`. This is the check that
+`conv()` was written to satisfy, in the line that keeps a complex block complex.
+An apply that discards the imaginary part of its input passes every other check
+in the suite, because the apply path promotes the real result it returned to
+complex before handing it back, which is enough to satisfy `shape and dtype`.
 
 **declared capabilities** probes anything the operator claims about itself.
 Agreement is recorded as a probe beside the declaration; a contradiction fails
