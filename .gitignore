@@ -5,3 +5,9 @@
 *.Rcheck/
 *.tar.gz
 docs/
+
+# The global ignore excludes dev_notes/ and *_plan.md. Both are governing
+# documents here and CLAUDE.md cites them, so re-include them; .Rbuildignore
+# keeps them out of the built package.
+!dev_notes/
+!implementation_plan.md
