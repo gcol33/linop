@@ -82,15 +82,7 @@ cg_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, maxit = NULL,
     storage.mode(X) <- "complex"
   }
 
-  apply_precond <- function(R) {
-    if (is.null(preconditioner)) return(R)
-    Z <- as_block(preconditioner$apply_inverse(R))
-    if (!identical(dim(Z), dim(R))) {
-      stopf("the preconditioner returned a %d x %d block for a %d x %d residual",
-            nrow(Z), ncol(Z), nrow(R), ncol(R))
-    }
-    Z
-  }
+  apply_precond <- precond_applier(preconditioner)
 
   bn <- col_norms(B)
   ## A zero right-hand side has the exact solution 0, where a relative test is

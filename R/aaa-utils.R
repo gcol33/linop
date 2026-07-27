@@ -38,6 +38,17 @@ col_dot_im <- function(X, Y) {
   else numeric(ncol(as_block(Y)))
 }
 
+## The whole inner product, <x, y> = conj(x)^T y, of which col_dot() is the real
+## part and col_dot_im() the imaginary one. A hermitian operator makes the
+## quantities its recurrences form real, which is why CG and MINRES need only the
+## real part and are written in real arithmetic to get it. Arnoldi has no such
+## guarantee: the Gram-Schmidt coefficient <v_i, A v_j> of a non-hermitian
+## complex operator is complex, and discarding its imaginary part would
+## orthogonalise against the wrong direction.
+col_cdot <- function(X, Y) {
+  if (is.complex(X) || is.complex(Y)) colSums(Conj(X) * Y) else colSums(X * Y)
+}
+
 ## Y[, j] * v[j], without transposing twice.
 scale_cols <- function(X, v) X * rep(v, each = nrow(X))
 

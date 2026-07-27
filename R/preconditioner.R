@@ -147,6 +147,22 @@ check_preconditioner <- function(P, method) {
   invisible(TRUE)
 }
 
+## Every solver applies M^-1 the same way and has to defend against the same
+## failure, an apply_inverse() that returns the wrong shape, so the guard lives
+## once here rather than once per method. A NULL preconditioner is the identity,
+## and returning the block untouched costs nothing.
+precond_applier <- function(P) {
+  if (is.null(P)) return(function(R) R)
+  function(R) {
+    Z <- as_block(P$apply_inverse(R))
+    if (!identical(dim(Z), dim(R))) {
+      stopf("the preconditioner returned a %d x %d block for a %d x %d residual",
+            nrow(Z), ncol(Z), nrow(R), ncol(R))
+    }
+    Z
+  }
+}
+
 #' @export
 print.preconditioner <- function(x, ...) {
   cat("<preconditioner>\n")
