@@ -4,24 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 (Krylov
-solvers, `solve()`, `eigs()`, `svds()`, certificates for results) is next.
+Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and CG,
+the first of the seven Krylov methods, are in. MINRES, GMRES/FGMRES, BiCGSTAB, LSQR and
+LSMR are not, and `solve()`, `eigs()` and `svds()` stay unexported until there is more than
+one method for `method = "auto"` to choose between.
 
 Two documents govern:
 
 - `implementation_plan.md` — the design, in numbered sections. Cite section numbers.
   Several sections record a reversal of an earlier decision and why; before proposing an
   alternative, check whether the plan already rejected it and on what grounds.
-- `dev_notes/` — what the spikes actually measured, including **seven corrections to the
-  plan**. Where the two disagree, `dev_notes/` wins: it has executed evidence and the plan
-  does not. `dev_notes/GATE1.md` lists the corrections in one table.
+- `dev_notes/` — what was actually measured, including **seven corrections to the plan**
+  from the spikes. Where the two disagree, `dev_notes/` wins: it has executed evidence and
+  the plan does not. `dev_notes/GATE1.md` lists the spike corrections in one table;
+  `dev_notes/cg-and-the-arithmetic-floor.md` and
+  `dev_notes/fgmres-and-preconditioner-sides.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~27 s, 10,214 assertions
+devtools::test(".")                      # ~30 s, 10,403 assertions
 ```
 
 ```powershell
@@ -69,7 +74,12 @@ unconditionally. `test-propagation.R` asserts both halves.
 
 `R/` in dependency order: `aaa-utils` → `evidence`, `caps`, `dtype` → `node-registry` →
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
-`materialize`, `print`, `verify` → `provenance`, `linsolve`, `preconditioner` → `zzz`.
+`materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
+`preconditioner` → `solvers-cg` → `zzz`.
+
+`certificate.R` owns the certificate object: `build_certificate()`, its print method and
+`solve_certificate()` all live there, and `verify.R` holds only the operator checks. A
+second solver adds a `solvers-*.R` file and nothing else.
 
 **Apply has four modes**, BLAS-style: `N` (`A X`), `T` (`A^T X`), `C` (`A^H X`), `R`
 (`conj(A) X`), composed through `MODE_COMPOSE` (Klein four-group). This is what keeps
@@ -107,15 +117,29 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 10,214 assertions across 76
+**Tests are recovery and contract tests, not shape tests.** 10,403 assertions across 120
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
-certificate coverage over >= 20 seeds (plan section 10).
+certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
+section 10 fixtures with their closed forms: `laplacian_1d()` with
+`laplacian_1d_eigenvalues()`, `kms_matrix()` with `kms_inverse()`, and `spd_prescribed()` /
+`hpd_prescribed()` for a dialled-in spectrum.
 
-**Certificates need an arithmetic floor.** S0.6 found that the a posteriori residual bound
-keeps decaying past machine epsilon while the true error plateaus at ~1e-15, so a converged
-result certifies as `fail`. Any residual or backward-error line needs `+ c * ||A|| * eps`.
-Plan section 6's table has no roundoff term anywhere.
+**Certificates carry an arithmetic floor, and it is load-bearing.** S0.6 found that the a
+posteriori residual bound keeps decaying past machine epsilon while the true error plateaus
+at ~1e-15, so a converged result certifies as `fail` without one. `solve_certificate()`
+adds `c * eps * (||A|| ||x|| + ||b||)`, which is Higham's bound on the computed residual and
+also the Rigal-Gaches denominator, so one term serves both the residual and backward-error
+lines. A test asserts that `floor_const = 0` turns a converged solve's certificate from
+`qualified` to `fail` on byte-identical iterates. A line that meets its tolerance only
+through the floor is `qualified` with an `estimate` guarantee, never a clean `identity`.
+
+**`||A||` is a lower bound on purpose.** Every route in `norm2()` returns one, which shrinks
+the Rigal-Gaches denominator, so a reported backward error can only overstate. Do not
+"improve" it into an upper bound without re-reading which direction each certificate line
+needs. Structural routes are exact; a structural rule over an estimated child records
+`construction <- [computation/estimate]`, so `evidence_satisfies()` still sees the estimate
+at the top. That is the laundering case of section 5.3 outside capabilities.
 
 ## Landscape — read before writing any comparative copy
 
@@ -145,10 +169,28 @@ side by side and let readers compare.
 
 ## Phase 2 entry points
 
-`solve()`, `eigs()`, `svds()` are unexported and unwritten. `linsolve` and `preconditioner`
-exist internally with their contracts and enforcement already tested; `solver()` stays
-private until inexact shift-invert or a PRIMME warm-start workflow creates a real need
-(plan section 1.1), and that defer is only safe while `preconditioner()` is public.
+`solve()`, `eigs()`, `svds()` are unexported. `linsolve` and `preconditioner` exist
+internally with their contracts and enforcement already tested; `solver()` stays private
+until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
+section 1.1), and that defer is only safe while `preconditioner()` is public.
+
+`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining six. Three things it
+established that the others inherit rather than re-decide:
+
+- **Several right-hand sides run in lockstep**, not one after another. Each column's
+  recurrence is independent, so the iterates are exactly those of per-column CG (asserted
+  bitwise) at one block apply per step instead of `k`. This is not block CG.
+- **The outer loop measures, the inner loop trusts.** The recurrence residual drifts worst
+  where the answer is most converged, so the decision to stop is taken on a recomputed
+  `b - A x` and the certificate reports that one.
+- **Non-convergence comes back, it is not thrown.** A stalled solve returns a `fail`
+  certificate naming the exhausted budget. A *contradicted declaration* does throw, naming
+  the capability: `p^H A p <= 0` far from convergence means the operator is not what it
+  said it was.
+
+The evidence minimum (`CG_PD_REQUIREMENT`) filters `method = "auto"` and does not gate
+`method = "cg"`. Naming a method is the caller asserting their own declaration; `auto` is
+the package choosing. Do not collapse the two.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is

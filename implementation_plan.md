@@ -834,6 +834,7 @@ bound with a stated failure probability, empirical stability between `n = 128` a
 
 ```
 check                   status        source        guarantee              conf
+arithmetic floor        pass          computation   identity               1
 residual                pass          computation   identity               1
 orthogonality           pass          computation   identity               1
 backward error          qualified     computation   probabilistic_bound    0.99
@@ -848,7 +849,38 @@ overall                 qualified     no deterministic bound on: basis tail
 Status: `pass`, `fail`, `qualified`, `not_checked`. Evidence uses the same three-field
 structure as capabilities (section 5.3), for the same reason: the classes are not
 comparable on one axis, so a certificate reader needs the source and the guarantee
-separately rather than a single strength label.
+separately rather than a single strength label. A solve certificate is `qualified` and not
+`pass` whenever `forward error` is unchecked, which matrix-free it always is: the forward
+bound needs `||A^-1||` and no residual implies one. The example above already has that
+shape, through `target identity`; it is the expected outcome rather than a degraded one.
+
+**Every residual and backward-error line carries an arithmetic floor.** S0.6 measured what
+happens without one: the a posteriori bound keeps decaying past machine epsilon while the
+true error plateaus near 1e-15, so the results that certify as `fail` are exactly the most
+converged ones. An earlier version of this table had no roundoff term anywhere.
+
+For a linear solve the floor has a sharper origin than the general `c * ||A|| * eps`.
+Higham bounds the computed residual: `fl(b - A x)` differs from `b - A x` by at most a
+small multiple of `eps * (||A|| ||x|| + ||b||)`, so no `x`, however exactly it solves the
+system, can be shown to have a residual below that level. The Rigal-Gaches identity gives
+the normwise relative backward error as `||b - A x|| / (||A|| ||x|| + ||b||)` with the same
+denominator, so once the backward error is expressed relatively the floor is a plain
+`c * eps` and one quantity serves both lines.
+
+`c` counts terms in an inner product a matrix-free operator never exposes, so it is an
+argument rather than a constant, defaulting to 4 from S0.6's measurement. A line that meets
+its tolerance only through the floor is `qualified` with an `estimate` guarantee, never a
+clean `identity`: the floor is a model of roundoff and this table already has the field to
+say so. The `arithmetic floor` row reports `||A||`, the route that produced it and the
+resulting floor, and inherits that route's evidence, so an estimated norm is visible in the
+summary line rather than buried.
+
+`||A||` comes from `norm2()`, which is exact where the node structure gives it exactly,
+exact for a stored matrix small enough to factor, and a power iteration otherwise. Every
+route returns a lower bound, which is the safe direction: it shrinks the Rigal-Gaches
+denominator, so the reported backward error can only overstate. Section 5.3 lists
+`norm_bound(type)` with evidence as an optional operator capability; that protocol can
+adopt this estimate later, but the floor needs `||A||` in Phase 2 and cannot wait for it.
 
 Overall status is derived by a documented rule, not case by case: `fail` if any check
 fails; else `qualified` if any check is `qualified` or if any check the request implies is
@@ -916,6 +948,17 @@ solve(A, b, method = "auto", preconditioner = NULL, tol = , maxit = , x0 = , con
 `method = "auto"` picks from declared capabilities and shape, records the choice and the
 reason, and never picks a method whose precondition is `NA` or whose evidence is below the
 method's declared minimum. It errors and names the capability it would have needed.
+
+**The evidence minimum filters `auto` and does not gate the named method.** These are two
+different questions and only the second is a request the caller made. `solve(A, b,
+method = "cg")` requires `positive_definite` to be `TRUE` behind any evidence, because
+naming the method is the caller asserting their own declaration and refusing it would make
+`linop(M, properties = c(positive_definite = TRUE))` unsolvable by the method it was
+declared for. `method = "auto"` is the package choosing on the caller's behalf and applies
+the minimum. CG's admits `construction`, `adapter_contract`, `theorem` and `computation` at
+an `identity` guarantee: an exact check on data the operator already holds is an identity,
+not a probe, and `linop_diag()` proves definiteness from the signs of `d`. Probes are
+excluded by the guarantee field, which they never satisfy, rather than by the source list.
 
 MINRES and LSMR are the two with real numerical risk, not because of size but because
 correct recurrence, breakdown detection, condition estimation and stopping tests take

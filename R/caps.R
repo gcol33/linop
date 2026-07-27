@@ -58,6 +58,23 @@ normalise_properties <- function(properties) {
   out
 }
 
+## A solver stating what it needs of the operator. Unknown is not false: a
+## capability nobody established is reported as such, with the declaration that
+## would settle it, rather than as a refusal to believe the operator.
+require_capability <- function(A, name, method) {
+  v <- capv(A, name)
+  if (isTRUE(v)) return(invisible(TRUE))
+  stopf(paste0("method '%s' requires the operator to be %s; it declares %s = %s.\n",
+               "  %s"),
+        method, name, name, format(v),
+        if (is.na(v)) {
+          sprintf(paste0("Unknown is not false. Declare it with ",
+                         "linop(..., properties = c(%s = TRUE)) if you can justify it."), name)
+        } else {
+          "The operator declares the opposite."
+        })
+}
+
 ## Implications that hold by definition, applied once at construction so a user
 ## who declares positive_definite does not also have to declare
 ## positive_semidefinite.
