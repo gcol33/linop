@@ -5,15 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and two
-of the seven Krylov methods, CG and MINRES, are in. GMRES/FGMRES, BiCGSTAB, LSQR and LSMR
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and four
+of the seven Krylov methods, CG, MINRES, GMRES and FGMRES, are in. BiCGSTAB, LSQR and LSMR
 are not.
 
-`solve()`, `eigs()` and `svds()` stay unexported. The reason has changed: with CG and MINRES
-there are now two methods for `method = "auto"` to choose between, and the capability that
-separates them is `positive_definite`, so the dispatch is writable. What is missing is the
-dispatch itself and a deliberate edit to `BUDGET` in `test-api-budget.R`. Promoting them is
-now a decision rather than a blocked one.
+`solve()`, `eigs()` and `svds()` stay unexported, and the dispatch they need is now fully
+determined: `positive_definite` selects CG, `hermitian` selects MINRES, and GMRES requires
+nothing, so it is the fallback that makes `method = "auto"` total rather than partial. What
+is missing is the dispatch itself and a deliberate edit to `BUDGET` in `test-api-budget.R`.
+Promoting them is a decision, not a blocked one.
 
 Two documents govern:
 
@@ -24,15 +24,16 @@ Two documents govern:
   from the spikes. Where the two disagree, `dev_notes/` wins: it has executed evidence and
   the plan does not. `dev_notes/GATE1.md` lists the spike corrections in one table;
   `dev_notes/cg-and-the-arithmetic-floor.md`,
-  `dev_notes/fgmres-and-preconditioner-sides.md` and
-  `dev_notes/minres-and-the-preconditioned-norm.md` carry the Phase 2 ones.
+  `dev_notes/fgmres-and-preconditioner-sides.md`,
+  `dev_notes/minres-and-the-preconditioned-norm.md` and
+  `dev_notes/gmres-and-the-second-pass.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~30 s, 10,524 assertions
+devtools::test(".")                      # ~60 s, 10,687 assertions
 ```
 
 ```powershell
@@ -81,7 +82,7 @@ unconditionally. `test-propagation.R` asserts both halves.
 `R/` in dependency order: `aaa-utils` → `evidence`, `caps`, `dtype` → `node-registry` →
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
 `materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
-`preconditioner` → `solvers-cg` → `zzz`.
+`preconditioner` → `solvers-cg`, `solvers-minres`, `solvers-gmres` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
 `solve_certificate()` all live there, and `verify.R` holds only the operator checks. A
@@ -123,21 +124,38 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 10,524 assertions across 150
+**Tests are recovery and contract tests, not shape tests.** 10,687 assertions across 190
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
 section 10 fixtures with their closed forms: `laplacian_1d()` with
 `laplacian_1d_eigenvalues()`, `kms_matrix()` with `kms_inverse()`, `spd_prescribed()` /
-`hpd_prescribed()` for a dialled-in spectrum, and `shifted_laplacian_1d()` with
+`hpd_prescribed()` for a dialled-in spectrum, `shifted_laplacian_1d()` with
 `shifted_laplacian_solve()` for an indefinite system whose eigenvalues *and* eigenvectors
-are both closed form.
+are both closed form, and `convdiff_1d()` with `convdiff_1d_solve()` for a **nonsymmetric**
+one. The last carries a documented accuracy budget: its similarity is `diag(rho^j)`, so the
+closed form is only truth while `rho^n` stays below about 1e4, and the table in the helper
+says where. It stops being ground truth long before the operator stops being well
+conditioned.
 
-**A test that compares two configurations must give them the same budget.** The first draft
-of the MINRES suite claimed a preconditioner rescued a solve, on a scalar preconditioner that
-leaves the Krylov space untouched and produces bitwise identical iterates; it passed only
-because the two sides ran to different `maxit`. Before asserting that a knob helped, check
-that it changed the iterates at all.
+**A test that compares two configurations must give them the same budget, and must check
+the knob did what is claimed.** Three drafts have now failed this. The MINRES suite claimed
+a preconditioner rescued a solve, on a scalar preconditioner producing bitwise identical
+iterates, passing only because the two sides ran to different `maxit`. The GMRES suite
+claimed reorthogonalisation improved accuracy; over 12 seeds it is worse on 4 of them, and
+the draft passed on the one seed where the ratio is 13.5. The same suite compared a
+preconditioner on an operator scaled so badly that the arithmetic floor swallowed the
+tolerance and *both* sides certified as met. Before asserting a knob helped: check it
+changed the iterates, check the claim survives several seeds, and require `pass` rather than
+accepting `qualified`.
+
+**A closed-form fixture is code, and wrong closed forms pass plausible tests.**
+`convdiff_1d_eigenvalues()` was first written with `+2 sqrt(bc) cos(k pi/(n+1))` where the
+sign belongs to `b rho`. The eigenvalue *set* is invariant under that error, because
+`cos(k pi/(n+1))` over `k = 1..n` is symmetric about zero, so a check against a sorted
+spectrum passed while every eigenvalue was paired with the wrong eigenvector and the solve
+was wrong by O(1). Check a decomposition by `A S - S Lambda`, never by comparing sorted
+spectra.
 
 **Certificates carry an arithmetic floor, and it is load-bearing.** S0.6 found that the a
 posteriori residual bound keeps decaying past machine epsilon while the true error plateaus
@@ -188,9 +206,11 @@ internally with their contracts and enforcement already tested; `solver()` stays
 until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
 section 1.1), and that defer is only safe while `preconditioner()` is public.
 
-`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining five, and
-`minres_solve()` (`R/solvers-minres.R`) is the evidence that it generalises. Three things CG
-established that the others inherit rather than re-decide:
+`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining three, and
+`minres_solve()` and `gmres_solve()` are the evidence that it generalises: to a
+minimal-residual method, to a long recurrence with restarts, and to an operator with no
+declared capability at all. Three things CG established that the others inherit rather than
+re-decide:
 
 - **Several right-hand sides run in lockstep**, not one after another. Each column's
   recurrence is independent, so the iterates are exactly those of per-column CG (asserted
@@ -202,6 +222,10 @@ established that the others inherit rather than re-decide:
   certificate naming the exhausted budget. A *contradicted declaration* does throw, naming
   the capability: `p^H A p <= 0` far from convergence means the operator is not what it
   said it was.
+
+`certificate.R` owns the certificate and `preconditioner.R` owns `precond_applier()`, which
+is the single guard every solver applies `M^-1` through. A fourth copy of that closure in a
+new `solvers-*.R` is the thing to not write.
 
 MINRES carried all three and forced two refinements, both in
 `dev_notes/minres-and-the-preconditioned-norm.md`:
@@ -218,10 +242,39 @@ MINRES carried all three and forced two refinements, both in
   apply and stays at 1e-10. Measure the noise floor on correct operators before choosing any
   such threshold.
 
+GMRES and FGMRES (`R/solvers-gmres.R`) are one implementation, and the four findings are in
+`dev_notes/gmres-and-the-second-pass.md`:
+
+- **GMRES requires nothing of the operator, so it has no declaration to contradict.** It is
+  the only method that works on an operator supplying no adjoint: every apply is mode `N`.
+  That also makes it the fallback that turns `method = "auto"` from partial into total.
+- **`side` selects an algorithm here, not a label.** CG's row is unrestricted because the
+  three sides *coincide*; GMRES's is unrestricted because all three are implemented and they
+  produce different iterates. Right minimises the reported residual; left and split do not
+  and inherit MINRES's currency conversion. Split is reachable from `M^-1` alone by MINRES's
+  change of variable, carrying `u_j = M v_j` alongside `v_j`. A test asserts the three
+  disagree, so "accepts all three sides" cannot decay into one path relabelled.
+- **Complex arithmetic stops being optional.** `col_dot()` is `Re(<x,y>)`, which is the whole
+  product only for the quantities a hermitian recurrence forms. Arnoldi's `<v_i, A v_j>` is
+  genuinely complex, so this file uses `col_cdot()` and a rotation with real `cs` and complex
+  `sn`. The three inner products stay separate: routing the hermitian methods through a
+  complex product to discard half of it would cost them their real arithmetic.
+- **Unconditional reorthogonalisation is worse than none**, by three orders of magnitude on
+  the worst fixture, because a second pass over an already-cancelled direction adds noise to
+  the Hessenberg column. The conditional (Daniel-Gragg-Kaufman-Stewart) criterion is the one
+  to use, and it is per column, so masking it exactly keeps the lockstep identity — the
+  reason the first draft rejected it was wrong.
+- **A Krylov space keeps admitting directions after they stop meaning anything.** Past that
+  point the recurrence residual falls monotonically while the true residual diverges, and
+  the projected problem cannot tell. `GMRES_CONDITION_LIMIT` stops there.
+  `max|R_ii|/min|R_ii|` is a lower bound on `cond(R)`, so it stops later and never earlier,
+  and it is bitwise inert on every well-posed fixture tried. LSQR and LSMR will want the
+  same `1/eps`.
+
 The evidence minima (`CG_PD_REQUIREMENT`, `MINRES_HERMITIAN_REQUIREMENT`) filter
 `method = "auto"` and do not gate `method = "cg"` or `method = "minres"`. Naming a method is
 the caller asserting their own declaration; `auto` is the package choosing. Do not collapse
-the two.
+the two. GMRES has no such minimum because it has no requirement.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is

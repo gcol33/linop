@@ -64,6 +64,62 @@ shifted_laplacian_solve <- function(n, sigma, b) {
   V %*% (crossprod(V, B) / (laplacian_1d_eigenvalues(n) - sigma))
 }
 
+## 1-D convection-diffusion, tridiag(-1 - mu, 2, -1 + mu). Nonsymmetric for any
+## mu != 0, so CG and MINRES both refuse it, and still closed form: with
+## rho = sqrt(c/b), tridiag(c, a, b) has eigenvectors rho^j sin(j k pi / (n+1))
+## and eigenvalues a + 2 b rho cos(k pi / (n+1)). For |mu| < 1 the spectrum is
+## real and positive, so the system is solvable and well posed while the operator
+## is not hermitian at all.
+##
+## b rho = -sqrt(1 - mu^2) here, negative, and writing that factor as the usual
+## sqrt(bc) would drop its sign. The eigenvalue *set* survives that error, because
+## cos(k pi / (n+1)) over k = 1..n is symmetric about zero, so a check against a
+## sorted spectrum passes while every eigenvalue is paired with the wrong
+## eigenvector and the solve below is wrong by O(1).
+convdiff_1d_apply <- function(X, mu) {
+  n <- nrow(X)
+  Y <- 2 * X
+  Y[seq_len(n - 1L), ] <- Y[seq_len(n - 1L), , drop = FALSE] +
+    (-1 + mu) * X[2:n, , drop = FALSE]
+  Y[2:n, ] <- Y[2:n, , drop = FALSE] +
+    (-1 - mu) * X[seq_len(n - 1L), , drop = FALSE]
+  Y
+}
+
+convdiff_1d <- function(n, mu) {
+  linop(function(X) convdiff_1d_apply(X, mu), dim = c(n, n))
+}
+
+convdiff_1d_eigenvalues <- function(n, mu) {
+  2 - 2 * sqrt(1 - mu^2) * cos(seq_len(n) * pi / (n + 1))
+}
+
+## The similarity that diagonalises it is a sine matrix scaled row-wise by
+## rho^j, and the sine matrix is its own inverse up to 2/(n+1), so the solve needs
+## no factorisation either.
+##
+## That scaling is also the limit of the fixture. The similarity has condition
+## number rho^n, so this closed form carries a relative error of about rho^n * eps
+## however well it is evaluated, and it stops being ground truth long before the
+## operator stops being well conditioned: kappa_2(A) is only 250 at n = 80,
+## mu = 0.4, where the expression below is already wrong in the second digit.
+## Measured relative error against a dense solve:
+##
+##     mu       n = 20    n = 40    n = 60    n = 80
+##     0.1      2.3e-15   2.1e-14   7.5e-14   2.0e-13
+##     0.2      2.6e-15   2.9e-13   5.4e-12   3.4e-10
+##     0.4      1.7e-13   1.9e-09   1.9e-06   2.4e-02
+##
+## Stay where rho^n = ((1+mu)/(1-mu))^(n/2) is below about 1e4.
+convdiff_1d_solve <- function(n, mu, b) {
+  B <- if (is.null(dim(b))) matrix(b, length(b), 1L) else b
+  rho <- sqrt((1 + mu) / (1 - mu))
+  S <- sin(outer(seq_len(n), seq_len(n)) * pi / (n + 1))
+  scal <- rho^seq_len(n)
+  Y <- (2 / (n + 1)) * (S %*% (B / scal))
+  scal * (S %*% (Y / convdiff_1d_eigenvalues(n, mu)))
+}
+
 ## KMS, rho^|i-j|. Positive definite for |rho| < 1, with a tridiagonal inverse in
 ## closed form.
 kms_matrix <- function(n, rho) rho^abs(outer(seq_len(n), seq_len(n), "-"))
