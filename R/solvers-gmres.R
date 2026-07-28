@@ -224,14 +224,14 @@ gmres_round <- function(A, X, R, rn, target, apply_precond, side, flexible,
   if (side == "split") {
     Zt <- apply_precond(Ra)
     q <- col_dot(Ra, Zt)
-    if (any(q <= 0)) split_precond_not_hpd(pd_declared)
+    if (any(q <= 0)) split_precond_not_hpd("gmres", "<w, M^-1 w>", pd_declared)
     beta <- sqrt(q)
     U <- list(scale_cols(Ra, 1 / beta))
     V <- list(scale_cols(Zt, 1 / beta))
   } else if (side == "left") {
     W0 <- apply_precond(Ra)
     beta <- col_norms(W0)
-    if (any(beta <= 0)) left_precond_singular()
+    if (any(beta <= 0)) left_precond_singular("gmres")
     V <- list(scale_cols(W0, 1 / beta))
   } else {
     beta <- rn[active]
@@ -528,20 +528,3 @@ back_substitute <- function(Rm, g) {
 ## is a declaration the iteration has contradicted, the other is a requirement of
 ## the method the caller never claimed to meet. Reporting them the same way would
 ## accuse a caller who never made the claim.
-split_precond_not_hpd <- function(declared) {
-  stopf(paste0("gmres() reached <w, M^-1 w> <= 0 on a split-preconditioned solve.\n",
-               "  %s\n",
-               "  Split preconditioning runs on L^-1 A L^-H for M = L L^H, which exists only for a\n",
-               "  hermitian positive definite M; without one the quantity the method minimises is\n",
-               "  not a norm. Use side = 'left' or side = 'right', which ask nothing of M."),
-        if (declared)
-          "The preconditioner declares positive_definite = TRUE and the iteration contradicts it."
-        else
-          "The preconditioner declares no definiteness, and the split form needs it.")
-}
-
-left_precond_singular <- function() {
-  stopf(paste0("gmres() found M^-1 r = 0 for a nonzero residual r.\n",
-               "  A left preconditioner has to be invertible: it builds the Krylov space of M^-1 A,\n",
-               "  and a singular M collapses the first basis vector to nothing."))
-}

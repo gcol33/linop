@@ -64,3 +64,32 @@ solver_setup <- function(A, b, x0, maxit, method, square = TRUE) {
 
   list(m = m, n = n, k = k, B = B, X = X, maxit = maxit, was_vector = was_vector)
 }
+
+## What the two preconditioner sides that transform the residual can find at run
+## time and no declaration can rule out in advance.
+##
+## The split form runs on L^-1 A L^-H for M = L L^H, which exists only for a
+## hermitian positive definite M, and the quantity that gives it away is the one
+## the method was about to take a square root of. PRECOND_REQUIREMENTS asks these
+## methods only for `fixed`, so the check happens where it can be made honestly,
+## and the message separates a declaration the iteration has contradicted from a
+## property nobody claimed.
+split_precond_not_hpd <- function(method, quantity, declared) {
+  stopf(paste0("%s() reached %s <= 0 on a split-preconditioned solve.\n",
+               "  %s\n",
+               "  Split preconditioning runs on L^-1 A L^-H for M = L L^H, which exists only for a\n",
+               "  hermitian positive definite M; without one the quantity the method minimises is\n",
+               "  not a norm. Use side = 'left' or side = 'right', which ask nothing of M."),
+        method, quantity,
+        if (declared)
+          "The preconditioner declares positive_definite = TRUE and the iteration contradicts it."
+        else
+          "The preconditioner declares no definiteness, and the split form needs it.")
+}
+
+left_precond_singular <- function(method) {
+  stopf(paste0("%s() found M^-1 r = 0 for a nonzero residual r.\n",
+               "  A left preconditioner has to be invertible: it works on M^-1 A, and a singular M\n",
+               "  collapses the residual it starts from to nothing."),
+        method)
+}

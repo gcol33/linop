@@ -5,15 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and six
-of the seven Krylov methods, CG, MINRES, GMRES, FGMRES, LSQR and LSMR, are in. BiCGSTAB is
-not.
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and **all
+seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and BiCGSTAB — are in.
 
-`solve()`, `eigs()` and `svds()` stay unexported, and the dispatch they need is now fully
+`solve()`, `eigs()` and `svds()` stay unexported, and the dispatch they need is fully
 determined: `positive_definite` selects CG, `hermitian` selects MINRES, and GMRES requires
 nothing, so it is the fallback that makes `method = "auto"` total rather than partial. What
 is missing is the dispatch itself and a deliberate edit to `BUDGET` in `test-api-budget.R`.
 Promoting them is a decision, not a blocked one.
+
+`eigs()` and `svds()` are a larger gap than the roster suggests: plan section 7.2 is
+unstarted, there is no eigensolver code in `R/` at all, and Phase 2 ships as v0.1 with them
+in it. The two remaining Gate 2 items are the benchmark harness with committed results and a
+solver vignette.
 
 Two documents govern:
 
@@ -27,15 +31,16 @@ Two documents govern:
   `dev_notes/fgmres-and-preconditioner-sides.md`,
   `dev_notes/minres-and-the-preconditioned-norm.md`,
   `dev_notes/gmres-and-the-second-pass.md`,
-  `dev_notes/lsqr-and-the-least-squares-certificate.md` and
-  `dev_notes/lsmr-and-the-monotone-backward-error.md` carry the Phase 2 ones.
+  `dev_notes/lsqr-and-the-least-squares-certificate.md`,
+  `dev_notes/lsmr-and-the-monotone-backward-error.md` and
+  `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~2 min, 10,953 assertions
+devtools::test(".")                      # ~2 min, 11,245 assertions
 ```
 
 ```powershell
@@ -85,14 +90,16 @@ unconditionally. `test-propagation.R` asserts both halves.
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
 `materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
 `preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
-`solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `zzz`.
+`solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
 `solve_certificate()` all live there, and `verify.R` holds only the operator checks.
-`solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT` and
+`solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT`,
 `solver_setup()`, which validates the operator, the block, the budget and the starting
-iterate, and takes `square` as a parameter because a least-squares method needs the same
-checks on a different shape. A new solver adds a `solvers-*.R` file and nothing else.
+iterate and takes `square` as a parameter because a least-squares method needs the same
+checks on a different shape, and the two run-time preconditioner refusals
+(`split_precond_not_hpd()`, `left_precond_singular()`) that any method implementing all
+three sides needs. A new solver adds a `solvers-*.R` file and nothing else.
 
 `solvers-bidiag.R` is the one exception, and it is the FGMRES pattern at a coarser grain:
 LSQR and LSMR build the same Golub-Kahan bidiagonalisation and differ only in what they
@@ -136,7 +143,7 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 10,953 assertions across 251
+**Tests are recovery and contract tests, not shape tests.** 11,245 assertions across 279
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
@@ -230,7 +237,7 @@ internally with their contracts and enforcement already tested; `solver()` stays
 until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
 section 1.1), and that defer is only safe while `preconditioner()` is public.
 
-`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining one, and `minres_solve()`,
+`cg_solve()` (`R/solvers-cg.R`) is the template the other six follow, and `minres_solve()`,
 `gmres_solve()`, `lsqr_solve()` and `lsmr_solve()` are the evidence that it generalises: to a
 minimal-residual method, to a long recurrence with restarts, to an operator with no declared
 capability at all, to a problem that is a minimisation rather than an equation, and to a
@@ -345,6 +352,29 @@ it, and the three findings are in `dev_notes/lsmr-and-the-monotone-backward-erro
   and diverges on the same schedule (1e-15 at four steps, 1e-8 at eight, O(1) at sixteen,
   re-converging). Four steps is what a reference test can assert.
 
+BiCGSTAB (`R/solvers-bicgstab.R`) is the last of the seven, and the three findings are in
+`dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md`:
+
+- **It agrees with the published recurrence bitwise, at every step count tried**, on real,
+  nonsymmetric and complex fixtures, where LSQR and LSMR manage four steps. That fact is
+  about the other six methods: what drifts in a Krylov method is orthogonality, and
+  orthogonality is a property of a stored basis. BiCGSTAB orthogonalises nothing and asks no
+  vector to stay orthogonal to any other, so there is no invariant to lose. It is not a
+  claim of accuracy; it is the same fact as the next one, read the other way.
+- **What it gives up is the minimisation.** GMRES's true residual cannot rise; BiCGSTAB's
+  rose on 4 to 10 of 20 steps on the nonsymmetric fixtures, by up to a factor of 41 in one
+  step. The strongest case in the package for the outer loop measuring.
+- **Breakdown comes back as a certificate.** The cure for a breakdown is re-seeding the
+  shadow vector, which is what the outer loop's next round already does, so it costs no new
+  machinery. A cure that recovers nothing is reported: on a real skew-symmetric operator,
+  where `<A z, z> = 0` makes the alpha breakdown exact at every first step, the result is a
+  `fail` certificate naming the breakdown, a finite iterate and no error thrown, while GMRES
+  solves the same system to 3.8e-16. The two methods that require nothing of the operator
+  are not interchangeable.
+
+BiCGSTAB is the second method that runs without an adjoint, so `method = "auto"` has two
+candidates for an operator supplying only a forward action, not one.
+
 `solve_certificate()`'s `forward error: not_checked` got its first live demonstration here.
 At `kappa` 1e10 with an incompatible right-hand side, four runs certifying backward errors
 between 6e-9 and 2.4e-8 show forward errors from 7.5e-5 to 9.2e-1, because `kappa^2 eps` is
@@ -354,7 +384,8 @@ method being more accurate than another.
 The evidence minima (`CG_PD_REQUIREMENT`, `MINRES_HERMITIAN_REQUIREMENT`) filter
 `method = "auto"` and do not gate `method = "cg"` or `method = "minres"`. Naming a method is
 the caller asserting their own declaration; `auto` is the package choosing. Do not collapse
-the two. GMRES, LSQR and LSMR have no such minimum because they have no requirement.
+the two. GMRES, BiCGSTAB, LSQR and LSMR have no such minimum because they have no
+requirement.
 
 `method = "auto"` is now total over rectangular shapes as well as square ones: LSQR and LSMR
 are the two methods that accept one.
