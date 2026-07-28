@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and four
-of the seven Krylov methods, CG, MINRES, GMRES and FGMRES, are in. BiCGSTAB, LSQR and LSMR
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and five
+of the seven Krylov methods, CG, MINRES, GMRES, FGMRES and LSQR, are in. BiCGSTAB and LSMR
 are not.
 
 `solve()`, `eigs()` and `svds()` stay unexported, and the dispatch they need is now fully
@@ -25,15 +25,16 @@ Two documents govern:
   the plan does not. `dev_notes/GATE1.md` lists the spike corrections in one table;
   `dev_notes/cg-and-the-arithmetic-floor.md`,
   `dev_notes/fgmres-and-preconditioner-sides.md`,
-  `dev_notes/minres-and-the-preconditioned-norm.md` and
-  `dev_notes/gmres-and-the-second-pass.md` carry the Phase 2 ones.
+  `dev_notes/minres-and-the-preconditioned-norm.md`,
+  `dev_notes/gmres-and-the-second-pass.md` and
+  `dev_notes/lsqr-and-the-least-squares-certificate.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~60 s, 10,687 assertions
+devtools::test(".")                      # ~90 s, 10,812 assertions
 ```
 
 ```powershell
@@ -82,11 +83,15 @@ unconditionally. `test-propagation.R` asserts both halves.
 `R/` in dependency order: `aaa-utils` → `evidence`, `caps`, `dtype` → `node-registry` →
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
 `materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
-`preconditioner` → `solvers-cg`, `solvers-minres`, `solvers-gmres` → `zzz`.
+`preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
+`solvers-lsqr` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
-`solve_certificate()` all live there, and `verify.R` holds only the operator checks. A
-second solver adds a `solvers-*.R` file and nothing else.
+`solve_certificate()` all live there, and `verify.R` holds only the operator checks.
+`solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT` and
+`solver_setup()`, which validates the operator, the block, the budget and the starting
+iterate, and takes `square` as a parameter because a least-squares method needs the same
+checks on a different shape. A new solver adds a `solvers-*.R` file and nothing else.
 
 **Apply has four modes**, BLAS-style: `N` (`A X`), `T` (`A^T X`), `C` (`A^H X`), `R`
 (`conj(A) X`), composed through `MODE_COMPOSE` (Klein four-group). This is what keeps
@@ -124,7 +129,7 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 10,687 assertions across 190
+**Tests are recovery and contract tests, not shape tests.** 10,812 assertions across 222
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
@@ -138,6 +143,11 @@ closed form is only truth while `rho^n` stays below about 1e4, and the table in 
 says where. It stops being ground truth long before the operator stops being well
 conditioned.
 
+The rectangular pair is `lsq_prescribed()`, `A = U diag(sigma) V^H` with the solution, the
+residual and `kappa` all closed form and both compatible and incompatible right-hand sides
+reachable, and `diff_1d()`, matrix free and rank deficient, whose minimum-norm solution is
+closed form. Both are checked against their own definitions before any solver runs on them.
+
 **A test that compares two configurations must give them the same budget, and must check
 the knob did what is claimed.** Three drafts have now failed this. The MINRES suite claimed
 a preconditioner rescued a solve, on a scalar preconditioner producing bitwise identical
@@ -148,6 +158,11 @@ preconditioner on an operator scaled so badly that the arithmetic floor swallowe
 tolerance and *both* sides certified as met. Before asserting a knob helped: check it
 changed the iterates, check the claim survives several seeds, and require `pass` rather than
 accepting `qualified`.
+
+A related trap the LSQR floor test walks into: **a test whose threshold has to sit inside a
+one-`c eps` window cannot use a constant.** A fixed `tol` lands inside or outside that window
+depending on the fixture, so the test measures what the solve achieved and sets `tol` from
+it. A constant would have passed or failed for reasons unrelated to the floor.
 
 **A closed-form fixture is code, and wrong closed forms pass plausible tests.**
 `convdiff_1d_eigenvalues()` was first written with `+2 sqrt(bc) cos(k pi/(n+1))` where the
@@ -165,6 +180,8 @@ also the Rigal-Gaches denominator, so one term serves both the residual and back
 lines. A test asserts that `floor_const = 0` turns a converged solve's certificate from
 `qualified` to `fail` on byte-identical iterates. A line that meets its tolerance only
 through the floor is `qualified` with an `estimate` guarantee, never a clean `identity`.
+The least-squares line reduces to the same `c * eps`, plus `floor_abs / ||r||`, which matters
+only where `||r||` has fallen to the residual floor and the compatible reading is in use.
 
 **`||A||` is a lower bound on purpose.** Every route in `norm2()` returns one, which shrinks
 the Rigal-Gaches denominator, so a reported backward error can only overstate. Do not
@@ -206,11 +223,11 @@ internally with their contracts and enforcement already tested; `solver()` stays
 until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
 section 1.1), and that defer is only safe while `preconditioner()` is public.
 
-`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining three, and
-`minres_solve()` and `gmres_solve()` are the evidence that it generalises: to a
-minimal-residual method, to a long recurrence with restarts, and to an operator with no
-declared capability at all. Three things CG established that the others inherit rather than
-re-decide:
+`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining two, and `minres_solve()`,
+`gmres_solve()` and `lsqr_solve()` are the evidence that it generalises: to a
+minimal-residual method, to a long recurrence with restarts, to an operator with no declared
+capability at all, and to a problem that is a minimisation rather than an equation. Three
+things CG established that the others inherit rather than re-decide:
 
 - **Several right-hand sides run in lockstep**, not one after another. Each column's
   recurrence is independent, so the iterates are exactly those of per-column CG (asserted
@@ -223,9 +240,9 @@ re-decide:
   the capability: `p^H A p <= 0` far from convergence means the operator is not what it
   said it was.
 
-`certificate.R` owns the certificate and `preconditioner.R` owns `precond_applier()`, which
-is the single guard every solver applies `M^-1` through. A fourth copy of that closure in a
-new `solvers-*.R` is the thing to not write.
+`certificate.R` owns the certificate and `preconditioner.R` owns `precond_applier()` and
+`precond_adjoint_applier()`, the single guards every solver applies `M^-1` and `M^-H`
+through. A fifth copy of that closure in a new `solvers-*.R` is the thing to not write.
 
 MINRES carried all three and forced two refinements, both in
 `dev_notes/minres-and-the-preconditioned-norm.md`:
@@ -266,15 +283,46 @@ GMRES and FGMRES (`R/solvers-gmres.R`) are one implementation, and the four find
   reason the first draft rejected it was wrong.
 - **A Krylov space keeps admitting directions after they stop meaning anything.** Past that
   point the recurrence residual falls monotonically while the true residual diverges, and
-  the projected problem cannot tell. `GMRES_CONDITION_LIMIT` stops there.
+  the projected problem cannot tell. `KRYLOV_CONDITION_LIMIT` stops there.
   `max|R_ii|/min|R_ii|` is a lower bound on `cond(R)`, so it stops later and never earlier,
-  and it is bitwise inert on every well-posed fixture tried. LSQR and LSMR will want the
-  same `1/eps`.
+  and it is bitwise inert on every well-posed fixture tried. LSQR reaches the same `1/eps`
+  by a second route: the singular values of its bidiagonal lie inside those of `A`.
+
+LSQR (`R/solvers-lsqr.R`) is the first method whose problem is a minimisation rather than an
+equation, and the four findings are in `dev_notes/lsqr-and-the-least-squares-certificate.md`:
+
+- **A least-squares solve has no exact answer, and the certificate had a square-system
+  shape.** `b - A x` does not go to zero, so testing it against `tol` reports a converged
+  solution as a failure — the S0.6 shape again, structural rather than arithmetic. What goes
+  to zero is `A^H r`, and Stewart's perturbation `dA = -(r r^H A)/||r||^2` makes that a
+  backward error rather than a heuristic: it is *exhibited*, so `||A^H r||/(||A|| ||r||)` is
+  an achievable relative perturbation, and it is also Paige and Saunders' second stopping
+  rule. **Both readings are backward errors, so one row carries both** and the certificate
+  keeps the same shape whatever method produced it. Which reading applies is decided by
+  measurement inside `solve_certificate(least_squares = TRUE)`, never from a solver's flag.
+  The floor works out to `c eps` on that line too, and a test asserts `floor_const = 0` turns
+  a converged least-squares solve from `qualified` to `fail` on byte-identical iterates.
+- **Nothing the LSQR recurrence believes about itself is reportable.** Two arithmetically
+  equivalent implementations diverge by three orders of magnitude every two steps, reaching
+  O(1) relative around step 12 of a 15-column *well-conditioned* problem, then re-converge.
+  The bidiagonal vectors lose orthogonality and rounding noise fills the lost direction. A
+  reference test can assert bitwise agreement for CG; here it can assert four steps.
+- **Finite termination does not survive floating point.** At step `n` the answer is wrong in
+  the second digit; it needs about `1.7 n`. Never assert termination at `n`.
+- **The preconditioner rows narrow to `right`, and the contract had a gap.** `M^-1` acts on
+  the domain; left and split act on the codomain, which for a rectangular operator is a
+  different space, and where the spaces coincide they change the minimiser rather than the
+  path. The adjoint of `A M^-1` is `M^-H A^H`, which no earlier method needed, so
+  `preconditioner()` takes `apply_inverse_adjoint` and `hermitian = TRUE` supplies it for
+  nothing. Neither declared is refused by name, never inferred.
 
 The evidence minima (`CG_PD_REQUIREMENT`, `MINRES_HERMITIAN_REQUIREMENT`) filter
 `method = "auto"` and do not gate `method = "cg"` or `method = "minres"`. Naming a method is
 the caller asserting their own declaration; `auto` is the package choosing. Do not collapse
-the two. GMRES has no such minimum because it has no requirement.
+the two. GMRES and LSQR have no such minimum because they have no requirement.
+
+`method = "auto"` is now total over rectangular shapes as well as square ones: LSQR is the
+only method that accepts one.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is

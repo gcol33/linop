@@ -77,23 +77,9 @@
 ## dev_notes/gmres-and-the-second-pass.md were taken.
 GMRES_REORTH_ETA <- 1 / sqrt(2)
 
-## The ratio of extreme diagonals of the triangular factor at which the projected
-## least-squares problem is treated as numerically singular and the Krylov space
-## stops being extended.
-##
 ## Plan 7.1 names condition estimation among the things a Krylov method has to get
-## right, and this is where GMRES needs it. A Krylov space can go on admitting new
-## directions long after those directions have stopped meaning anything: on a
-## fixture with kappa(A) = 3.6e25 the recurrence residual falls monotonically past
-## step 18 while the true residual climbs from 0.60 to 1.7e3 and ||x|| reaches
-## 1.7e10, because the minimiser over a numerically meaningless space is
-## numerically meaningless and the projected problem cannot tell.
-##
-## max|R_ii| / min|R_ii| is a lower bound on cond(R), so this stops later than a
-## sharp estimate would and never earlier, which is the right direction for a test
-## that ends an iteration. 1/eps is the usual limit, and the same one LSQR and
-## LSMR will want.
-GMRES_CONDITION_LIMIT <- 1 / .Machine$double.eps
+## right, and this is where GMRES needs it: the ratio of extreme diagonals of the
+## triangular factor, against KRYLOV_CONDITION_LIMIT in solvers-common.R.
 
 #' Solve A x = b by restarted GMRES
 #'
@@ -125,45 +111,20 @@ GMRES_CONDITION_LIMIT <- 1 / .Machine$double.eps
 #' @noRd
 gmres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, restart = 30L,
                         maxit = NULL, x0 = NULL, history = FALSE, reorth = TRUE,
-                        conlim = GMRES_CONDITION_LIMIT, flexible = FALSE,
+                        conlim = KRYLOV_CONDITION_LIMIT, flexible = FALSE,
                         floor_const = SOLVE_FLOOR_CONST, norm_control = list()) {
   method <- if (flexible) "fgmres" else "gmres"
-  if (!is_linop(A)) stopf("%s() expects a linop", method)
-  n <- A$dim[2L]
-  if (A$dim[1L] != n) {
-    stopf(paste0("%s() needs a square operator; this one is %d x %d.\n",
-                 "  A rectangular system is a least-squares problem and takes a different method."),
-          method, A$dim[1L], A$dim[2L])
-  }
+  s <- solver_setup(A, b, x0, maxit, method)
+  n <- s$n; k <- s$k; B <- s$B; X <- s$X; maxit <- s$maxit
+  was_vector <- s$was_vector
+
   check_preconditioner(preconditioner, method)
 
-  was_vector <- is.null(dim(b))
-  B <- as_block(b)
-  if (nrow(B) != n) {
-    stopf("non-conformable: operator is %d x %d, right-hand side has %d rows",
-          n, n, nrow(B))
-  }
-  k <- ncol(B)
-  maxit <- as.integer(maxit %||% min(10 * as.numeric(n), .Machine$integer.max))
-  if (is.na(maxit) || maxit < 1L) stopf("maxit must be a positive integer")
   restart <- as.integer(restart)
   if (is.na(restart) || restart < 1L) stopf("restart must be a positive integer")
   ## A Krylov space cannot exceed the dimension of the space it lives in, and an
   ## m above n only allocates arrays no step will ever reach.
   restart <- min(restart, n)
-
-  X <- if (is.null(x0)) {
-    matrix(0, n, k)
-  } else {
-    x <- as_block(x0)
-    if (!identical(dim(x), c(n, k))) {
-      stopf("x0 is %d x %d; the right-hand side is %d x %d", nrow(x), ncol(x), n, k)
-    }
-    x
-  }
-  if (A$dtype == "complex" || is.complex(B) || is.complex(X)) {
-    storage.mode(X) <- "complex"
-  }
 
   apply_precond <- precond_applier(preconditioner)
   ## Without a preconditioner every side is the identity, and "right" is the one
@@ -233,7 +194,7 @@ gmres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, restart = 30L,
 #' @noRd
 fgmres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, restart = 30L,
                          maxit = NULL, x0 = NULL, history = FALSE, reorth = TRUE,
-                         conlim = GMRES_CONDITION_LIMIT,
+                         conlim = KRYLOV_CONDITION_LIMIT,
                          floor_const = SOLVE_FLOOR_CONST, norm_control = list()) {
   gmres_solve(A, b, preconditioner = preconditioner, tol = tol, restart = restart,
               maxit = maxit, x0 = x0, history = history, reorth = reorth,

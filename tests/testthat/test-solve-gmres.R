@@ -651,7 +651,7 @@ test_that("the condition limit stops a Krylov space that has stopped meaning any
       f <- gmres(A, b, tol = 1e-300, restart = 30L, maxit = 30L, conlim = cl)
       sqrt(sum((b - M %*% f$x)^2)) / bn
     }
-    limited <- rel(linop:::GMRES_CONDITION_LIMIT)
+    limited <- rel(linop:::KRYLOV_CONDITION_LIMIT)
     unlimited <- rel(Inf)
     expect_lt(limited * 20, unlimited, label = sprintf("seed %d", s))
     ## and neither certifies as converged, because neither has converged
