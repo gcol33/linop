@@ -8,16 +8,12 @@ Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is u
 the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and **all
 seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and BiCGSTAB — are in.
 
-`solve()`, `eigs()` and `svds()` stay unexported, and the dispatch they need is fully
-determined: `positive_definite` selects CG, `hermitian` selects MINRES, and GMRES requires
-nothing, so it is the fallback that makes `method = "auto"` total rather than partial. What
-is missing is the dispatch itself and a deliberate edit to `BUDGET` in `test-api-budget.R`.
-Promoting them is a decision, not a blocked one.
-
-`eigs()` and `svds()` are a larger gap than the roster suggests: plan section 7.2 is
-unstarted, there is no eigensolver code in `R/` at all, and Phase 2 ships as v0.1 with them
-in it. The two remaining Gate 2 items are the benchmark harness with committed results and a
-solver vignette.
+`solve()` is in, as an S3 method on the base generic, which cost no export at all.
+`eigs()` and `svds()` are not, and they are a larger gap than the roster suggests: plan
+section 7.2 is unstarted, there is no eigensolver code in `R/`, and Phase 2 ships as v0.1
+with them in it. They are also new names rather than base generics, so `BUDGET` will have to
+grow by two when they land. The other open Gate 2 items are the benchmark harness with
+committed results and a solver vignette.
 
 Two documents govern:
 
@@ -32,15 +28,16 @@ Two documents govern:
   `dev_notes/minres-and-the-preconditioned-norm.md`,
   `dev_notes/gmres-and-the-second-pass.md`,
   `dev_notes/lsqr-and-the-least-squares-certificate.md`,
-  `dev_notes/lsmr-and-the-monotone-backward-error.md` and
-  `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md` carry the Phase 2 ones.
+  `dev_notes/lsmr-and-the-monotone-backward-error.md`,
+  `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md` and
+  `dev_notes/solve-dispatch-and-the-empty-branch.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~2 min, 11,245 assertions
+devtools::test(".")                      # ~2 min, 11,354 assertions
 ```
 
 ```powershell
@@ -90,7 +87,7 @@ unconditionally. `test-propagation.R` asserts both halves.
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
 `materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
 `preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
-`solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `zzz`.
+`solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `solve` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
 `solve_certificate()` all live there, and `verify.R` holds only the operator checks.
@@ -143,7 +140,7 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 11,245 assertions across 279
+**Tests are recovery and contract tests, not shape tests.** 11,354 assertions across 301
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
@@ -381,14 +378,44 @@ between 6e-9 and 2.4e-8 show forward errors from 7.5e-5 to 9.2e-1, because `kapp
 2.2e4 there and no backward error constrains the forward one. Do not read that spread as one
 method being more accurate than another.
 
+`solve()` (`R/solve.R`) is the one verb over all seven, and the findings are in
+`dev_notes/solve-dispatch-and-the-empty-branch.md`:
+
+- **It cost no export.** `solve` is a base generic, so the method reaches it the way `t()`
+  and `%*%` do and `BUDGET` did not move. Section 1.1's "keeps the verb budget" is literal.
+  `eigs()` and `svds()` will not be free: new names, so the budget grows by two.
+- **The `cg` branch of `auto` is correct and has no supply.** Measured over every constructor
+  in the package, nothing reaches it: `linop_scaling()` and `linop_eye()` establish
+  definiteness at an acceptable source and are diagonal, so the direct route takes them
+  first, and every other route to `positive_definite` is a bare user declaration, which
+  `auto` will not act on. A dense symmetric leaf gets MINRES because symmetry is *computed*
+  and definiteness is not. Closing this is a design decision, not a fix: either a Cholesky
+  attempt on a dense hermitian leaf (O(n^3) against the existing O(n^2) entry checks, so it
+  needs a gate) or the product node stamping `positive_definite` on `adjoint(X) %*% X` when
+  `X` is established full column rank. A test asserts the branch is empty and says to replace
+  it, not adjust it, when that changes.
+- **The certificate attribute survives arithmetic**, which plan section 1.1 has backwards.
+  `x + 0`, `2 * x`, `x + x`, `t(x)` all keep it; indexing, `as.numeric()`, `c()` and
+  reductions drop it. So the real cost is not losing the certificate, it is that a
+  certificate can outlive the value it describes. The decision stands, since a classed result
+  would break the promise that a solve returns what a matrix solve returns, but the cost is
+  the sharper one.
+
 The evidence minima (`CG_PD_REQUIREMENT`, `MINRES_HERMITIAN_REQUIREMENT`) filter
 `method = "auto"` and do not gate `method = "cg"` or `method = "minres"`. Naming a method is
 the caller asserting their own declaration; `auto` is the package choosing. Do not collapse
 the two. GMRES, BiCGSTAB, LSQR and LSMR have no such minimum because they have no
 requirement.
 
-`method = "auto"` is now total over rectangular shapes as well as square ones: LSQR and LSMR
-are the two methods that accept one.
+**`method = "auto"` is total over square shapes and refuses rectangular ones.** That is
+section 1.1 and it is deliberate: least squares is a different mathematical request rather
+than the same one on a different shape, so `solve()` errors and names `lsqr` and `lsmr`,
+which are reachable through the same verb. The roster being total over rectangular shapes and
+`auto` being total over them are different statements, and only the first is true.
+
+GMRES rather than BiCGSTAB is `auto`'s fallback. Both require nothing and run without an
+adjoint; GMRES's residual cannot rise and it has no breakdown, which are the properties to
+prefer when the package is choosing rather than the caller.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is

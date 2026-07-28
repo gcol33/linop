@@ -2,10 +2,16 @@
 ## fails this test until the budget below is edited, which is the only mechanism
 ## that reliably stops a public surface from growing by accretion.
 ##
-## Section 1.1 budgets the v0.1 surface. Phase 1 delivers the core, so solve(),
-## eigs() and svds() are absent here and arrive with Phase 2. Their names are
-## listed as `planned` so the intent stays visible and the test still fails if
-## one appears early without a deliberate edit.
+## Section 1.1 budgets the v0.1 surface. Phase 1 delivers the core, so eigs() and
+## svds() are absent here and arrive with Phase 2. Their names are listed as
+## `planned` so the intent stays visible and the test still fails if one appears
+## early without a deliberate edit.
+##
+## solve() has arrived and is not among them, because it cost no export. It is a
+## base generic, so an S3 method reaches it the way t(), crossprod() and %*%
+## already do, and section 1.1's "keeps the verb budget" turns out to be literal:
+## the budget below did not move to accommodate it. The last test in this file is
+## where that is asserted, beside the other generics that work the same way.
 
 BUDGET <- list(
   common = c("linop", "adjoint", "verify"),
@@ -24,7 +30,7 @@ BUDGET <- list(
                 "provenance_original_residual", "provenance_summary")
 )
 
-PLANNED_PHASE2 <- c("solve", "eigs", "svds", "solver", "linsolve",
+PLANNED_PHASE2 <- c("eigs", "svds", "solver", "linsolve",
                     "spectral_approximation", "plan_eigs", "linop_register_backend")
 
 test_that("the exported surface matches the budget exactly", {
@@ -68,4 +74,13 @@ test_that("R's own generics work without being exported", {
   ## nrow and ncol are not generic in base R and need no methods (S0.1 section 5)
   expect_equal(nrow(A), 4L)
   expect_equal(ncol(A), 3L)
+
+  ## and solve(), which is the whole of Phase 2's verb surface
+  S <- linop(diag(c(2, 3, 4)), properties = c(hermitian = TRUE,
+                                              positive_definite = TRUE))
+  x <- solve(S, c(2, 3, 4))
+  expect_equal(as.numeric(x), c(1, 1, 1))
+  ## registered as a method, not exported as a name
+  expect_false("solve" %in% getNamespaceExports("linop"))
+  expect_false(is.null(utils::getS3method("solve", "linop", optional = TRUE)))
 })
