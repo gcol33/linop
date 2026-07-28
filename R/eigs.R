@@ -204,14 +204,19 @@ shift_invert_operator <- function(A, sigma, inner) {
 ##
 ## Restarting thickly rather than from one vector is not a refinement, it is what
 ## makes the method converge at all. A restart from the sum of the unconverged
-## Ritz vectors throws away the subspace that produced them, and on the 60-point
-## Laplacian at ncv = 24 it stalls three rounds in at a backward error of 2.8e-2
-## and never recovers, because each round has to rediscover from one direction
-## what the last one spent 24 applies learning. Wu and Simon's thick restart keeps
-## the wanted Ritz vectors themselves as the start of the next basis. They are
-## already A-invariant to the accuracy they have reached, so the projected problem
-## keeps them exactly and the arrow coupling below is all that ties them to the
-## new directions.
+## Ritz vectors throws away the subspace that produced them: on laplacian_1d(60)
+## at ncv = 24, asking for four pairs, that spends 240 of a 300-iteration budget
+## over 9 rounds, converges none of them and stalls at a backward error of 5.7e-4,
+## where this one reaches 5.1e-13 in 96. Each round was rediscovering from one
+## direction what the last one spent 24 applies learning.
+##
+## Wu and Simon's thick restart keeps the wanted Ritz vectors themselves as the
+## start of the next basis. They span an approximately invariant subspace already,
+## so the projected problem keeps them diagonal at the values they were extracted
+## with, and the arrow coupling below is all that ties them to the new directions.
+## Where a request fits in one round there is no restart to differ over and the
+## two agree to the last digit, which is the control that confines the difference
+## to this block; dev_notes/spikes/restart-comparison.R runs both.
 lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
