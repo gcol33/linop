@@ -142,6 +142,59 @@ spd_prescribed <- function(n, lambda, seed = 1L) {
   (M + t(M)) / 2
 }
 
+## Prescribed singular values, A = U diag(sigma) V^H with U m x n orthonormal
+## columns and V n x n unitary. Everything a least-squares certificate reports is
+## closed form here: the solution is V diag(1/sigma) U^H b, the residual is
+## (I - U U^H) b, and kappa_2(A) is exactly max(sigma)/min(sigma). A right-hand
+## side inside the range of A and one outside it are both reachable by choosing
+## b, which is what makes this the fixture for the two readings of section 6's
+## backward error rather than for one of them.
+lsq_prescribed <- function(m, n, sigma, seed = 1L, dtype = "double") {
+  stopifnot(m >= n, length(sigma) == n)
+  set.seed(seed)
+  rnd <- function(r, c) {
+    z <- matrix(stats::rnorm(r * c), r, c)
+    if (dtype == "complex") z <- z + 1i * matrix(stats::rnorm(r * c), r, c)
+    z
+  }
+  U <- qr.Q(qr(rnd(m, n)))
+  V <- qr.Q(qr(rnd(n, n)))
+  list(A = U %*% (sigma * t(Conj(V))), U = U, V = V, sigma = sigma)
+}
+
+lsq_prescribed_solve <- function(f, b) {
+  B <- if (is.null(dim(b))) matrix(b, length(b), 1L) else b
+  f$V %*% (crossprod(Conj(f$U), B) / f$sigma)
+}
+
+## The part of b that no x can reach, so the least-squares residual is known
+## before the solve runs and its size says whether the system is compatible.
+lsq_prescribed_residual <- function(f, b) {
+  B <- if (is.null(dim(b))) matrix(b, length(b), 1L) else b
+  B - f$U %*% crossprod(Conj(f$U), B)
+}
+
+## First differences, (n-1) x n and matrix free. D^H D is the path graph
+## Laplacian, so the singular values are 2 sin(k pi / (2n)) for k = 0..n-1: rank
+## n-1, with the constant vector spanning the nullspace. D is onto, so every
+## right-hand side is compatible and what this fixture tests is which of the
+## infinitely many solutions comes back.
+diff_1d <- function(n) {
+  linop(function(X) X[-1L, , drop = FALSE] - X[-n, , drop = FALSE],
+        adjoint = function(X) rbind(0, X) - rbind(X, 0),
+        dim = c(n - 1L, n))
+}
+
+diff_1d_singular_values <- function(n) 2 * sin(seq.int(0, n - 1L) * pi / (2 * n))
+
+## Any antiderivative of b solves D x = b; the nullspace is the constants, so the
+## one of least norm is the antiderivative shifted to have zero mean.
+diff_1d_min_norm_solve <- function(n, b) {
+  B <- if (is.null(dim(b))) matrix(b, length(b), 1L) else b
+  X <- rbind(0, apply(B, 2L, cumsum))
+  sweep(X, 2L, colMeans(X))
+}
+
 ## Complex hermitian positive definite, by the same route.
 hpd_prescribed <- function(n, lambda, seed = 1L) {
   set.seed(seed)

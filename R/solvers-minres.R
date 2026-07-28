@@ -90,38 +90,12 @@ minres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, maxit = NULL,
                          x0 = NULL, history = FALSE,
                          floor_const = SOLVE_FLOOR_CONST, norm_control = list(),
                          symmetry_tol = MINRES_SYMMETRY_TOL) {
-  if (!is_linop(A)) stopf("minres() expects a linop")
-  n <- A$dim[2L]
-  if (A$dim[1L] != n) {
-    stopf(paste0("minres() needs a square operator; this one is %d x %d.\n",
-                 "  A rectangular system is a least-squares problem and takes a different method."),
-          A$dim[1L], A$dim[2L])
-  }
+  s <- solver_setup(A, b, x0, maxit, "minres")
+  n <- s$n; k <- s$k; B <- s$B; X <- s$X; maxit <- s$maxit
+  was_vector <- s$was_vector
+
   require_capability(A, "hermitian", "minres")
   check_preconditioner(preconditioner, "minres")
-
-  was_vector <- is.null(dim(b))
-  B <- as_block(b)
-  if (nrow(B) != n) {
-    stopf("non-conformable: operator is %d x %d, right-hand side has %d rows",
-          n, n, nrow(B))
-  }
-  k <- ncol(B)
-  maxit <- as.integer(maxit %||% min(10 * as.numeric(n), .Machine$integer.max))
-  if (is.na(maxit) || maxit < 1L) stopf("maxit must be a positive integer")
-
-  X <- if (is.null(x0)) {
-    matrix(0, n, k)
-  } else {
-    x <- as_block(x0)
-    if (!identical(dim(x), c(n, k))) {
-      stopf("x0 is %d x %d; the right-hand side is %d x %d", nrow(x), ncol(x), n, k)
-    }
-    x
-  }
-  if (A$dtype == "complex" || is.complex(B) || is.complex(X)) {
-    storage.mode(X) <- "complex"
-  }
 
   apply_precond <- precond_applier(preconditioner)
 

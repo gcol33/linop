@@ -94,9 +94,16 @@ test_that("each solver refuses a preconditioner lacking a property it requires",
     expect_error(linop:::check_preconditioner(unknown_pd, m), "positive_definite = TRUE")
     expect_silent(linop:::check_preconditioner(good, m))
   }
-  for (m in c("gmres", "bicgstab", "lsqr", "lsmr")) {
+  for (m in c("gmres", "bicgstab")) {
     expect_error(linop:::check_preconditioner(flexible, m), "fixed = TRUE")
     expect_silent(linop:::check_preconditioner(indefinite, m))
+  }
+  ## the least-squares rows ask the same of the flags and take them on the right
+  indefinite_right <- preconditioner(function(R) R, fixed = TRUE, hermitian = TRUE,
+                                     positive_definite = FALSE, side = "right")
+  for (m in c("lsqr", "lsmr")) {
+    expect_error(linop:::check_preconditioner(flexible, m), "fixed = TRUE")
+    expect_silent(linop:::check_preconditioner(indefinite_right, m))
   }
   ## FGMRES is the one that accepts a flexible preconditioner, and it takes it on
   ## the right
@@ -118,10 +125,52 @@ test_that("the rows that admit more than one formulation accept every side", {
   for (s in c("left", "right", "split")) {
     p <- preconditioner(function(R) R, fixed = TRUE, hermitian = TRUE,
                         positive_definite = TRUE, side = s)
-    for (m in c("cg", "minres", "gmres", "bicgstab", "lsqr", "lsmr")) {
+    for (m in c("cg", "minres", "gmres", "bicgstab")) {
       expect_silent(linop:::check_preconditioner(p, m))
     }
   }
+})
+
+test_that("the least-squares rows take a right preconditioner and nothing else", {
+  ## Section 4.3 leaves a row unrestricted until a check narrows it. These two
+  ## are narrowed: the method runs on A M^-1, so M acts on the domain of A, while
+  ## left and split act on the residual, which for a rectangular A is not even
+  ## the same space. Where the two spaces coincide it is still a different
+  ## minimisation problem with a different minimiser.
+  for (s in c("left", "split")) {
+    p <- preconditioner(function(R) R, fixed = TRUE, hermitian = TRUE,
+                        positive_definite = TRUE, side = s)
+    for (m in c("lsqr", "lsmr")) {
+      expect_error(linop:::check_preconditioner(p, m), "acts on the domain of A")
+    }
+  }
+  right <- preconditioner(function(R) R, fixed = TRUE, side = "right")
+  expect_silent(linop:::check_preconditioner(right, "lsqr"))
+  expect_silent(linop:::check_preconditioner(right, "lsmr"))
+})
+
+test_that("M^-H is available where it is declared and refused where it is not", {
+  ## LSQR applies the adjoint of A M^-1, which no other method in v0.1 does, so
+  ## this is the one contract question the least-squares rows add.
+  bare <- preconditioner(function(R) R, side = "right")
+  expect_error(linop:::precond_adjoint_applier(bare, "lsqr"), "M\\^-H")
+
+  herm <- preconditioner(function(R) R, side = "right", hermitian = TRUE)
+  expect_type(linop:::precond_adjoint_applier(herm, "lsqr"), "closure")
+
+  M <- diag(c(2, 4, 8))
+  r <- matrix(c(1, 1, 1), 3, 1)
+  ## both construction routes carry it through: an operator with an adjoint, and
+  ## a linsolve whose contract already reports one
+  Pi <- as_preconditioner_inverse(linop(solve(M)), side = "right")
+  expect_equal(linop:::precond_adjoint_applier(Pi, "lsqr")(r), solve(t(M)) %*% r)
+
+  Pm <- as_preconditioner(linop(M), solver = function(op, R) solve(as.matrix(op), R),
+                          side = "right")
+  expect_equal(linop:::precond_adjoint_applier(Pm, "lsqr")(r), solve(t(M)) %*% r)
+
+  ## and a NULL preconditioner is the identity in both directions
+  expect_identical(linop:::precond_adjoint_applier(NULL, "lsqr")(r), r)
 })
 
 test_that("an unknown property is refused, not assumed", {

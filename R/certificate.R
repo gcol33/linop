@@ -94,11 +94,18 @@ SOLVE_FLOOR_CONST <- 4
 #' @param floor_const `c` in the arithmetic floor.
 #' @param norm_lower_bound A lower bound on `||A||` observed for free during the
 #'   iteration. Used only when the norm estimate is not exact.
+#' @param least_squares Read the backward error in the least-squares sense where
+#'   the residual test does not hold. Costs one apply in mode `"C"`, so it is on
+#'   for the methods whose problem is a minimisation and off for the ones whose
+#'   problem is an equation.
+#' @param stop_reason Why the iteration stopped, where the solver knows something
+#'   the iteration count does not say.
 #' @return An object of class `linop_certificate`.
 #' @noRd
 solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
                               floor_const = SOLVE_FLOOR_CONST,
-                              norm_lower_bound = 0) {
+                              norm_lower_bound = 0, least_squares = FALSE,
+                              stop_reason = NULL) {
   r <- cert_rows()
   eps <- .Machine$double.eps
 
@@ -129,21 +136,82 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
   floor_abs <- floor_const * eps * denom
   floor_rel <- floor_abs / scale
 
+  ## Whether the compatible reading holds, per column. Everything below branches
+  ## on this rather than on which method was run, so a least-squares method
+  ## handed a compatible system certifies exactly as the square methods do.
+  met_r <- rel <= tol + floor_rel
+
+  ## ------------------------------------------------- the least-squares reading
+  ## For an incompatible problem b - A x does not go to zero, so its size is a
+  ## property of the problem rather than a measure of the solve, and testing it
+  ## against tol would report a converged least-squares solution as a failure.
+  ## What does go to zero is A^H r, and Stewart's perturbation makes that a
+  ## backward error rather than a heuristic. With
+  ##
+  ##     dA = -(r r^H A) / ||r||^2,      A + dA = (I - P_r) A,
+  ##
+  ## the perturbed residual is r + P_r A x and (A + dA)^H (r + P_r A x) = 0
+  ## identically, because (I - P_r) r = 0 and (I - P_r) P_r = 0. So x is the
+  ## exact least-squares solution of min ||b - (A + dA) x||, and the size of the
+  ## perturbation is ||dA||_2 = ||A^H r|| / ||r|| exactly. Relative to ||A||,
+  ##
+  ##     ||A^H r|| / (||A|| ||r||),
+  ##
+  ## which is Paige and Saunders' second stopping rule. The perturbation is
+  ## exhibited rather than bounded, so this is an upper bound on the smallest one
+  ## that works, and ||A|| entering through a lower bound can only enlarge it:
+  ## both are the direction a certificate needs.
+  ##
+  ## Its floor is c eps again. The computed A^H r inherits the residual's own
+  ## error through ||A|| floor_abs and adds its own c eps ||A|| ||r||, so against
+  ## the denominator ||A|| ||r|| the floor is c eps + floor_abs / ||r||. The
+  ## second term matters only where ||r|| has itself fallen to the residual
+  ## floor, which is the regime where the compatible reading is the one in use.
+  if (least_squares) {
+    atn <- col_norms(linop_apply(A, R, "C"))
+    optimality <- ifelse(rn > 0, atn / (nA * rn), 0)
+    ls_floor <- floor_const * eps + ifelse(rn > 0, floor_abs / rn, 0)
+    met_ls <- optimality <= tol + ls_floor
+  } else {
+    optimality <- NULL
+    ls_floor <- NULL
+    met_ls <- rep(FALSE, length(rel))
+  }
+  ## A column has been solved when either reading holds. They are not ranked:
+  ## one says x solves a nearby compatible system, the other says x is the exact
+  ## minimiser of a nearby least-squares problem, and which one applies is a fact
+  ## about b and the range of A rather than about the iteration.
+  met <- met_r | met_ls
+
   ## ------------------------------------------------------------------ floor --
   r$add("arithmetic floor", "pass",
-        sprintf("||A|| ~ %.4g by %s; c = %g, eps = %.3g, worst relative floor %.3e",
-                nA, norm_estimate$method, floor_const, eps, max(floor_rel)),
+        sprintf("||A|| ~ %.4g by %s; c = %g, eps = %.3g, worst relative floor %.3e%s",
+                nA, norm_estimate$method, floor_const, eps, max(floor_rel),
+                if (least_squares)
+                  sprintf("; least-squares floor %.3e", max(ls_floor)) else ""),
         source = norm_estimate$evidence$source,
         guarantee = norm_guarantee, confidence = norm_conf)
 
   ## --------------------------------------------------------------- residual --
+  ## A residual that cannot reach tol because b is not in the range of A is not
+  ## checked rather than failed: nothing about the solve produced it. The
+  ## distinction is measured here and not taken from the solver, which is why a
+  ## column that misses both readings still reports fail.
   clean <- all(rel <= tol)
-  floored <- all(rel <= tol + floor_rel)
+  floored <- all(met_r)
+  incompatible <- !met_r & met_ls
   r$add("residual",
-        if (clean) "pass" else if (floored) "qualified" else "fail",
+        if (clean) "pass"
+        else if (floored) "qualified"
+        else if (all(met)) "not_checked"
+        else "fail",
         sprintf("worst ||b - A x|| / ||b|| = %.3e against tol %.3e%s",
                 max(rel), tol,
-                if (clean) "" else sprintf(", floor %.3e", max(floor_rel))),
+                if (clean) ""
+                else if (all(met) && !floored)
+                  sprintf("; b is not in the range of A for %d of %d columns, and the distance to it is not a measure of the solve",
+                          sum(incompatible), length(rel))
+                else sprintf(", floor %.3e", max(floor_rel))),
         guarantee = if (clean) "identity" else "estimate",
         confidence = if (clean) 1 else NA_real_)
 
@@ -151,13 +219,29 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
   ## Rigal-Gaches: omega is exactly the smallest normwise relative perturbation
   ## of A and b for which x is the exact solution. An identity, not a bound,
   ## which is why this line can carry an identity guarantee whenever ||A|| does.
+  ##
+  ## Both readings land on this one row because both are backward errors. The
+  ## column decides which of the two it is entitled to, and the detail says so;
+  ## a least-squares column has no compatible reading and a compatible one has
+  ## no use for Stewart's, since ||A^H r|| / (||A|| ||r||) stays O(1) as r goes
+  ## to zero.
   omega <- ifelse(denom > 0, rn / denom, 0)
-  bclean <- all(omega <= tol)
-  bfloored <- all(omega <= tol + floor_const * eps)
+  if (least_squares) {
+    bw <- ifelse(met_r, omega, optimality)
+    bw_floor <- ifelse(met_r, floor_const * eps, ls_floor)
+    reading <- if (all(met_r)) "||r|| / (||A|| ||x|| + ||b||)"
+               else if (any(met_r)) "||r|| / (||A|| ||x|| + ||b||) and ||A^H r|| / (||A|| ||r||)"
+               else "||A^H r|| / (||A|| ||r||)"
+  } else {
+    bw <- omega
+    bw_floor <- rep(floor_const * eps, length(omega))
+    reading <- "||r|| / (||A|| ||x|| + ||b||)"
+  }
+  bclean <- all(bw <= tol)
+  bfloored <- all(bw <= tol + bw_floor)
   r$add("backward error",
         if (bclean) "pass" else if (bfloored) "qualified" else "fail",
-        sprintf("worst ||r|| / (||A|| ||x|| + ||b||) = %.3e against tol %.3e",
-                max(omega), tol),
+        sprintf("worst %s = %.3e against tol %.3e", reading, max(bw), tol),
         guarantee = if (bclean) norm_guarantee else "estimate",
         confidence = if (bclean) norm_conf else NA_real_)
 
@@ -166,9 +250,10 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
   ## An iteration that gave up early is not a converged one merely because it had
   ## budget left over.
   spent <- iterations >= maxit
-  r$add("convergence", if (floored) "pass" else "fail",
+  r$add("convergence", if (all(met)) "pass" else "fail",
         sprintf("%d of at most %d iterations; %s", iterations, maxit,
-                if (floored) "target reached"
+                if (all(met)) "target reached"
+                else if (!is.null(stop_reason)) stop_reason
                 else if (spent) "budget exhausted"
                 else "stopped early, the residual had stopped decreasing"))
 
@@ -181,6 +266,7 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
         source = "computation", guarantee = "identity", confidence = NA_real_)
 
   build_certificate(r$collect(), subject = "solve",
-                    values = list(residual = rel, backward_error = omega,
-                                  norm = nA, floor = floor_rel))
+                    values = list(residual = rel, backward_error = bw,
+                                  norm = nA, floor = floor_rel,
+                                  optimality = optimality, converged = met))
 }

@@ -10,7 +10,8 @@ preconditioner(
   hermitian = NA,
   positive_definite = NA,
   side = "left",
-  dim = NULL
+  dim = NULL,
+  apply_inverse_adjoint = NULL
 )
 }
 \arguments{
@@ -25,6 +26,11 @@ rejected by solvers that require a fixed one.}
 \item{side}{`"left"`, `"right"` or `"split"`.}
 
 \item{dim}{`c(n, n)`.}
+
+\item{apply_inverse_adjoint}{`function(R)` returning `M^-H r`. Needed only by
+a method that runs on `A M^-1` and has to apply its adjoint, which in v0.1
+is LSQR and LSMR. A hermitian `M` supplies it for nothing, since
+`M^-H = M^-1` there, so this is for the case where the two differ.}
 }
 \value{
 An object of class `preconditioner`.
