@@ -18,6 +18,13 @@ cert_status <- function(cert, check) cert$checks$status[cert$checks$check == che
 #' @export
 print.linop_certificate <- function(x, ...) {
   df <- x$checks
+  ## What ran and why, where a dispatcher chose it. Section 1.1 asks that the
+  ## result record which route was taken, and this is where it is recorded: the
+  ## certificate is the one object a caller always gets back.
+  if (!is.null(x$dispatch)) {
+    cat(sprintf("solved by %s (%s)\n", x$dispatch$chosen, x$dispatch$reason))
+    cat(strrep("-", 90), "\n", sep = "")
+  }
   cat(sprintf("%-30s %-12s %-16s %-21s %s\n", "check", "status", "source", "guarantee", "conf"))
   cat(strrep("-", 90), "\n", sep = "")
   for (i in seq_len(nrow(df))) {
