@@ -11,7 +11,12 @@ section 7.2's two spectral verbs are in.
 
 `solve()` is an S3 method on the base generic and cost no export. `eigs()` and `svds()` are
 new names and cost one each, which is the whole of what Phase 2 spends on the public surface.
-The open Gate 2 items are the benchmark harness with committed results and a solver vignette.
+The benchmark harness runs end to end with committed results in `dev_notes/bench/`. The open
+Gate 2 items are a solver vignette and MINRES reference agreement on an ill-conditioned
+problem: the gate line asks for MINRES and LSMR against a trusted reference including
+near-breakdown, LSMR has that against SciPy 1.17.1, and MINRES's independent check
+(`krylov_argmin`, `test-solve-minres.R`) computes the iterate densely from the definition on a
+prescribed spectrum in `[-5, 8]`.
 
 Two things section 7.2 lists for v0.1 are deliberately not here, and
 `dev_notes/eigs-svds-and-the-third-certificate.md` records why: RSpectra delegation (deferred
@@ -34,8 +39,9 @@ Two documents govern:
   `dev_notes/lsqr-and-the-least-squares-certificate.md`,
   `dev_notes/lsmr-and-the-monotone-backward-error.md`,
   `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md`,
-  `dev_notes/solve-dispatch-and-the-empty-branch.md` and
-  `dev_notes/eigs-svds-and-the-third-certificate.md` carry the Phase 2 ones.
+  `dev_notes/solve-dispatch-and-the-empty-branch.md`,
+  `dev_notes/eigs-svds-and-the-third-certificate.md` and
+  `dev_notes/benchmarks-and-the-fixture-that-solved-itself.md` carry the Phase 2 ones.
 
 ## Commands
 
@@ -479,6 +485,35 @@ holding what they share. The findings are in
   they are a correction and are discarded, and keeping them would make it Arnoldi. The same
   distinction separates `svds()` from `solvers-bidiag.R`, which builds the same recurrence
   and stores no basis.
+
+## The benchmark harness
+
+`dev_notes/bench/`, run with `Rscript dev_notes/bench/run-bench.R` from the repository root.
+2.5 minutes, four CSVs, an environment stamp and a generated `RESULTS.md`, all committed.
+`dev_notes/benchmarks-and-the-fixture-that-solved-itself.md` has the findings.
+
+- **A right-hand side never draws from the seed its fixture drew from.** Both prescribed
+  generators build their operator from a QR factorisation, and the first draws from a seed are
+  the first column of the input, which QR puts in the span of `Q[, 1]`. Sharing the seed makes
+  `b` the first eigenvector of `spd_prescribed` (CG converges in **one** iteration) and puts it
+  exactly in the range of `lsq_prescribed`, so the incompatible fixture is compatible. Neither
+  announces itself: both return the right answer and certify correctly. A fixture whose point
+  is a property of `b` now measures that property and carries it in the results.
+- **Applies is the primary unit and seconds is second**, because an apply count is the same on
+  every machine. It does not price orthogonalisation, so both columns are reported and neither
+  is called the cost. Memory is `object.size()` only: `gc()`'s max used counts allocation
+  between collections and reads 112 Mb for a solve holding kilobytes.
+- **The counted operators declare their capabilities rather than computing them**, since an
+  operator with a counter in it is a callback leaf. So the tables do not measure `auto` and
+  every row names its method.
+- **`ncv` is the binding knob for both spectral verbs.** On `laplacian_1d(400)` at `ncv = 40`,
+  five times the budget and a tolerance two orders looser give the same iteration count, the
+  same restarts and the same value error; `ncv = 80` converges 6 of 6 to 1.1e-16. The stall
+  detector stopping at a quarter of the budget is reporting that, not giving up early.
+  `dev_notes/spikes/eigs-ncv-probe.R`.
+- **The sparse route wins the size ladder at every size**, and that number is committed. A
+  matrix-free method is the route to an operator with no matrix, not a faster route to a banded
+  one. No cross-package comparison is in the harness, for the section 15 reasons in the note.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is

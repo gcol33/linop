@@ -1,0 +1,9 @@
+date                 2026-07-28
+R                    R version 4.6.0 (2026-04-24 ucrt)
+platform             x86_64-w64-mingw32
+os                   Windows 10 x64
+cpu                  Intel64 Family 6 Model 183 Stepping 1, GenuineIntel
+BLAS                 no path reported by extSoftVersion()
+LAPACK               no path reported by La_library()
+LAPACK version       3.12.1
+timing repetitions   3

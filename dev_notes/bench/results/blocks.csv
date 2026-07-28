@@ -1,0 +1,21 @@
+"fixture","n","k","route","iterations","applies","column_applies","seconds","agreement_vs_lockstep"
+"laplacian_1d(200), matrix free",200,1,"lockstep",200,213,213,0.00964593887329102,NA
+"laplacian_1d(200), matrix free",200,1,"one column at a time",200,213,213,0.00939106941223145,0
+"laplacian_1d(200), matrix free",200,2,"lockstep",200,213,416,0.0106978416442871,NA
+"laplacian_1d(200), matrix free",200,2,"one column at a time",400,426,426,0.0206410884857178,0
+"laplacian_1d(200), matrix free",200,4,"lockstep",200,213,822,0.0130331516265869,NA
+"laplacian_1d(200), matrix free",200,4,"one column at a time",800,852,852,0.0401420593261719,0
+"laplacian_1d(200), matrix free",200,8,"lockstep",200,213,1634,0.0177900791168213,NA
+"laplacian_1d(200), matrix free",200,8,"one column at a time",1600,1704,1704,0.0793468952178955,0
+"laplacian_1d(200), matrix free",200,16,"lockstep",200,213,3258,0.0259079933166504,NA
+"laplacian_1d(200), matrix free",200,16,"one column at a time",3200,3408,3408,0.1563401222229,0
+"spd_prescribed(300, kappa 1e4), stored",300,1,"lockstep",683,698,698,0.0652880668640137,NA
+"spd_prescribed(300, kappa 1e4), stored",300,1,"one column at a time",683,698,698,0.070702075958252,0
+"spd_prescribed(300, kappa 1e4), stored",300,2,"lockstep",683,698,1376,0.0830450057983398,NA
+"spd_prescribed(300, kappa 1e4), stored",300,2,"one column at a time",1358,1388,1388,0.127027988433838,0
+"spd_prescribed(300, kappa 1e4), stored",300,4,"lockstep",683,698,2739,0.123572111129761,NA
+"spd_prescribed(300, kappa 1e4), stored",300,4,"one column at a time",2715,2775,2775,0.26478385925293,0
+"spd_prescribed(300, kappa 1e4), stored",300,8,"lockstep",693,708,5505,0.201223134994507,NA
+"spd_prescribed(300, kappa 1e4), stored",300,8,"one column at a time",5469,5589,5589,0.523095846176147,0
+"spd_prescribed(300, kappa 1e4), stored",300,16,"lockstep",693,708,10975,0.360813140869141,NA
+"spd_prescribed(300, kappa 1e4), stored",300,16,"one column at a time",10915,11155,11155,1.06284999847412,0
