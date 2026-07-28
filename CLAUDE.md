@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and five
-of the seven Krylov methods, CG, MINRES, GMRES, FGMRES and LSQR, are in. BiCGSTAB and LSMR
-are not.
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and six
+of the seven Krylov methods, CG, MINRES, GMRES, FGMRES, LSQR and LSMR, are in. BiCGSTAB is
+not.
 
 `solve()`, `eigs()` and `svds()` stay unexported, and the dispatch they need is now fully
 determined: `positive_definite` selects CG, `hermitian` selects MINRES, and GMRES requires
@@ -26,15 +26,16 @@ Two documents govern:
   `dev_notes/cg-and-the-arithmetic-floor.md`,
   `dev_notes/fgmres-and-preconditioner-sides.md`,
   `dev_notes/minres-and-the-preconditioned-norm.md`,
-  `dev_notes/gmres-and-the-second-pass.md` and
-  `dev_notes/lsqr-and-the-least-squares-certificate.md` carry the Phase 2 ones.
+  `dev_notes/gmres-and-the-second-pass.md`,
+  `dev_notes/lsqr-and-the-least-squares-certificate.md` and
+  `dev_notes/lsmr-and-the-monotone-backward-error.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~90 s, 10,812 assertions
+devtools::test(".")                      # ~2 min, 10,953 assertions
 ```
 
 ```powershell
@@ -84,7 +85,7 @@ unconditionally. `test-propagation.R` asserts both halves.
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
 `materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
 `preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
-`solvers-lsqr` → `zzz`.
+`solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
 `solve_certificate()` all live there, and `verify.R` holds only the operator checks.
@@ -92,6 +93,12 @@ unconditionally. `test-propagation.R` asserts both halves.
 `solver_setup()`, which validates the operator, the block, the budget and the starting
 iterate, and takes `square` as a parameter because a least-squares method needs the same
 checks on a different shape. A new solver adds a `solvers-*.R` file and nothing else.
+
+`solvers-bidiag.R` is the one exception, and it is the FGMRES pattern at a coarser grain:
+LSQR and LSMR build the same Golub-Kahan bidiagonalisation and differ only in what they
+minimise over it, so the loop, the start and the step live once and each method supplies a
+recurrence. `bidiag_solve()` takes that recurrence as an argument. What is *not* shared is
+the projection, which is the method.
 
 **Apply has four modes**, BLAS-style: `N` (`A X`), `T` (`A^T X`), `C` (`A^H X`), `R`
 (`conj(A) X`), composed through `MODE_COMPOSE` (Klein four-group). This is what keeps
@@ -129,7 +136,7 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 10,812 assertions across 222
+**Tests are recovery and contract tests, not shape tests.** 10,953 assertions across 251
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
@@ -223,11 +230,12 @@ internally with their contracts and enforcement already tested; `solver()` stays
 until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
 section 1.1), and that defer is only safe while `preconditioner()` is public.
 
-`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining two, and `minres_solve()`,
-`gmres_solve()` and `lsqr_solve()` are the evidence that it generalises: to a
+`cg_solve()` (`R/solvers-cg.R`) is the template for the remaining one, and `minres_solve()`,
+`gmres_solve()`, `lsqr_solve()` and `lsmr_solve()` are the evidence that it generalises: to a
 minimal-residual method, to a long recurrence with restarts, to an operator with no declared
-capability at all, and to a problem that is a minimisation rather than an equation. Three
-things CG established that the others inherit rather than re-decide:
+capability at all, to a problem that is a minimisation rather than an equation, and to a
+second method on that same problem. Three things CG established that the others inherit
+rather than re-decide:
 
 - **Several right-hand sides run in lockstep**, not one after another. Each column's
   recurrence is independent, so the iterates are exactly those of per-column CG (asserted
@@ -316,13 +324,40 @@ equation, and the four findings are in `dev_notes/lsqr-and-the-least-squares-cer
   `preconditioner()` takes `apply_inverse_adjoint` and `hermitian = TRUE` supplies it for
   nothing. Neither declared is refused by name, never inferred.
 
+LSMR (`R/solvers-lsmr.R`) shares that bidiagonalisation and minimises a different thing over
+it, and the three findings are in `dev_notes/lsmr-and-the-monotone-backward-error.md`:
+
+- **It minimises the number the certificate reports, which is what earns it a method rather
+  than a flag.** LSQR minimises `||r||`; LSMR minimises `||A^H r||`, the numerator of the
+  least-squares backward error. Measured densely from the iterates over 20 steps, 12 seeds
+  and three conditionings, LSMR's reported quantity rose *zero* times and LSQR's rose on
+  every seed, by up to a factor of 60 in one step. At a shared budget on the same fixture and
+  seed it reports the smaller backward error on 12 of 12 seeds.
+- **The estimate a method minimises is still not one it may report.** `|zetabar|` is
+  `||A^H r||` exactly for the projected problem, and by step 30 of a well-conditioned
+  15-column solve it reads 1.3e-16 against a true 1.1e-13: wrong by 800x, in the direction
+  that certifies a solve as better than it is. The advantage is real and the recurrence's
+  measurement of it is not, so the outer loop's extra apply is what makes the advantage
+  reportable at all. Nothing in the monotonicity claim above was measured from the
+  recurrence.
+- **The reproducibility ceiling is the method's, not the code's.** LSQR's was measured
+  against a second implementation written here; LSMR's was measured against SciPy 1.17.1,
+  and diverges on the same schedule (1e-15 at four steps, 1e-8 at eight, O(1) at sixteen,
+  re-converging). Four steps is what a reference test can assert.
+
+`solve_certificate()`'s `forward error: not_checked` got its first live demonstration here.
+At `kappa` 1e10 with an incompatible right-hand side, four runs certifying backward errors
+between 6e-9 and 2.4e-8 show forward errors from 7.5e-5 to 9.2e-1, because `kappa^2 eps` is
+2.2e4 there and no backward error constrains the forward one. Do not read that spread as one
+method being more accurate than another.
+
 The evidence minima (`CG_PD_REQUIREMENT`, `MINRES_HERMITIAN_REQUIREMENT`) filter
 `method = "auto"` and do not gate `method = "cg"` or `method = "minres"`. Naming a method is
 the caller asserting their own declaration; `auto` is the package choosing. Do not collapse
-the two. GMRES and LSQR have no such minimum because they have no requirement.
+the two. GMRES, LSQR and LSMR have no such minimum because they have no requirement.
 
-`method = "auto"` is now total over rectangular shapes as well as square ones: LSQR is the
-only method that accepts one.
+`method = "auto"` is now total over rectangular shapes as well as square ones: LSQR and LSMR
+are the two methods that accept one.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is
