@@ -21,6 +21,18 @@
 ## cond(A) as well, and 1/eps is the limit in both cases.
 KRYLOV_CONDITION_LIMIT <- 1 / .Machine$double.eps
 
+## The factor a direction has to lose in the first Gram-Schmidt pass before a
+## second one is worth taking, from Daniel, Gragg, Kaufman and Stewart. At
+## 1/sqrt(2) a direction that kept more than about 71% of its length is left
+## alone, which is the usual setting and is where the measurements in
+## dev_notes/gmres-and-the-second-pass.md were taken.
+##
+## Both families need it and for the same reason. GMRES orthogonalises against a
+## stored Krylov basis to build the Hessenberg it minimises over; the two
+## eigensolvers orthogonalise against a stored basis to keep a short recurrence
+## from losing the orthogonality the projection assumes. One criterion, one place.
+REORTH_ETA <- 1 / sqrt(2)
+
 ## The preamble: the operator is a linop of the shape the method needs, the
 ## right-hand side conforms, the budget is a positive integer, and the starting
 ## iterate has the right shape and the right storage mode.

@@ -2,19 +2,21 @@
 ## fails this test until the budget below is edited, which is the only mechanism
 ## that reliably stops a public surface from growing by accretion.
 ##
-## Section 1.1 budgets the v0.1 surface. Phase 1 delivers the core, so eigs() and
-## svds() are absent here and arrive with Phase 2. Their names are listed as
-## `planned` so the intent stays visible and the test still fails if one appears
-## early without a deliberate edit.
+## Section 1.1 budgets the v0.1 surface. eigs() and svds() have now arrived and
+## cost one export each, which is the whole of what Phase 2 spends: they are new
+## names rather than base generics, so unlike solve() there is nothing to register
+## a method on.
 ##
-## solve() has arrived and is not among them, because it cost no export. It is a
-## base generic, so an S3 method reaches it the way t(), crossprod() and %*%
-## already do, and section 1.1's "keeps the verb budget" turns out to be literal:
-## the budget below did not move to accommodate it. The last test in this file is
-## where that is asserted, beside the other generics that work the same way.
+## solve() cost no export at all. It is a base generic, so an S3 method reaches it
+## the way t(), crossprod() and %*% already do, and section 1.1's "keeps the verb
+## budget" turns out to be literal for it. The last test in this file is where
+## that is asserted, beside the other generics that work the same way.
+##
+## print() and summary() on the two spectral results are the same mechanism and
+## cost nothing either.
 
 BUDGET <- list(
-  common = c("linop", "adjoint", "verify"),
+  common = c("linop", "adjoint", "verify", "eigs", "svds"),
 
   ## constructors for the leaves a user builds directly
   constructors = c("linop_eye", "linop_scaling"),
@@ -30,7 +32,7 @@ BUDGET <- list(
                 "provenance_original_residual", "provenance_summary")
 )
 
-PLANNED_PHASE2 <- c("eigs", "svds", "solver", "linsolve",
+PLANNED_PHASE2 <- c("solver", "linsolve",
                     "spectral_approximation", "plan_eigs", "linop_register_backend")
 
 test_that("the exported surface matches the budget exactly", {
@@ -48,11 +50,11 @@ test_that("the exported surface matches the budget exactly", {
                info = paste0("budgeted but not exported: ", paste(missing, collapse = ", ")))
 })
 
-test_that("Phase 2 names are not exported yet", {
+test_that("the names Phase 2 deliberately keeps private are not exported", {
   actual <- getNamespaceExports("linop")
   early <- intersect(PLANNED_PHASE2, actual)
   expect_equal(early, character(0),
-               info = paste0("Phase 2 names exported during Phase 1: ",
+               info = paste0("names section 1.1 keeps private were exported: ",
                              paste(early, collapse = ", ")))
 })
 

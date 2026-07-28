@@ -29,6 +29,28 @@ First development release. The finite object model and the expression graph.
   direction that matters: `TRUE` only where the conclusion follows, `NA`
   elsewhere.
 
+## Solvers
+
+* `solve()` solves `a x = b` by one of seven Krylov methods: CG, MINRES, GMRES,
+  FGMRES, BiCGSTAB, LSQR and LSMR. `method = "auto"` chooses from the declared
+  capabilities and records why; naming a method is the caller asserting their own
+  declaration and applies no evidence minimum.
+* Several right-hand sides run in lockstep rather than one after another, at one
+  block apply per step.
+* `eigs()` returns eigenpairs of a hermitian operator by Lanczos with full
+  reorthogonalisation, locking and thick restarts, and takes `sigma` for the
+  eigenvalues nearest a shift. It needs no adjoint.
+* `svds()` returns singular triplets by Golub-Kahan-Lanczos with full
+  reorthogonalisation, locking and thick restarts.
+* Every result carries a certificate: what residual was reached, what backward
+  error it implies, and what argument establishes it. `target identity` is
+  `not_checked`, because a residual does not say which eigenvalue was found.
+* The eigenpair certificate's `forward error` is a real bound,
+  `min_j |theta - lambda_j| <= ||r|| / ||x||` by Weyl, and it records the
+  hermitian declaration it rests on.
+* Non-convergence returns a `fail` certificate naming what stopped the run. A
+  contradicted declaration is what throws.
+
 ## Checking
 
 * `verify()` runs an eleven-check conformance suite over an operator and returns
