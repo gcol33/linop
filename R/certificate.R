@@ -2,14 +2,23 @@
 ## argument produced it. The two are reported separately because the classes are
 ## not comparable on one axis.
 
-build_certificate <- function(df, subject, probes = NULL, values = NULL) {
+## The guarantee kinds that are deterministic. Both of them: an identity holds
+## exactly and a deterministic_bound holds always, and the summary line names the
+## checks that have neither. Testing `!= "identity"` would list a theorem's bound
+## among the checks with no deterministic bound behind them, which is the one
+## reading of that line that cannot be right.
+DETERMINISTIC_GUARANTEES <- c("identity", "deterministic_bound")
+
+build_certificate <- function(df, subject, probes = NULL, values = NULL,
+                              evidence = NULL) {
   overall <- if (any(df$status == "fail")) "fail"
              else if (any(df$status %in% c("qualified", "not_checked"))) "qualified"
              else "pass"
-  weak <- df$check[df$guarantee != "identity" | df$status == "not_checked"]
+  weak <- df$check[!df$guarantee %in% DETERMINISTIC_GUARANTEES |
+                   df$status == "not_checked"]
   structure(list(subject = subject, checks = df, overall = overall,
                  without_deterministic_bound = weak, probes = probes,
-                 values = values),
+                 values = values, evidence = evidence),
             class = "linop_certificate")
 }
 
@@ -49,16 +58,31 @@ print.linop_certificate <- function(x, ...) {
 
 ## Collects rows in the order they are added, so a certificate reads top to
 ## bottom in the order the checks were made.
+##
+## A row may carry an evidence() object instead of the three fields, in which case
+## the fields are read off it rather than typed a second time. That is what a
+## conditional check needs: a bound resting on a declared capability records the
+## dependency, so evidence_satisfies() sees the declaration underneath the row the
+## way it already sees it underneath a propagated capability (section 5.3). The
+## table keeps the flat fields, since it is what the printed certificate shows.
 cert_rows <- function() {
   rows <- list()
+  evs <- list()
   list(
     add = function(check, status, detail = "", source = "computation",
-                   guarantee = "identity", confidence = 1) {
+                   guarantee = "identity", confidence = 1, evidence = NULL) {
+      if (!is.null(evidence)) {
+        source <- evidence$source
+        guarantee <- evidence$guarantee
+        confidence <- evidence$confidence
+        evs[[check]] <<- evidence
+      }
       rows[[length(rows) + 1L]] <<- data.frame(
         check = check, status = status, source = source, guarantee = guarantee,
         confidence = confidence, detail = detail, stringsAsFactors = FALSE)
     },
-    collect = function() do.call(rbind, rows))
+    collect = function() do.call(rbind, rows),
+    collect_evidence = function() if (length(evs)) evs else NULL)
 }
 
 ## ------------------------------------------------------- the arithmetic floor
@@ -275,5 +299,198 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
   build_certificate(r$collect(), subject = "solve",
                     values = list(residual = rel, backward_error = bw,
                                   norm = nA, floor = floor_rel,
-                                  optimality = optimality, converged = met))
+                                  optimality = optimality, converged = met),
+                    evidence = r$collect_evidence())
+}
+
+## ------------------------------------------------------ the eigen certificate
+
+## Section 6's table and 6.1. This is the third shape rather than a flag on the
+## second. Both readings of solve_certificate() are backward errors on a linear
+## system, where b is data; here theta and x are both outputs and A is the only
+## datum, so the Rigal-Gaches denominator ||A|| ||x|| + ||b|| has no second term
+## and only A may be perturbed.
+##
+## The perturbation is exhibited, as Stewart's is for the least-squares reading.
+## A Ritz value is the Rayleigh quotient theta = x^H A x / (x^H x), so the
+## residual r = A x - theta x satisfies x^H r = 0, and for a unit x
+##
+##     E = -r x^H - x r^H
+##
+## is hermitian with E x = -r, hence (A + E) x = theta x exactly. In the
+## orthonormal basis {x, r/||r||} it is [[0, -||r||], [-||r||, 0]], so
+## ||E||_2 = ||r||. The pair is exact for an operator ||r|| away from A and in the
+## same class as A rather than merely near it, which is what the forward line
+## below needs.
+##
+## Weyl: a hermitian perturbation moves each eigenvalue by at most its norm, and
+## theta is an exact eigenvalue of A + E, so
+##
+##     min_j |theta - lambda_j(A)| <= ||r|| / ||x||.
+##
+## That is a deterministic bound and the first one in the package. It is one only
+## as far as the hermitian declaration goes, so the row records that dependency
+## and evidence_satisfies() sees a bare user_declaration underneath exactly as it
+## does underneath a propagated capability. And it bounds the distance to SOME
+## eigenvalue: which one is target identity, and that stays not_checked.
+##
+## @param A The operator. Hermitian for the forward line to be available.
+## @param values The Ritz values, real.
+## @param vectors The Ritz vectors, one per column.
+## @param hermitian_evidence Evidence for A being hermitian, or `NULL`. The
+##   forward line rests on it and records it.
+## @noRd
+eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
+                              iterations, maxit,
+                              floor_const = SOLVE_FLOOR_CONST,
+                              norm_lower_bound = 0,
+                              hermitian_evidence = NULL, requested = NULL,
+                              stop_reason = NULL, subject = "eigen") {
+  r <- cert_rows()
+  eps <- .Machine$double.eps
+  X <- as_block(vectors)
+  theta <- as.numeric(values)
+  k <- ncol(X)
+  ## A run that ran out of budget before its subspace was even k wide comes back
+  ## with fewer pairs than were asked for, and is never padded to k with anything.
+  ## The convergence line counts against what was asked rather than against what
+  ## survived, or a run that produced one pair and converged it would read as
+  ## complete.
+  requested <- requested %||% k
+
+  ## The true residual, recomputed here and not taken from the iteration, for the
+  ## reason the solve certificate recomputes b - A x: what a recurrence believes
+  ## about itself drifts, and it drifts where the answer is most converged.
+  R <- linop_apply(A, X, "N") - scale_cols(X, theta)
+  rn <- col_norms(R)
+  xn <- col_norms(X)
+  scale_x <- ifelse(xn > 0, xn, 1)
+
+  norm_is_exact <- evidence_satisfies(norm_estimate$evidence,
+                                      requirement(guarantees = "identity"))
+  nA <- if (norm_is_exact) norm_estimate$value
+        else max(norm_estimate$value, norm_lower_bound)
+  norm_guarantee <- if (norm_is_exact) "identity" else "estimate"
+  norm_conf <- if (norm_is_exact) 1 else NA_real_
+  ## A zero operator has every eigenvalue at zero and no scale to measure
+  ## against; an absolute test is the only one left.
+  if (!is.finite(nA) || nA <= 0) nA <- 1
+
+  ## ------------------------------------------------------------ floors ------
+  ## fl(A x - theta x) differs from the exact difference by at most a small
+  ## multiple of eps * (||A|| ||x|| + |theta| ||x||): Higham's bound again, with
+  ## theta x in the place b held. Both readings below divide it by their own
+  ## denominator.
+  floor_abs <- floor_const * eps * (nA + abs(theta)) * scale_x
+  bw_floor <- floor_abs / (nA * scale_x)
+
+  bw <- rn / (nA * scale_x)
+  met <- bw <= tol + bw_floor
+
+  ## The eigenvalue equation read relatively against the term it has to cancel.
+  ## Where |theta| has itself fallen to the level of eps ||A|| that ratio stops
+  ## being a measure of the solve, in the way ||b - A x|| stops being one for a b
+  ## outside the range of A, and it is reported the same way.
+  meaningful <- abs(theta) > floor_const * eps * nA
+  rel <- ifelse(meaningful, rn / (abs(theta) * scale_x), NA_real_)
+  rel_floor <- ifelse(meaningful, floor_abs / (abs(theta) * scale_x), NA_real_)
+  met_r <- !meaningful | rel <= tol + rel_floor
+
+  ## ------------------------------------------------------------- floor row --
+  r$add("arithmetic floor", "pass",
+        sprintf("||A|| ~ %.4g by %s; c = %g, eps = %.3g, worst backward floor %.3e",
+                nA, norm_estimate$method, floor_const, eps, max(bw_floor)),
+        source = norm_estimate$evidence$source,
+        guarantee = norm_guarantee, confidence = norm_conf)
+
+  ## ---------------------------------------------------------- residual row --
+  clean <- all(meaningful) && all(rel <= tol)
+  floored <- all(meaningful) && all(met_r)
+  r$add("residual",
+        if (clean) "pass"
+        else if (floored) "qualified"
+        else if (all(met_r) && all(met)) "not_checked"
+        else "fail",
+        sprintf("worst ||A x - theta x|| / (|theta| ||x||) = %.3e against tol %.3e%s",
+                if (any(meaningful)) max(rel[meaningful]) else NA_real_, tol,
+                if (clean) ""
+                else if (!all(meaningful))
+                  sprintf("; |theta| is at the level of eps ||A|| for %d of %d pairs, where that ratio is not a measure of the solve",
+                          sum(!meaningful), k)
+                else sprintf(", floor %.3e", max(rel_floor, na.rm = TRUE))),
+        guarantee = if (clean) "identity" else "estimate",
+        confidence = if (clean) 1 else NA_real_)
+
+  ## ----------------------------------------------------- orthogonality row --
+  ## Measured on what is returned, not on the basis the iteration held. A dot
+  ## product of length n carries a rounding error of about n eps for unit
+  ## arguments, which is the level a reorthogonalised basis is entitled to reach
+  ## and no better.
+  G <- crossprod(Conj(X), X) - diag(1, k)
+  orth <- max(Mod(G))
+  orth_floor <- floor_const * eps * nrow(X)
+  r$add("orthogonality",
+        if (orth <= orth_floor) "pass"
+        else if (orth <= sqrt(eps)) "qualified" else "fail",
+        sprintf("||X^H X - I||_max = %.3e against the dot-product floor %.3e",
+                orth, orth_floor))
+
+  ## ---------------------------------------------------- backward error row --
+  ## E = -r x^H - x r^H is hermitian, exhibited, and of norm exactly ||r||, and
+  ## no smaller hermitian perturbation makes the pair exact. So this row is an
+  ## identity whenever ||A|| is one, in the way the Rigal-Gaches row is.
+  bclean <- all(bw <= tol)
+  bfloored <- all(met)
+  r$add("backward error",
+        if (bclean) "pass" else if (bfloored) "qualified" else "fail",
+        sprintf("worst ||A x - theta x|| / (||A|| ||x||) = %.3e against tol %.3e",
+                max(bw), tol),
+        guarantee = if (bclean) norm_guarantee else "estimate",
+        confidence = if (bclean) norm_conf else NA_real_)
+
+  ## ---------------------------------------------------- target identity row --
+  ## Section 6.1, and the reason this package's certificate is not a diagnostics
+  ## object. A small residual proves the pair is an approximate eigenpair. That it
+  ## is the largest, the smallest or the nearest one requires inertia counts, an
+  ## interval enclosure, a complete decomposition or a separation bound, and
+  ## matrix-free there is generally none of those. Convergence history is not
+  ## evidence for it.
+  r$add("target identity", "not_checked",
+        "needs inertia counts, an enclosure or a separation bound; a residual does not imply which eigenvalue was found",
+        source = "computation", guarantee = "identity", confidence = NA_real_)
+
+  ## ------------------------------------------------------- convergence row --
+  spent <- iterations >= maxit
+  complete <- all(met) && k >= requested
+  r$add("convergence", if (complete) "pass" else "fail",
+        sprintf("%d of %d requested pairs converged in %d of at most %d iterations; %s",
+                sum(met), requested, iterations, maxit,
+                if (complete) "target reached"
+                else if (!is.null(stop_reason)) stop_reason
+                else if (spent) "budget exhausted"
+                else "stopped early, the subspace had stopped improving"))
+
+  ## ----------------------------------------------------- forward error row --
+  ## The one line in the package that carries a theorem rather than a
+  ## measurement, and it carries the declaration it rests on with it.
+  fwd_abs <- rn / scale_x
+  if (is.null(hermitian_evidence)) {
+    r$add("forward error", "not_checked",
+          paste0("Weyl's bound needs the operator to be hermitian, and nothing establishes it; ",
+                 "without that, a residual constrains no eigenvalue"),
+          source = "computation", guarantee = "identity", confidence = NA_real_)
+  } else {
+    r$add("forward error", if (all(fwd_abs <= tol * nA)) "pass" else "fail",
+          sprintf(paste0("min_j |theta - lambda_j(A)| <= %.3e, that is %.3e relative to ||A||; ",
+                         "the eigenvectors are not covered, which needs a certified separation and not a Ritz gap"),
+                  max(fwd_abs), max(fwd_abs) / nA),
+          evidence = evidence("theorem", "deterministic_bound", 1,
+                              depends_on = list(hermitian_evidence)))
+  }
+
+  build_certificate(r$collect(), subject = subject,
+                    values = list(residual = rel, backward_error = bw,
+                                  forward_bound = fwd_abs, orthogonality = orth,
+                                  norm = nA, floor = bw_floor, converged = met),
+                    evidence = r$collect_evidence())
 }

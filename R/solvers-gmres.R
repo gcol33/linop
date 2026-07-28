@@ -70,13 +70,9 @@
 ## checked honestly, at run time on <w, M^-1 w>, and the message distinguishes a
 ## contradicted declaration from a property nobody claimed.
 
-## The factor a direction has to lose in the first Gram-Schmidt pass before a
-## second one is worth taking, from Daniel, Gragg, Kaufman and Stewart. At
-## 1/sqrt(2) a direction that kept more than about 71% of its length is left
-## alone, which is the usual setting and is where the measurements in
-## dev_notes/gmres-and-the-second-pass.md were taken.
-GMRES_REORTH_ETA <- 1 / sqrt(2)
-
+## The second-pass criterion is REORTH_ETA in solvers-common.R, shared with the
+## eigensolvers, which orthogonalise against a stored basis for the same reason.
+##
 ## Plan 7.1 names condition estimation among the things a Krylov method has to get
 ## right, and this is where GMRES needs it: the ratio of extreme diagonals of the
 ## triangular factor, against KRYLOV_CONDITION_LIMIT in solvers-common.R.
@@ -350,7 +346,7 @@ gmres_round <- function(A, X, R, rn, target, apply_precond, side, flexible,
       W <- W - scale_cols(proj[[i]], ci)
     }
     if (isTRUE(reorth)) {
-      again <- col_norms(W) < GMRES_REORTH_ETA * w0n
+      again <- col_norms(W) < REORTH_ETA * w0n
       if (any(again)) {
         ## Zero where the first pass sufficed. Subtracting an exact zero multiple
         ## leaves those columns bit for bit as they were.

@@ -5,15 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository state
 
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, and **all
-seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and BiCGSTAB — are in.
+the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, **all
+seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and BiCGSTAB — and
+section 7.2's two spectral verbs are in.
 
-`solve()` is in, as an S3 method on the base generic, which cost no export at all.
-`eigs()` and `svds()` are not, and they are a larger gap than the roster suggests: plan
-section 7.2 is unstarted, there is no eigensolver code in `R/`, and Phase 2 ships as v0.1
-with them in it. They are also new names rather than base generics, so `BUDGET` will have to
-grow by two when they land. The other open Gate 2 items are the benchmark harness with
-committed results and a solver vignette.
+`solve()` is an S3 method on the base generic and cost no export. `eigs()` and `svds()` are
+new names and cost one each, which is the whole of what Phase 2 spends on the public surface.
+The open Gate 2 items are the benchmark harness with committed results and a solver vignette.
+
+Two things section 7.2 lists for v0.1 are deliberately not here, and
+`dev_notes/eigs-svds-and-the-third-certificate.md` records why: RSpectra delegation (deferred
+to Phase 3 with the section 3 backend registry, since wiring it in first means an ad-hoc
+branch the registry then has to absorb) and Arnoldi, so a non-hermitian operator has no
+eigensolver. The generalized problem `A x = lambda B x` is refused by name.
 
 Two documents govern:
 
@@ -29,15 +33,16 @@ Two documents govern:
   `dev_notes/gmres-and-the-second-pass.md`,
   `dev_notes/lsqr-and-the-least-squares-certificate.md`,
   `dev_notes/lsmr-and-the-monotone-backward-error.md`,
-  `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md` and
-  `dev_notes/solve-dispatch-and-the-empty-branch.md` carry the Phase 2 ones.
+  `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md`,
+  `dev_notes/solve-dispatch-and-the-empty-branch.md` and
+  `dev_notes/eigs-svds-and-the-third-certificate.md` carry the Phase 2 ones.
 
 ## Commands
 
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~2 min, 11,354 assertions
+devtools::test(".")                      # ~3 min, 11,538 assertions
 ```
 
 ```powershell
@@ -87,12 +92,14 @@ unconditionally. `test-propagation.R` asserts both halves.
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
 `materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
 `preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
-`solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `solve` → `zzz`.
+`solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `solve` →
+`eigen-common` → `eigs`, `svds` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
 `solve_certificate()` all live there, and `verify.R` holds only the operator checks.
-`solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT`,
-`solver_setup()`, which validates the operator, the block, the budget and the starting
+`solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT`, `REORTH_ETA`
+(the Daniel-Gragg-Kaufman-Stewart second-pass criterion, used by GMRES and by both
+eigensolvers), `solver_setup()`, which validates the operator, the block, the budget and the starting
 iterate and takes `square` as a parameter because a least-squares method needs the same
 checks on a different shape, and the two run-time preconditioner refusals
 (`split_precond_not_hpd()`, `left_precond_singular()`) that any method implementing all
@@ -140,7 +147,7 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 11,354 assertions across 301
+**Tests are recovery and contract tests, not shape tests.** 11,538 assertions across 331
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
@@ -229,8 +236,8 @@ side by side and let readers compare.
 
 ## Phase 2 entry points
 
-`solve()`, `eigs()`, `svds()` are unexported. `linsolve` and `preconditioner` exist
-internally with their contracts and enforcement already tested; `solver()` stays private
+`linsolve` and `preconditioner` exist internally with their contracts and enforcement
+already tested; `solver()` stays private
 until inexact shift-invert or a PRIMME warm-start workflow creates a real need (plan
 section 1.1), and that defer is only safe while `preconditioner()` is public.
 
@@ -416,6 +423,62 @@ which are reachable through the same verb. The roster being total over rectangul
 GMRES rather than BiCGSTAB is `auto`'s fallback. Both require nothing and run without an
 adjoint; GMRES's residual cannot rise and it has no breakdown, which are the properties to
 prefer when the package is choosing rather than the caller.
+
+## The spectral verbs
+
+`eigs()` (`R/eigs.R`) and `svds()` (`R/svds.R`) are section 7.2, with `R/eigen-common.R`
+holding what they share. The findings are in
+`dev_notes/eigs-svds-and-the-third-certificate.md`:
+
+- **The eigenpair certificate is a third shape, not a flag on the second.** Both readings of
+  `solve_certificate()` treat `b` as data, so Rigal-Gaches divides by `||A|| ||x|| + ||b||`.
+  For an eigenpair `theta` and `x` are both outputs, `A` is the only datum, and the
+  denominator has no second term. The perturbation is exhibited as Stewart's is: a Ritz value
+  is the Rayleigh quotient of its own Ritz vector, so `x^H r = 0` and
+  `E = -r x^H - x r^H` is hermitian with `(A + E) x = theta x` and `||E||_2 = ||r||`.
+- **`forward error` is a real bound here, the first in the package.** `A + E` is hermitian
+  and `theta` is exactly its eigenvalue, so Weyl gives
+  `min_j |theta - lambda_j(A)| <= ||r||/||x||`. That makes this the first row carrying
+  `guarantee = "deterministic_bound"` and `source = "theorem"`, and it exposed a latent bug:
+  `build_certificate()` listed "no deterministic bound on" by testing `guarantee != "identity"`,
+  which was indistinguishable from correct while `identity` and `estimate` were the only two
+  values in use. It now tests membership in `DETERMINISTIC_GUARANTEES`. The bound is about
+  *some* eigenvalue; which one is `target identity` and stays `not_checked`.
+- **A certificate row can carry evidence with `depends_on`.** `cert_rows()$add()` takes an
+  `evidence()` object instead of the three flat fields, and the forward row records the
+  hermitian capability's evidence under it. So a bound resting on a bare `user_declaration`
+  fails a requirement the declaration would have failed directly — section 5.3's laundering
+  case reaching the certificate. `cert$evidence[["forward error"]]` is where it lives; the
+  printed table keeps the flat fields.
+- **`eigs()` applies no evidence minimum, and that is the decision rather than an omission.**
+  Every other dispatcher that applies one has a fallback; here there is one method and no
+  non-hermitian eigensolver until Arnoldi, so a minimum would only refuse to run, on exactly
+  the callback operators the package exists for. The value gates the run, the evidence is
+  reported. Do not "fix" this by adding a requirement constant.
+- **The svds certificate is the eigs certificate, on the augmented operator.**
+  `H = [[0, A], [A^H, 0]]` is hermitian for every `A` with nothing to declare, and its
+  eigenpairs are `(sigma, [u; v]/sqrt 2)`. So one builder serves both, and a singular value's
+  forward bound rests on *no* declaration where an eigenvalue's rests on whatever established
+  the operator's symmetry. `||H|| = ||A||` exactly, so the norm is inherited structurally.
+  The one weaker line: `orthogonality` measures the augmented basis, where a deviation in `U`
+  could cancel one in `V`; `test-svds.R` asserts the two separately.
+- **Thick restarting is what makes the methods converge, not a refinement.** Restarting from
+  the sum of the unconverged Ritz vectors stalls: on `laplacian_1d(60)` at `ncv = 24` asking
+  for four pairs it spends 240 of 300 iterations over 9 rounds and converges none, at a
+  backward error of 5.7e-4, where the thick restart reaches 5.1e-13 in 96. Where one round
+  suffices the two agree to the last digit, which is the control that confines the difference
+  to the swapped block. `dev_notes/spikes/restart-comparison.R` runs both.
+- **The Rayleigh quotient is reported, never the Ritz value.** It minimises `||A x - mu x||`
+  over `mu` and is measured on `A`, so under shift-invert it corrects what the inner solve got
+  wrong instead of inheriting it. That is what lets `sigma` be built out of the package's own
+  solvers (`A - sigma I` through MINRES) with nothing downstream trusting the inner tolerance.
+- **Reference means storage, not accuracy.** A round holds its whole basis and orthogonalises
+  against all of it: O(ncv) vectors, O(ncv^2 n) work. Full reorthogonalisation is block
+  classical Gram-Schmidt with the `REORTH_ETA` second pass. The loop is *not* shared with
+  GMRES and must not be — GMRES keeps the coefficients because they are its Hessenberg, here
+  they are a correction and are discarded, and keeping them would make it Arnoldi. The same
+  distinction separates `svds()` from `solvers-bidiag.R`, which builds the same recurrence
+  and stores no basis.
 
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is
