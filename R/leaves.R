@@ -9,8 +9,8 @@ dense_apply <- function(op, X, mode) {
   switch(mode,
     N = M %*% X,
     T = crossprod(M, X),
-    C = crossprod(Conj(M), X),
-    R = Conj(M) %*% X)
+    C = cross_adjoint(M, X),
+    R = conj_prod(M, X))
 }
 
 exact_caps_from_matrix <- function(M) {

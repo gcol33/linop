@@ -426,7 +426,7 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   ## product of length n carries a rounding error of about n eps for unit
   ## arguments, which is the level a reorthogonalised basis is entitled to reach
   ## and no better.
-  G <- crossprod(Conj(X), X) - diag(1, k)
+  G <- cross_adjoint(X, X) - diag(1, k)
   orth <- max(Mod(G))
   orth_floor <- floor_const * eps * nrow(X)
   r$add("orthogonality",

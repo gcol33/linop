@@ -49,6 +49,24 @@ col_cdot <- function(X, Y) {
   if (is.complex(X) || is.complex(Y)) colSums(Conj(X) * Y) else colSums(X * Y)
 }
 
+## X^H Y and conj(X) Y as matrix products. Conj() on double storage returns the
+## numbers it was given and allocates a full duplicate to do it, so the real
+## branch here is not an approximation of the complex one: it is the same
+## quantity, bitwise, without the copy.
+##
+## The copy is worth avoiding because these sit on apply and orthogonalisation
+## paths where X is the largest array in the run. Orthogonalising against a
+## stored basis duplicates the whole basis once per pass, 610 Mb at n = 1e6 and
+## ncv = 80, measured at 18 to 26 per cent of eigs() runtime in self time by
+## dev_notes/spikes/eigs-orth-crossover.R.
+cross_adjoint <- function(X, Y) {
+  if (is.complex(X)) crossprod(Conj(X), Y) else crossprod(X, Y)
+}
+
+conj_prod <- function(X, Y) {
+  if (is.complex(X)) Conj(X) %*% Y else X %*% Y
+}
+
 ## Y[, j] * v[j], without transposing twice.
 scale_cols <- function(X, v) X * rep(v, each = nrow(X))
 

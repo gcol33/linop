@@ -1,0 +1,296 @@
+validate stencil  n = 300: apply 1.14e-16, closed form 1.11e-16  (tridiagonal stencil, ~4 flops an entry)
+validate fft      n = 300: apply 7.97e-16, closed form 4.44e-16  (circulant through two FFTs, O(n log n))
+
+
+--- stencil n = 1e+04 ncv = 20  (20 reps, 0.08s sampled)
+    "doTryCatch"                                0.076  100.0%    0.002
+    "run"                                       0.076  100.0%    0.002
+    "profile_cell"                              0.076  100.0%    0.000
+    "tryCatch"                                  0.076  100.0%    0.000
+    "tryCatchList"                              0.076  100.0%    0.000
+    "tryCatchOne"                               0.076  100.0%    0.000
+    "eigs"                                      0.074   97.4%    0.000
+    "lanczos_core"                              0.052   68.4%    0.000
+    "lanczos_run"                               0.042   55.3%    0.000
+    "orth_against"                              0.018   23.7%    0.008
+    "f"                                         0.014   18.4%    0.014
+    "h$apply"                                   0.014   18.4%    0.000
+  -> orth 23.7% of 0.08s, basis 2 Mb
+
+--- stencil n = 1e+04 ncv = 40  (20 reps, 0.14s sampled)
+    "profile_cell"                              0.138  100.0%    0.002
+    "doTryCatch"                                0.138  100.0%    0.000
+    "tryCatch"                                  0.138  100.0%    0.000
+    "tryCatchList"                              0.138  100.0%    0.000
+    "tryCatchOne"                               0.138  100.0%    0.000
+    "eigs"                                      0.136   98.5%    0.000
+    "run"                                       0.136   98.5%    0.000
+    "lanczos_core"                              0.120   87.0%    0.000
+    "lanczos_run"                               0.110   79.7%    0.002
+    "orth_against"                              0.062   44.9%    0.026
+    "%*%"                                       0.030   21.7%    0.030
+    "linop_apply"                               0.028   20.3%    0.000
+  -> orth 44.9% of 0.14s, basis 3 Mb
+
+--- stencil n = 1e+04 ncv = 80  (20 reps, 0.40s sampled)
+    "doTryCatch"                                0.398  100.0%    0.000
+    "eigs"                                      0.398  100.0%    0.000
+    "profile_cell"                              0.398  100.0%    0.000
+    "run"                                       0.398  100.0%    0.000
+    "tryCatch"                                  0.398  100.0%    0.000
+    "tryCatchList"                              0.398  100.0%    0.000
+    "tryCatchOne"                               0.398  100.0%    0.000
+    "lanczos_core"                              0.376   94.5%    0.000
+    "lanczos_run"                               0.344   86.4%    0.006
+    "orth_against"                              0.268   67.3%    0.106
+    "%*%"                                       0.092   23.1%    0.092
+    "crossprod"                                 0.080   20.1%    0.080
+  -> orth 67.3% of 0.40s, basis 6 Mb
+
+--- stencil n = 1e+05 ncv = 20  (11 reps, 0.39s sampled)
+    "profile_cell"                              0.392  100.0%    0.002
+    "doTryCatch"                                0.392  100.0%    0.000
+    "tryCatch"                                  0.392  100.0%    0.000
+    "tryCatchList"                              0.392  100.0%    0.000
+    "tryCatchOne"                               0.392  100.0%    0.000
+    "eigs"                                      0.390   99.5%    0.000
+    "run"                                       0.390   99.5%    0.000
+    "lanczos_core"                              0.318   81.1%    0.000
+    "lanczos_run"                               0.242   61.7%    0.022
+    "orth_against"                              0.120   30.6%    0.056
+    "f"                                         0.086   21.9%    0.086
+    "h$apply"                                   0.086   21.9%    0.000
+  -> orth 30.6% of 0.39s, basis 15 Mb
+
+--- stencil n = 1e+05 ncv = 40  (5 reps, 0.38s sampled)
+    "profile_cell"                              0.384  100.0%    0.002
+    "doTryCatch"                                0.384  100.0%    0.000
+    "tryCatch"                                  0.384  100.0%    0.000
+    "tryCatchList"                              0.384  100.0%    0.000
+    "tryCatchOne"                               0.384  100.0%    0.000
+    "eigs"                                      0.382   99.5%    0.000
+    "run"                                       0.382   99.5%    0.000
+    "lanczos_core"                              0.352   91.7%    0.000
+    "lanczos_run"                               0.310   80.7%    0.018
+    "orth_against"                              0.224   58.3%    0.132
+    "crossprod"                                 0.062   16.1%    0.062
+    "cross_adjoint"                             0.062   16.1%    0.000
+  -> orth 58.3% of 0.38s, basis 31 Mb
+
+--- stencil n = 1e+05 ncv = 80  (2 reps, 0.47s sampled)
+    "doTryCatch"                                0.466  100.0%    0.000
+    "eigs"                                      0.466  100.0%    0.000
+    "profile_cell"                              0.466  100.0%    0.000
+    "run"                                       0.466  100.0%    0.000
+    "tryCatch"                                  0.466  100.0%    0.000
+    "tryCatchList"                              0.466  100.0%    0.000
+    "tryCatchOne"                               0.466  100.0%    0.000
+    "lanczos_core"                              0.454   97.4%    0.000
+    "lanczos_run"                               0.406   87.1%    0.010
+    "orth_against"                              0.322   69.1%    0.130
+    "%*%"                                       0.124   26.6%    0.124
+    "cross_adjoint"                             0.112   24.0%    0.002
+  -> orth 69.1% of 0.47s, basis 61 Mb
+
+--- stencil n = 1e+06 ncv = 20  (2 reps, 0.72s sampled)
+    "doTryCatch"                                0.716  100.0%    0.000
+    "eigs"                                      0.716  100.0%    0.000
+    "profile_cell"                              0.716  100.0%    0.000
+    "run"                                       0.716  100.0%    0.000
+    "tryCatch"                                  0.716  100.0%    0.000
+    "tryCatchList"                              0.716  100.0%    0.000
+    "tryCatchOne"                               0.716  100.0%    0.000
+    "lanczos_core"                              0.584   81.6%    0.002
+    "lanczos_run"                               0.490   68.4%    0.048
+    "orth_against"                              0.232   32.4%    0.090
+    "f"                                         0.180   25.1%    0.180
+    "h$apply"                                   0.180   25.1%    0.000
+  -> orth 32.4% of 0.72s, basis 153 Mb
+
+--- stencil n = 1e+06 ncv = 40  (1 reps, 0.82s sampled)
+    "doTryCatch"                                0.818  100.0%    0.000
+    "eigs"                                      0.818  100.0%    0.000
+    "profile_cell"                              0.818  100.0%    0.000
+    "run"                                       0.818  100.0%    0.000
+    "tryCatch"                                  0.818  100.0%    0.000
+    "tryCatchList"                              0.818  100.0%    0.000
+    "tryCatchOne"                               0.818  100.0%    0.000
+    "lanczos_core"                              0.754   92.2%    0.002
+    "lanczos_run"                               0.662   80.9%    0.034
+    "orth_against"                              0.406   49.6%    0.160
+    "%*%"                                       0.174   21.3%    0.174
+    "f"                                         0.150   18.3%    0.150
+  -> orth 49.6% of 0.82s, basis 305 Mb
+
+--- stencil n = 1e+06 ncv = 80  (1 reps, 2.49s sampled)
+    "run"                                       2.486  100.0%    0.002
+    "doTryCatch"                                2.486  100.0%    0.000
+    "profile_cell"                              2.486  100.0%    0.000
+    "tryCatch"                                  2.486  100.0%    0.000
+    "tryCatchList"                              2.486  100.0%    0.000
+    "tryCatchOne"                               2.486  100.0%    0.000
+    "eigs"                                      2.484   99.9%    0.000
+    "lanczos_core"                              2.416   97.2%    0.000
+    "lanczos_run"                               2.160   86.9%    0.078
+    "orth_against"                              1.668   67.1%    0.690
+    "%*%"                                       0.702   28.2%    0.702
+    "crossprod"                                 0.480   19.3%    0.480
+  -> orth 67.1% of 2.49s, basis 610 Mb
+
+--- fft n = 1e+04 ncv = 20  (20 reps, 0.10s sampled)
+    "doTryCatch"                                0.096  100.0%    0.000
+    "profile_cell"                              0.096  100.0%    0.000
+    "tryCatch"                                  0.096  100.0%    0.000
+    "tryCatchList"                              0.096  100.0%    0.000
+    "tryCatchOne"                               0.096  100.0%    0.000
+    "eigs"                                      0.094   97.9%    0.000
+    "run"                                       0.094   97.9%    0.000
+    "lanczos_core"                              0.068   70.8%    0.000
+    "lanczos_run"                               0.060   62.5%    0.004
+    "f"                                         0.034   35.4%    0.006
+    "h$apply"                                   0.034   35.4%    0.000
+    "linop_apply"                               0.034   35.4%    0.000
+  -> orth 27.1% of 0.10s, basis 2 Mb
+
+--- fft n = 1e+04 ncv = 40  (20 reps, 0.19s sampled)
+    "doTryCatch"                                0.192  100.0%    0.000
+    "eigs"                                      0.192  100.0%    0.000
+    "profile_cell"                              0.192  100.0%    0.000
+    "run"                                       0.192  100.0%    0.000
+    "tryCatch"                                  0.192  100.0%    0.000
+    "tryCatchList"                              0.192  100.0%    0.000
+    "tryCatchOne"                               0.192  100.0%    0.000
+    "lanczos_core"                              0.166   86.5%    0.000
+    "lanczos_run"                               0.152   79.2%    0.012
+    "orth_against"                              0.090   46.9%    0.046
+    "linop_apply"                               0.046   24.0%    0.002
+    "f"                                         0.040   20.8%    0.006
+  -> orth 46.9% of 0.19s, basis 3 Mb
+
+--- fft n = 1e+04 ncv = 80  (19 reps, 0.48s sampled)
+    "profile_cell"                              0.478  100.0%    0.002
+    "doTryCatch"                                0.478  100.0%    0.000
+    "tryCatch"                                  0.478  100.0%    0.000
+    "tryCatchList"                              0.478  100.0%    0.000
+    "tryCatchOne"                               0.478  100.0%    0.000
+    "eigs"                                      0.476   99.6%    0.000
+    "run"                                       0.476   99.6%    0.000
+    "lanczos_core"                              0.456   95.4%    0.002
+    "lanczos_run"                               0.428   89.5%    0.012
+    "orth_against"                              0.292   61.1%    0.150
+    "linop_apply"                               0.088   18.4%    0.000
+    "h$apply"                                   0.084   17.6%    0.004
+  -> orth 61.1% of 0.48s, basis 6 Mb
+
+--- fft n = 1e+05 ncv = 20  (9 reps, 0.38s sampled)
+    "doTryCatch"                                0.376  100.0%    0.000
+    "eigs"                                      0.376  100.0%    0.000
+    "profile_cell"                              0.376  100.0%    0.000
+    "run"                                       0.376  100.0%    0.000
+    "tryCatch"                                  0.376  100.0%    0.000
+    "tryCatchList"                              0.376  100.0%    0.000
+    "tryCatchOne"                               0.376  100.0%    0.000
+    "lanczos_core"                              0.286   76.1%    0.002
+    "lanczos_run"                               0.238   63.3%    0.010
+    "f"                                         0.146   38.8%    0.018
+    "h$apply"                                   0.146   38.8%    0.000
+    "linop_apply"                               0.146   38.8%    0.000
+  -> orth 22.3% of 0.38s, basis 15 Mb
+
+--- fft n = 1e+05 ncv = 40  (5 reps, 0.46s sampled)
+    "doTryCatch"                                0.456  100.0%    0.000
+    "eigs"                                      0.456  100.0%    0.000
+    "profile_cell"                              0.456  100.0%    0.000
+    "run"                                       0.456  100.0%    0.000
+    "tryCatch"                                  0.456  100.0%    0.000
+    "tryCatchList"                              0.456  100.0%    0.000
+    "tryCatchOne"                               0.456  100.0%    0.000
+    "lanczos_core"                              0.402   88.2%    0.000
+    "lanczos_run"                               0.352   77.2%    0.012
+    "orth_against"                              0.204   44.7%    0.076
+    "linop_apply"                               0.136   29.8%    0.000
+    "f"                                         0.134   29.4%    0.014
+  -> orth 44.7% of 0.46s, basis 31 Mb
+
+--- fft n = 1e+05 ncv = 80  (2 reps, 0.49s sampled)
+    "profile_cell"                              0.494  100.0%    0.002
+    "doTryCatch"                                0.494  100.0%    0.000
+    "tryCatch"                                  0.494  100.0%    0.000
+    "tryCatchList"                              0.494  100.0%    0.000
+    "tryCatchOne"                               0.494  100.0%    0.000
+    "eigs"                                      0.492   99.6%    0.000
+    "run"                                       0.492   99.6%    0.000
+    "lanczos_core"                              0.472   95.5%    0.000
+    "lanczos_run"                               0.424   85.8%    0.010
+    "orth_against"                              0.292   59.1%    0.128
+    "%*%"                                       0.110   22.3%    0.110
+    "linop_apply"                               0.102   20.6%    0.000
+  -> orth 59.1% of 0.49s, basis 61 Mb
+
+--- fft n = 1e+06 ncv = 20  (1 reps, 0.58s sampled)
+    "run"                                       0.584  100.0%    0.002
+    "doTryCatch"                                0.584  100.0%    0.000
+    "profile_cell"                              0.584  100.0%    0.000
+    "tryCatch"                                  0.584  100.0%    0.000
+    "tryCatchList"                              0.584  100.0%    0.000
+    "tryCatchOne"                               0.584  100.0%    0.000
+    "eigs"                                      0.582   99.7%    0.000
+    "lanczos_core"                              0.424   72.6%    0.002
+    "lanczos_run"                               0.354   60.6%    0.024
+    "f"                                         0.308   52.7%    0.016
+    "h$apply"                                   0.308   52.7%    0.000
+    "linop_apply"                               0.308   52.7%    0.000
+  -> orth 20.9% of 0.58s, basis 153 Mb
+
+--- fft n = 1e+06 ncv = 40  (1 reps, 1.16s sampled)
+    "run"                                       1.158  100.0%    0.002
+    "doTryCatch"                                1.158  100.0%    0.000
+    "profile_cell"                              1.158  100.0%    0.000
+    "tryCatch"                                  1.158  100.0%    0.000
+    "tryCatchList"                              1.158  100.0%    0.000
+    "tryCatchOne"                               1.158  100.0%    0.000
+    "eigs"                                      1.156   99.8%    0.000
+    "lanczos_core"                              1.024   88.4%    0.002
+    "lanczos_run"                               0.912   78.8%    0.032
+    "f"                                         0.502   43.4%    0.030
+    "h$apply"                                   0.502   43.4%    0.000
+    "linop_apply"                               0.502   43.4%    0.000
+  -> orth 35.8% of 1.16s, basis 305 Mb
+
+--- fft n = 1e+06 ncv = 80  (1 reps, 2.80s sampled)
+    "doTryCatch"                                2.798  100.0%    0.000
+    "profile_cell"                              2.798  100.0%    0.000
+    "tryCatch"                                  2.798  100.0%    0.000
+    "tryCatchList"                              2.798  100.0%    0.000
+    "tryCatchOne"                               2.798  100.0%    0.000
+    "eigs"                                      2.796   99.9%    0.000
+    "run"                                       2.796   99.9%    0.000
+    "lanczos_core"                              2.662   95.1%    0.002
+    "lanczos_run"                               2.386   85.3%    0.066
+    "orth_against"                              1.516   54.2%    0.636
+    "linop_apply"                               0.732   26.2%    0.002
+    "h$apply"                                   0.728   26.0%    0.000
+  -> orth 54.2% of 2.80s, basis 610 Mb
+
+================================ summary
+kind            n   ncv    orth %  basis Mb
+stencil     1e+04    20     23.7%         2
+stencil     1e+04    40     44.9%         3
+stencil     1e+04    80     67.3%         6
+stencil     1e+05    20     30.6%        15
+stencil     1e+05    40     58.3%        31
+stencil     1e+05    80     69.1%        61
+stencil     1e+06    20     32.4%       153
+stencil     1e+06    40     49.6%       305
+stencil     1e+06    80     67.1%       610
+fft         1e+04    20     27.1%         2
+fft         1e+04    40     46.9%         3
+fft         1e+04    80     61.1%         6
+fft         1e+05    20     22.3%        15
+fft         1e+05    40     44.7%        31
+fft         1e+05    80     59.1%        61
+fft         1e+06    20     20.9%       153
+fft         1e+06    40     35.8%       305
+fft         1e+06    80     54.2%       610
+
+done: dev_notes/spikes/results/eigs-orth-crossover.csv

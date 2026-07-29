@@ -1,0 +1,156 @@
+
+--- stencil n = 1e+05 ncv = 20   0.37s sampled over 10 reps
+    compiled   46.2%   linop R   32.3%   apply   21.5%   (accounted 100.0% of sampled)
+      apply      "inner"                      0.080
+      compiled   "%*%"                        0.060
+      linopR     "orth_against"               0.056
+      linopR     "scale_cols"                 0.044
+      compiled   "crossprod"                  0.032
+      compiled   "stats::rnorm"               0.024
+      linopR     "lanczos_run"                0.018
+      compiled   "^"                          0.012
+      compiled   "colSums"                    0.010
+      compiled   "matrix"                     0.008
+      compiled   "*"                          0.008
+      linopR     "lanczos_core"               0.002
+      compiled   "findCenvVar"                0.002
+      compiled   "%in%"                       0.002
+    ceiling if every line of linop's R became C: 1.48x
+
+--- stencil n = 1e+05 ncv = 80   0.51s sampled over 2 reps
+    compiled   52.5%   linop R   40.4%   apply    7.1%   (accounted 100.0% of sampled)
+      linopR     "orth_against"               0.168
+      compiled   "%*%"                        0.160
+      compiled   "crossprod"                  0.080
+      apply      "inner"                      0.036
+      linopR     "lanczos_run"                0.018
+      linopR     "scale_cols"                 0.018
+      compiled   "^"                          0.012
+      compiled   "*"                          0.006
+      compiled   "stats::rnorm"               0.004
+      linopR     "col_norms"                  0.002
+      compiled   "colSums"                    0.002
+      compiled   "matrix"                     0.002
+      compiled   "sqrt"                       0.002
+    ceiling if every line of linop's R became C: 1.68x
+
+--- stencil n = 1e+06 ncv = 20   0.70s sampled over 2 reps
+    compiled   43.7%   linop R   33.0%   apply   23.3%   (accounted 100.0% of sampled)
+      apply      "inner"                      0.162
+      compiled   "%*%"                        0.104
+      linopR     "orth_against"               0.098
+      linopR     "scale_cols"                 0.068
+      compiled   "crossprod"                  0.064
+      linopR     "lanczos_run"                0.054
+      compiled   "stats::rnorm"               0.050
+      compiled   "^"                          0.034
+      compiled   "*"                          0.018
+      compiled   "colSums"                    0.014
+      compiled   "matrix"                     0.012
+      linopR     "lanczos_core"               0.006
+      compiled   "cbind"                      0.004
+      linopR     "col_norms"                  0.002
+    ceiling if every line of linop's R became C: 1.49x
+
+--- stencil n = 1e+06 ncv = 80   2.42s sampled over 1 reps
+    compiled   54.0%   linop R   36.2%   apply    9.8%   (accounted 100.0% of sampled)
+      compiled   "%*%"                        0.686
+      linopR     "orth_against"               0.680
+      compiled   "crossprod"                  0.444
+      apply      "inner"                      0.238
+      linopR     "scale_cols"                 0.122
+      linopR     "lanczos_run"                0.072
+      compiled   "^"                          0.062
+      compiled   "colSums"                    0.036
+      compiled   "*"                          0.028
+      compiled   "stats::rnorm"               0.026
+      compiled   "matrix"                     0.018
+      compiled   "-"                          0.004
+      compiled   "cbind"                      0.004
+      linopR     "eigen_setup"                0.002
+    ceiling if every line of linop's R became C: 1.57x
+
+--- fft n = 1e+05 ncv = 20   0.44s sampled over 10 reps
+    compiled   75.7%   linop R   21.6%   apply    2.7%   (accounted 100.0% of sampled)
+      compiled   "stats::fft"                 0.188
+      compiled   "%*%"                        0.044
+      linopR     "orth_against"               0.042
+      linopR     "scale_cols"                 0.040
+      compiled   "crossprod"                  0.032
+      compiled   "stats::rnorm"               0.024
+      linopR     "lanczos_run"                0.014
+      apply      "inner"                      0.012
+      compiled   "*"                          0.012
+      compiled   "^"                          0.012
+      compiled   "colSums"                    0.008
+      compiled   "Re"                         0.008
+      compiled   "run"                        0.002
+      compiled   "as.matrix"                  0.002
+    ceiling if every line of linop's R became C: 1.28x
+
+--- fft n = 1e+05 ncv = 80   0.55s sampled over 2 reps
+    compiled   60.6%   linop R   36.8%   apply    2.5%   (accounted 100.0% of sampled)
+      linopR     "orth_against"               0.162
+      compiled   "%*%"                        0.120
+      compiled   "crossprod"                  0.096
+      compiled   "stats::fft"                 0.088
+      linopR     "scale_cols"                 0.022
+      linopR     "lanczos_run"                0.018
+      apply      "inner"                      0.014
+      compiled   "*"                          0.008
+      compiled   "^"                          0.006
+      compiled   "stats::rnorm"               0.006
+      linopR     "lanczos_core"               0.002
+      compiled   "colSums"                    0.002
+      compiled   "is.data.frame"              0.002
+      compiled   "matrix"                     0.002
+    ceiling if every line of linop's R became C: 1.58x
+
+--- fft n = 1e+06 ncv = 20   0.57s sampled over 1 reps
+    compiled   78.3%   linop R   19.9%   apply    1.7%   (accounted 100.0% of sampled)
+      compiled   "stats::fft"                 0.288
+      linopR     "orth_against"               0.048
+      compiled   "%*%"                        0.048
+      linopR     "scale_cols"                 0.042
+      compiled   "crossprod"                  0.036
+      compiled   "stats::rnorm"               0.026
+      linopR     "lanczos_run"                0.024
+      compiled   "*"                          0.014
+      compiled   "^"                          0.014
+      apply      "inner"                      0.010
+      compiled   "colSums"                    0.008
+      compiled   "matrix"                     0.006
+      compiled   "Re"                         0.004
+      compiled   "$"                          0.002
+    ceiling if every line of linop's R became C: 1.25x
+
+--- fft n = 1e+06 ncv = 80   2.95s sampled over 1 reps
+    compiled   69.9%   linop R   28.9%   apply    1.2%   (accounted 100.0% of sampled)
+      compiled   "stats::fft"                 0.714
+      compiled   "%*%"                        0.694
+      linopR     "orth_against"               0.684
+      compiled   "crossprod"                  0.450
+      linopR     "scale_cols"                 0.102
+      compiled   "^"                          0.066
+      linopR     "lanczos_run"                0.060
+      compiled   "*"                          0.042
+      compiled   "colSums"                    0.038
+      apply      "inner"                      0.034
+      compiled   "stats::rnorm"               0.030
+      compiled   "matrix"                     0.014
+      compiled   "Re"                         0.010
+      compiled   "-"                          0.004
+    ceiling if every line of linop's R became C: 1.41x
+
+=============================================== summary
+kind            n  ncv  compiled%   linopR%   apply%   ceiling
+stencil     1e+05   20      46.2%     32.3%    21.5%     1.48x
+stencil     1e+05   80      52.5%     40.4%     7.1%     1.68x
+stencil     1e+06   20      43.7%     33.0%    23.3%     1.49x
+stencil     1e+06   80      54.0%     36.2%     9.8%     1.57x
+fft         1e+05   20      75.7%     21.6%     2.7%     1.28x
+fft         1e+05   80      60.6%     36.8%     2.5%     1.58x
+fft         1e+06   20      78.3%     19.9%     1.7%     1.25x
+fft         1e+06   80      69.9%     28.9%     1.2%     1.41x
+
+median ceiling on compiling all of linop: 1.48x
