@@ -111,22 +111,47 @@ test_that("unknown definiteness is a minres problem rather than a refusal", {
 
 ## ------------------------------------------------ the minimal-residual property
 
-## The exact minimiser of ||b - A x|| over K_m(A, b), by dense least squares on an
-## orthonormalised basis. This is the definition of what MINRES returns at step m,
-## computed without reference to the recurrence that produces it.
-krylov_argmin <- function(M, b, m) {
+cdot <- function(x, y) sum(Conj(x) * y)
+vnorm <- function(x) sqrt(Re(cdot(x, x)))
+
+## An orthonormal basis for K_m(A, b), by modified Gram-Schmidt with a second
+## pass. The threshold on an exhausted space is relative, so scaling the operator
+## does not move where the space is declared to end.
+krylov_basis <- function(M, b, m) {
   n <- length(b)
-  K <- matrix(0, n, m)
-  v <- b / sqrt(sum(b^2))
+  K <- matrix(if (is.complex(M) || is.complex(b)) complex(1) else 0, n, m)
+  v <- b / vnorm(b)
+  used <- 0L
   for (j in seq_len(m)) {
     K[, j] <- v
-    v <- as.numeric(M %*% v)
-    for (rep in 1:2) for (i in seq_len(j)) v <- v - sum(K[, i] * v) * K[, i]
-    nv <- sqrt(sum(v^2))
-    if (nv < 1e-12) { K <- K[, seq_len(j), drop = FALSE]; break }
+    used <- j
+    v <- as.vector(M %*% v)
+    n0 <- vnorm(v)
+    for (pass in 1:2) for (i in seq_len(j)) v <- v - cdot(K[, i], v) * K[, i]
+    nv <- vnorm(v)
+    if (n0 <= 0 || nv <= 1e-12 * n0) break
     v <- v / nv
   }
-  as.numeric(K %*% qr.solve(M %*% K, b))
+  K[, seq_len(used), drop = FALSE]
+}
+
+## The exact minimiser of ||b - A x|| over K_m(A, b), by dense least squares over
+## that basis. This is the definition of what MINRES returns at step m, computed
+## without reference to the recurrence that produces it. The least-squares step is
+## a truncated SVD rather than a QR so that it degrades gracefully where the basis
+## has lost rank, and so that one routine serves the real and complex cases.
+krylov_argmin <- function(M, b, m) {
+  K <- krylov_basis(M, b, m)
+  G <- M %*% K
+  s <- svd(G)
+  keep <- s$d > max(dim(G)) * .Machine$double.eps * max(s$d)
+  y <- rep(if (is.complex(G) || is.complex(b)) complex(1) else 0, ncol(G))
+  if (any(keep)) {
+    y[keep] <- as.vector(s$v[, keep, drop = FALSE] %*%
+                         (as.vector(crossprod(Conj(s$u[, keep, drop = FALSE]), b)) /
+                          s$d[keep]))
+  }
+  as.vector(K %*% y)
 }
 
 test_that("the iterate at step m is the exact minimiser over the Krylov space", {
@@ -205,6 +230,312 @@ test_that("columns run in lockstep are the iterates of per-column minres", {
     one <- minres(A, B[, j, drop = FALSE], tol = 1e-11)
     expect_identical(block$x[, j], one$x[, 1L],
                      info = sprintf("column %d diverged from its own solve", j))
+  }
+})
+
+## ------------------------------------ agreement with a reference, Gate 2 --
+
+## The published recurrence, transcribed from the Paige and Saunders form with
+## the preconditioner set to the identity and no shift. It shares no code with
+## the implementation and no idea with krylov_argmin above: one is a short
+## recurrence, the other a variational characterisation of the same iterate.
+##
+## The transcription is checked against SciPy 1.17.1's minres by
+## dev_notes/spikes/minres_export.R, which is what makes it a reference rather
+## than a second copy of the same beliefs. Over four conditionings and both
+## breakdown fixtures it tracks SciPy to the accuracy this implementation does:
+## 6.9e-15 at eight steps at kappa 1e2, 4.3e-12 at kappa 1e10.
+reference_minres <- function(M, b, steps) {
+  n <- length(b)
+  cx <- is.complex(M) || is.complex(b)
+  zero <- if (cx) complex(n) else numeric(n)
+  x <- zero
+  r1 <- as.vector(b)
+  y <- r1
+  beta1 <- sqrt(Re(cdot(r1, y)))
+  if (beta1 <= 0) return(x)
+  oldb <- 0; beta <- beta1; dbar <- 0; epsln <- 0
+  phibar <- beta1
+  cs <- -1; sn <- 0
+  w <- zero; w2 <- zero
+  r2 <- r1
+  for (itn in seq_len(steps)) {
+    if (beta <= 0) break
+    v <- y / beta
+    y <- as.vector(M %*% v)
+    if (itn >= 2) y <- y - (beta / oldb) * r1
+    ## alpha is real for a hermitian operator; taking the real part states that
+    ## rather than repairs it.
+    alfa <- Re(cdot(v, y))
+    y <- y - (alfa / beta) * r2
+    r1 <- r2; r2 <- y
+    oldb <- beta
+    beta <- sqrt(max(Re(cdot(r2, y)), 0))
+    oldeps <- epsln
+    delta <- cs * dbar + sn * alfa
+    gbar <- sn * dbar - cs * alfa
+    epsln <- sn * beta
+    dbar <- -cs * beta
+    gamma <- max(sqrt(gbar^2 + beta^2), .Machine$double.eps)
+    cs <- gbar / gamma
+    sn <- beta / gamma
+    phi <- cs * phibar
+    phibar <- sn * phibar
+    w1 <- w2; w2 <- w
+    w <- (v - oldeps * w1 - delta * w2) / gamma
+    x <- x + phi * w
+  }
+  x
+}
+
+## Half below zero and half above, magnitudes from 1 down to 1/kappa, so kappa_2
+## is exactly kappa and no definite method may be given the operator at all.
+indef_spectrum <- function(n, kappa) {
+  rep(c(-1, 1), length.out = n) * exp(seq(log(1), log(1 / kappa), length.out = n))
+}
+
+test_that("the iterate agrees with both references on ill-conditioned problems", {
+  ## Gate 2 asks for this method specifically. tol = 0 removes every stopping
+  ## test, so both sides run the same fixed number of steps and the gap is the
+  ## recurrence rather than the budget.
+  ##
+  ## The tolerance tracks the conditioning rather than being one constant,
+  ## because the gap between two computations of the same iterate grows with it.
+  ## Measured over five seeds at eight steps in
+  ## dev_notes/spikes/minres_reference.R: 3.7e-15 at kappa 1e2, 2.2e-14 at 1e4,
+  ## 3.0e-13 at 1e6, 1.1e-12 at 1e8 and 1.7e-11 at 1e10.
+  cases <- list(list(kappa = 1e2,  tol = 1e-13),
+                list(kappa = 1e4,  tol = 1e-12),
+                list(kappa = 1e6,  tol = 1e-11),
+                list(kappa = 1e8,  tol = 1e-10),
+                list(kappa = 1e10, tol = 1e-9))
+  n <- 40
+  for (case in cases) {
+    for (seed in 1:5) {
+      M <- spd_prescribed(n, indef_spectrum(n, case$kappa), seed = seed)
+      A <- linop(M, properties = c(hermitian = TRUE))
+      set.seed(700L + seed)
+      b <- matrix(stats::rnorm(n), n, 1L)
+      for (m in c(1L, 2L, 4L, 6L, 8L)) {
+        mine <- as.vector(minres(A, b, tol = 0, maxit = m)$x)
+        defn <- krylov_argmin(M, b, m)
+        publ <- reference_minres(M, as.vector(b), m)
+        expect_lt(max(Mod(mine - defn)) / max(Mod(defn)), case$tol,
+                  label = sprintf("kappa %.0e, seed %d, step %d, definition",
+                                  case$kappa, seed, m))
+        expect_lt(max(Mod(mine - publ)) / max(Mod(publ)), case$tol,
+                  label = sprintf("kappa %.0e, seed %d, step %d, published",
+                                  case$kappa, seed, m))
+      }
+    }
+  }
+})
+
+test_that("the two references part company where neither is truth for the other", {
+  ## What the ceiling is a property of. The definition and the published
+  ## recurrence share no code, and at kappa 1e6 they agree to 1.4e-15 at four
+  ## steps, 2.8e-13 at eight, 2.0e-08 at twelve and not at all at sixteen. That
+  ## schedule is the same one this implementation follows against each of them,
+  ## so the divergence belongs to the method rather than to any one program, and
+  ## a reference test cannot be extended past it by tightening anything.
+  n <- 40
+  M <- spd_prescribed(n, indef_spectrum(n, 1e6), seed = 5L)
+  set.seed(705L)
+  b <- matrix(stats::rnorm(n), n, 1L)
+
+  gap <- function(m) {
+    a <- krylov_argmin(M, b, m)
+    max(Mod(a - reference_minres(M, as.vector(b), m))) / max(Mod(a))
+  }
+  expect_lt(gap(4L), 1e-13)
+  expect_lt(gap(8L), 1e-11)
+  expect_gt(gap(16L), 1e-3)
+})
+
+test_that("an ill-conditioned solve run to convergence lands where kappa allows", {
+  ## The other half of the same fact. What the implementations agree on is the
+  ## solution, whatever they did on the way to it, and how close that can be is
+  ## set by the conditioning: the measured forward error over these fixtures is
+  ## between 0.5 and 22 times kappa * eps, so the bound is written that way
+  ## rather than as a constant that happens to pass.
+  n <- 40
+  for (kappa in c(1e2, 1e4, 1e6, 1e8)) {
+    for (seed in 1:3) {
+      M <- spd_prescribed(n, indef_spectrum(n, kappa), seed = seed)
+      A <- linop(M, properties = c(hermitian = TRUE))
+      set.seed(800L + seed)
+      x_true <- matrix(stats::rnorm(n), n, 1L)
+      b <- M %*% x_true
+      fit <- minres(A, b, tol = 1e-13, maxit = 40L * n)
+      err <- max(Mod(as.vector(fit$x) - as.vector(x_true))) / max(Mod(x_true))
+      expect_lt(err, 200 * kappa * .Machine$double.eps,
+                label = sprintf("kappa %.0e, seed %d", kappa, seed))
+    }
+  }
+})
+
+test_that("the complex case agrees with both references, where no external one exists", {
+  ## SciPy's minres casts a complex operator to real and solves a different
+  ## problem, so this case has only the two references carried here. Measured at
+  ## eight steps over three seeds: 3.8e-15 at kappa 1e2 and 5.5e-12 at 1e6.
+  for (case in list(list(kappa = 1e2, tol = 1e-13),
+                    list(kappa = 1e6, tol = 1e-10))) {
+    n <- 30
+    for (seed in 1:3) {
+      M <- hpd_prescribed(n, indef_spectrum(n, case$kappa), seed = seed)
+      A <- linop(M, properties = c(hermitian = TRUE))
+      set.seed(950L + seed)
+      b <- matrix(complex(real = stats::rnorm(n), imaginary = stats::rnorm(n)), n, 1L)
+      for (m in c(1L, 2L, 4L, 8L)) {
+        mine <- as.vector(minres(A, b, tol = 0, maxit = m)$x)
+        defn <- krylov_argmin(M, b, m)
+        publ <- reference_minres(M, as.vector(b), m)
+        expect_true(is.complex(mine))
+        expect_lt(max(Mod(mine - defn)) / max(Mod(defn)), case$tol,
+                  label = sprintf("kappa %.0e, seed %d, step %d, definition",
+                                  case$kappa, seed, m))
+        expect_lt(max(Mod(mine - publ)) / max(Mod(publ)), case$tol,
+                  label = sprintf("kappa %.0e, seed %d, step %d, published",
+                                  case$kappa, seed, m))
+      }
+    }
+  }
+})
+
+## --------------------------------------------------- breakdown, and past it --
+
+## The off-diagonal sequence of the recurrence MINRES runs, by a dense Lanczos
+## with no reorthogonalisation, scaled by ||A v_j|| so the row is scale free.
+beta_sequence <- function(M, b, steps) {
+  out <- rep(NA_real_, steps)
+  v <- as.vector(b) / vnorm(b)
+  v_old <- rep(0, length(v))
+  beta <- 0
+  for (j in seq_len(steps)) {
+    p <- as.vector(M %*% v)
+    w <- p - Re(cdot(v, p)) * v - beta * v_old
+    bn <- vnorm(w)
+    out[j] <- bn / vnorm(p)
+    if (bn <= 0) break
+    v_old <- v; v <- w / bn; beta <- bn
+  }
+  out
+}
+
+## b inside a d-dimensional invariant subspace, so the Krylov space is exhausted
+## at step d and beta_{d+1} = 0 in exact arithmetic. The shifted Laplacian's
+## eigenvectors are closed form, so the subspace is constructed rather than found.
+invariant_rhs <- function(n, d, seed) {
+  set.seed(seed)
+  matrix(laplacian_1d_eigenvectors(n)[, seq_len(d) * 5L, drop = FALSE] %*%
+           stats::rnorm(d), n, 1L)
+}
+
+test_that("an exact breakdown returns the exact solution at the dimension of the subspace", {
+  n <- 60
+  sigma <- 1.5
+  A <- shifted_laplacian_1d(n, sigma)
+  for (d in c(1L, 2L, 3L)) {
+    b <- invariant_rhs(n, d, 900L + d)
+    fit <- minres(A, b, tol = 1e-12, maxit = 10L * n)
+    expect_equal(fit$iterations, d, info = sprintf("d = %d", d))
+    expect_equal(cert_status(fit$certificate, "residual"), "pass")
+    expect_lt(max(Mod(as.vector(fit$x) -
+                      as.vector(shifted_laplacian_solve(n, sigma, b)))) /
+              max(Mod(shifted_laplacian_solve(n, sigma, b))), 1e-12,
+              label = sprintf("d = %d", d))
+    ## and the definition finds the space exhausted at the same step
+    expect_equal(ncol(krylov_basis(as.matrix(A), b, n)), d,
+                 info = sprintf("d = %d", d))
+  }
+})
+
+test_that("the off-diagonal that collapses at a breakdown recovers on the next step", {
+  ## What an exact breakdown looks like in floating point is one collapsed entry
+  ## rather than the end of the sequence: rounding in A v re-seeds the space with
+  ## a component the exact iteration does not have, and the next off-diagonal
+  ## comes back at O(1). Measured depth of the collapse, which degrades with d:
+  ## 8.3e-16 at d = 1, 7.3e-13 at d = 3, 9.6e-11 at d = 8. Measured size of the
+  ## recovery: 0.36, 0.14 and 0.042 on the same three.
+  ##
+  ## This is why nothing in the solver thresholds beta to detect a breakdown, and
+  ## why neither reference stops at d either.
+  n <- 60
+  M <- as.matrix(shifted_laplacian_1d(n, 1.5))
+  for (d in c(1L, 2L, 3L, 5L, 8L)) {
+    bs <- beta_sequence(M, invariant_rhs(n, d, 900L + d), d + 2L)
+    expect_lt(bs[d], 1e-9, label = sprintf("d = %d, the collapse", d))
+    expect_gt(bs[d + 1L], 1e-2, label = sprintf("d = %d, the recovery", d))
+  }
+})
+
+test_that("iterating past a breakdown improves the iterate rather than damaging it", {
+  ## The consequence of the previous test, and the reason the residual is the
+  ## right thing to stop on. Finite termination is exact only in exact
+  ## arithmetic: at d = 8 the iterate at the breakdown step is wrong by 3.9e-12
+  ## and the steps taken past it bring that to 9.7e-15, so a solver that
+  ## detected the breakdown and stopped would return the worse answer.
+  n <- 60
+  sigma <- 1.5
+  A <- shifted_laplacian_1d(n, sigma)
+  for (d in c(1L, 3L, 5L, 8L)) {
+    b <- invariant_rhs(n, d, 900L + d)
+    truth <- shifted_laplacian_solve(n, sigma, b)
+    errs <- vapply(d + 0:8, function(m) {
+      max(Mod(as.vector(minres(A, b, tol = 0, maxit = m)$x) - as.vector(truth))) /
+        max(Mod(truth))
+    }, numeric(1))
+    expect_true(all(errs <= 2 * errs[1L]),
+                info = sprintf("d = %d: %s", d, paste(sprintf("%.1e", errs),
+                                                      collapse = " ")))
+    expect_true(all(errs < 1e-11), info = sprintf("d = %d", d))
+    if (d >= 5L) expect_lt(errs[length(errs)], errs[1L], label = sprintf("d = %d", d))
+  }
+})
+
+test_that("the near-breakdown window is crossed without incident", {
+  ## b = v_i + delta v_j sits inside a one-dimensional invariant subspace to
+  ## relative accuracy delta, so beta_2 is O(delta). The sweep crosses
+  ## sqrt(eps) = 1.5e-08, where the solver's exhaustion guard sits, and crosses
+  ## the point where one step already meets the tolerance: at delta >= 1e-10 the
+  ## solve takes two steps and at delta <= 1e-12 it takes one. Everything in the
+  ## window converges, and the worst forward error over it is 4.4e-12, at the
+  ## delta where a single step is just good enough to stop on.
+  n <- 60
+  sigma <- 1.5
+  A <- shifted_laplacian_1d(n, sigma)
+  V <- laplacian_1d_eigenvectors(n)
+  tol <- 1e-12
+
+  for (delta in c(1e-2, 1e-4, 1e-6, 1e-8, 1e-10, 1e-12, 1e-14, 1e-16, 0)) {
+    b <- matrix(V[, 7L] + delta * V[, 23L], n, 1L)
+    truth <- shifted_laplacian_solve(n, sigma, b)
+    fit <- minres(A, b, tol = tol, maxit = 10L * n)
+    lab <- sprintf("delta %.0e", delta)
+    expect_true(fit$converged, info = lab)
+    expect_equal(cert_status(fit$certificate, "residual"), "pass", info = lab)
+    expect_lte(max(fit$certificate$values$residual), tol, label = lab)
+    expect_lt(fit$iterations, 3L, label = lab)
+    expect_lt(max(Mod(as.vector(fit$x) - as.vector(truth))) / max(Mod(truth)),
+              1e-10, label = lab)
+  }
+})
+
+test_that("the near-breakdown iterates agree with both references step for step", {
+  n <- 60
+  A <- shifted_laplacian_1d(n, 1.5)
+  M <- as.matrix(A)
+  V <- laplacian_1d_eigenvectors(n)
+  for (delta in c(1e-4, 1e-8, 1e-12, 1e-16)) {
+    b <- matrix(V[, 7L] + delta * V[, 23L], n, 1L)
+    for (m in 1:3) {
+      mine <- as.vector(minres(A, b, tol = 0, maxit = m)$x)
+      defn <- krylov_argmin(M, b, m)
+      publ <- reference_minres(M, as.vector(b), m)
+      lab <- sprintf("delta %.0e, step %d", delta, m)
+      expect_lt(max(Mod(mine - defn)) / max(Mod(defn)), 1e-10, label = lab)
+      expect_lt(max(Mod(mine - publ)) / max(Mod(publ)), 1e-10, label = lab)
+    }
   }
 })
 
