@@ -67,10 +67,10 @@ ritz_order <- function(theta, which) {
 orth_against <- function(Q, W) {
   if (is.null(Q) || !ncol(Q)) return(W)
   w0 <- col_norms(W)
-  W <- W - Q %*% crossprod(Conj(Q), W)
+  W <- W - Q %*% cross_adjoint(Q, W)
   again <- col_norms(W) < REORTH_ETA * w0
   if (any(again)) {
-    W <- W - Q %*% scale_cols(crossprod(Conj(Q), W), as.numeric(again))
+    W <- W - Q %*% scale_cols(cross_adjoint(Q, W), as.numeric(again))
   }
   W
 }
