@@ -14,9 +14,9 @@ new names and cost one each, which is the whole of what Phase 2 spends on the pu
 The benchmark harness runs end to end with committed results in `dev_notes/bench/`. The
 reference-agreement line is met for both methods the gate names: LSMR against SciPy 1.17.1,
 MINRES against two references at once over kappa 1e2 to 1e10 with breakdown and
-near-breakdown constructed rather than hoped for. **The one open Gate 2 item is a solver
-vignette**, and `_pkgdown.yml` still omits `solve.linop`, `eigs` and `svds` from its
-reference index, which fails the site build on missing topics.
+near-breakdown constructed rather than hoped for. `_pkgdown.yml` now indexes every topic in
+`man/`, `pkgdown::check_pkgdown()` clean. **The one open Gate 2 item is a solver vignette**:
+the articles list is still the four Phase 1 vignettes, none of which teaches solving.
 
 Two things section 7.2 lists for v0.1 are deliberately not here, and
 `dev_notes/eigs-svds-and-the-third-certificate.md` records why: RSpectra delegation (deferred
