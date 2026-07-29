@@ -52,7 +52,7 @@ SIGMA_SELECT <- "LM"
 #' `target identity` is `not_checked`, always. A small residual proves the pair is
 #' an approximate eigenpair; that it is the largest, smallest or nearest one
 #' requires an inertia count, an enclosure or a separation bound, and matrix-free
-#' there is generally none. See `vignette("solvers")`.
+#' there is generally none. See `vignette("certificates")`.
 #'
 #' @param A A square hermitian `linop`. No adjoint is required.
 #' @param k How many eigenpairs.

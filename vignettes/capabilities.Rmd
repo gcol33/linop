@@ -326,3 +326,8 @@ certificate records the guarantee as `heuristic` for exactly this reason.
 - `vignette("adapters")` covers the rest of the certificate, and the contracts
   that preconditioners and solve objects carry.
 - `vignette("expressions")` covers the tree these capabilities travel up.
+- `vignette("solvers")` covers what `method = "auto"` does with the evidence
+  above, which is where these three fields decide something visible.
+- `vignette("certificates")` covers the same three fields underneath a computed
+  result, including a bound that inherits the evidence of the capability it
+  rests on.

@@ -1,0 +1,201 @@
+---
+title: "Eigenvalues and singular values"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Eigenvalues and singular values}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+set.seed(1)
+```
+
+## Two verbs
+
+`eigs()` computes a few eigenpairs of a hermitian operator. `svds()` computes a
+few singular triplets of any operator. Both run against the action alone, and
+both hold `ncv` vectors rather than a matrix.
+
+The 1D Laplacian has closed-form eigenvalues, which makes it the fixture to check
+against:
+
+```{r first}
+n <- 200
+lap <- function(X) 2 * X - rbind(X[-1, , drop = FALSE], 0) - rbind(0, X[-n, , drop = FALSE])
+L <- linop(lap, adjoint = lap, dim = c(n, n), properties = c(hermitian = TRUE))
+
+truth <- 2 - 2 * cos(seq_len(n) * pi / (n + 1))
+
+fit <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)
+fit
+```
+
+```{r first-check}
+rbind(computed = fit$values,
+      closed_form = rev(sort(truth))[1:3])
+```
+
+## The operator has to say it is hermitian
+
+There is one eigensolver here and it is Lanczos, which is defined for a hermitian
+operator. Symmetry is not probed and not assumed:
+
+```{r no-declaration, error = TRUE}
+Undeclared <- linop(lap, adjoint = lap, dim = c(n, n))
+eigs(Undeclared, k = 2)
+```
+
+Unknown is not false, and the refusal says so rather than guessing either way. A
+dense leaf establishes symmetry by checking it, so a matrix needs no declaration;
+a callback has nothing to check and the declaration is how you supply it.
+
+A non-hermitian operator is refused for a different reason, and there is no
+Arnoldi in this version, so it has no eigensolver here at all. `svds()` works on
+any operator and is often the thing that was actually wanted.
+
+## `ncv` is the knob that matters
+
+`ncv` is how many vectors a restart holds. It is the binding constraint on
+whether the method converges, more than the tolerance and more than the budget:
+
+```{r ncv-ladder}
+ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
+  f <- eigs(L, k = 3, which = "largest_algebraic", ncv = nc)
+  c(ncv = nc,
+    error = max(abs(f$values - rev(sort(truth))[1:3])),
+    converged = f$nconv)
+}, numeric(3)))
+ladder
+```
+
+At `ncv = 20` the answer is wrong in the third digit and nothing converges. At
+`ncv = 60` every pair is right to the last one. Raising the iteration budget does
+not substitute: the subspace stops improving, the method reports that it stopped
+improving, and it returns what it has.
+
+The top of the Laplacian's spectrum is tightly clustered, which is what makes a
+small subspace insufficient here. A well-separated spectrum needs far less.
+
+## What gets reported is the Rayleigh quotient
+
+The value attached to each vector is `x^H A x / (x^H x)`, measured against `A`
+itself rather than read off the projected problem. It is the choice of `mu` that
+minimises `||A x - mu x||`, so no other value certifies better for the vector
+that was found.
+
+That matters most under a shift, where the projected problem is a solve against
+`A - sigma I` and its own accuracy is a separate question. Measuring on `A`
+means nothing downstream inherits the inner solve's error.
+
+## Which end
+
+```{r which}
+c(largest  = eigs(L, k = 2, which = "largest_algebraic",  ncv = 60)$values,
+  smallest = eigs(L, k = 2, which = "smallest_algebraic", ncv = 40)$values)
+```
+
+`"largest"` and `"smallest"` order by magnitude, `"largest_algebraic"` and
+`"smallest_algebraic"` by value. For an operator with a negative eigenvalue those
+are different questions. RSpectra's `"LM"`, `"SM"`, `"LA"` and `"SA"` are
+accepted for the same four, so existing calling code ports without edits.
+
+## Eigenvalues near a point
+
+A shift is the way to reach the interior of a spectrum. `sigma` runs the same
+recurrence on `(A - sigma I)^-1`, and that inverse is not formed: it is the
+package's own solvers, applied once per step.
+
+```{r shift}
+near <- eigs(L, k = 3, sigma = 0.01, ncv = 30, inner = list(method = "minres"))
+rbind(computed = sort(near$values),
+      closed_form = sort(truth[order(abs(truth - 0.01))][1:3]))
+```
+
+`inner` carries the arguments for that solve, so its method and tolerance are
+yours to set. This is the one place the two halves of the package meet:
+everything in `vignette("solvers")` is available inside a spectral computation.
+
+A shift is expensive, because each Lanczos step now costs a full linear solve.
+It is the right tool when the eigenvalues wanted are in the middle, where no
+amount of `ncv` will reach them directly.
+
+## Singular values
+
+`svds()` needs both the forward action and the adjoint, and requires nothing else:
+
+```{r svds}
+G <- matrix(rnorm(60 * 12), 60, 12)
+R <- linop(G)
+
+sv <- svds(R, k = 2)
+rbind(computed = sv$d, closed_form = svd(G)$d[1:2])
+```
+
+The triplets satisfy what they should:
+
+```{r svds-check}
+c(`A v - d u` = max(abs(G %*% sv$v - sv$u %*% diag(sv$d))),
+  `U orthonormal` = max(abs(crossprod(sv$u) - diag(2))),
+  `V orthonormal` = max(abs(crossprod(sv$v) - diag(2))))
+```
+
+Underneath, this is `eigs()` on the hermitian augmented operator
+
+```
+H = [ 0    A  ]
+    [ A^H  0  ]
+```
+
+whose eigenpairs are `(sigma, [u; v]/sqrt(2))`. `H` is hermitian for every `A`
+with nothing to declare, which is why `svds()` asks the operator for no
+properties where `eigs()` asks for one. One consequence is worth knowing: the
+certificate's `orthogonality` row measures the augmented basis, where a deviation
+in `U` could cancel one in `V`, so the check above measures the two separately.
+
+`which = "smallest"` is accepted and is the hard end of the problem. A Krylov
+space reaches the largest singular values first, so the smallest need a subspace
+approaching the rank of the operator:
+
+```{r svds-smallest}
+small <- svds(R, k = 2, which = "smallest", ncv = 12)
+rbind(computed = small$d, closed_form = rev(svd(G)$d)[1:2])
+```
+
+The request is not refused. What was reached is reported, and the certificate is
+where you find out whether it was enough.
+
+## A result that is right and certifies as `fail`
+
+This is worth meeting once, because it looks like a bug and is not:
+
+```{r fail-but-right}
+smallest <- eigs(L, k = 3, which = "smallest_algebraic", ncv = 40)
+
+rbind(computed = smallest$values, closed_form = sort(truth)[1:3])
+smallest$certificate$overall
+```
+
+Every value is right to the last printed digit and the certificate says `fail`.
+The reason is in which row failed:
+
+```{r fail-rows}
+smallest$certificate
+```
+
+`backward error` passes at 1.4e-13 and `forward error`, which is a real bound
+here, passes at 5.2e-13. What failed is `residual`, which divides by `|theta|`,
+and the smallest eigenvalue of this operator is 2.4e-4. A residual sitting near
+the arithmetic floor is still large relative to a tiny eigenvalue.
+
+`overall` is a summary of seven rows, and each row answers its own question. The
+rows are what to read. `vignette("certificates")` covers what each one measures.
+
+## Where to next
+
+- `vignette("certificates")` covers the table above, including why
+  `forward error` carries a genuine bound for an eigenpair and `not_checked` for
+  a linear solve.
+- `vignette("solvers")` covers the linear solvers, which `sigma` runs on.

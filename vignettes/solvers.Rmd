@@ -1,0 +1,288 @@
+---
+title: "Solving a system"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Solving a system}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+set.seed(1)
+```
+
+## One verb
+
+`solve()` is R's generic for `a x = b`, and a `linop` has a method for it. There
+is no second verb to learn and no separate object to construct.
+
+```{r first}
+n <- 200
+L <- linop(
+  function(X) 2 * X - rbind(X[-1, , drop = FALSE], 0) - rbind(0, X[-n, , drop = FALSE]),
+  dim = c(n, n)
+)
+xstar <- sin(seq_len(n) * pi / (n + 1))
+b <- as.numeric(L %*% xstar)
+
+x <- solve(L, b)
+max(abs(x - xstar))
+```
+
+`L` is the 1D Laplacian written as its action. Nothing was factorized, because
+for an operator given as a closure there is nothing to factorize. What came back
+is a plain numeric vector, so it indexes and multiplies like any other, and it
+carries a record of how it was produced:
+
+```{r cert}
+attr(x, "certificate")
+```
+
+The first line is the one to read here. The rest of that table is the subject of
+`vignette("certificates")`.
+
+## What `auto` chose, and why
+
+`method = "auto"` picks from what the operator has established about itself and
+from its shape, and records both the choice and the reason. Three routes are
+reachable.
+
+A diagonal operator of full rank is solved exactly, with no iteration at all:
+
+```{r auto-direct}
+D <- linop_scaling(seq(1, 4, length.out = 50))
+attr(solve(D, rep(1, 50)), "certificate")$dispatch$reason
+```
+
+A dense leaf checks its own symmetry when it is built, on data it already holds,
+so a symmetric matrix reaches MINRES:
+
+```{r auto-minres}
+M <- crossprod(matrix(rnorm(60 * 60), 60, 60)) + diag(60)
+Ad <- linop(M)
+bd <- as.numeric(Ad %*% rep(1, 60))
+attr(solve(Ad, bd), "certificate")$dispatch$reason
+```
+
+The operator above is positive definite, and `auto` still chose MINRES rather
+than CG. Symmetry was computed; definiteness was not, and `auto` will not assume
+it. There is a CG branch above the MINRES one, and no constructor in the package
+currently reaches it, because the routes that establish definiteness at a source
+`auto` accepts are diagonal and are taken by the direct route first. CG is
+reached by naming it.
+
+That is the general rule, and it applies to declarations too. `L` at the top of
+this article was built with no properties at all. Declaring them changes nothing
+about which method `auto` picks:
+
+```{r auto-declared}
+Ldecl <- linop(
+  function(X) 2 * X - rbind(X[-1, , drop = FALSE], 0) - rbind(0, X[-n, , drop = FALSE]),
+  dim = c(n, n),
+  properties = c(hermitian = TRUE, positive_definite = TRUE)
+)
+attr(solve(Ldecl, b), "certificate")$dispatch$reason
+```
+
+Both capabilities are `TRUE` and `auto` acted on neither, because a bare
+declaration is not the kind of argument `auto` will choose a method on. The
+capability and the evidence behind it are two separate questions, which is what
+`vignette("capabilities")` is about. Here it decides a dispatch.
+
+GMRES is the fallback, and it is what makes `auto` total rather than partial: it
+requires nothing of the operator, and it runs on the forward action alone. `L`
+has no adjoint, which is why every route above it was unavailable in the first
+place.
+
+## Naming a method
+
+Naming a method is the caller making the assertion, so no evidence minimum
+applies:
+
+```{r named}
+attr(solve(Ldecl, b, method = "cg"), "certificate")$dispatch
+```
+
+The declaration on `Ldecl` is true, CG is the right method for it, and saying so
+is how you get it. The two questions stay separate: `auto` is the package
+choosing on your behalf, and a named method is your own claim about your own
+operator.
+
+A declaration that is false is not silently tolerated. CG forms `p^H A p` every
+step, and a value that is not positive far from convergence means the operator is
+not what it said it was, which is an error naming the capability rather than a
+wrong answer.
+
+## The seven methods
+
+```{r roster, echo = FALSE}
+knitr::kable(data.frame(
+  method = c("cg", "minres", "gmres", "fgmres", "bicgstab", "lsqr", "lsmr"),
+  requires = c("hermitian positive definite", "hermitian", "nothing", "nothing",
+               "nothing", "nothing", "nothing"),
+  adjoint = c("no", "no", "no", "no", "no", "yes", "yes"),
+  shape = c("square", "square", "square", "square", "square",
+            "any", "any"),
+  check.names = FALSE))
+```
+
+GMRES and BiCGSTAB both require nothing and both run without an adjoint. They are
+not interchangeable. GMRES minimises the residual over the whole Krylov space, so
+its residual cannot rise and it has no breakdown; BiCGSTAB is cheaper per step
+and can break down, in which case it returns a `fail` certificate naming the
+breakdown rather than throwing. `auto` prefers GMRES for the first reason.
+
+FGMRES is GMRES with the one difference that it accepts a preconditioner that
+changes between applications, such as an inner iterative solve.
+
+## Least squares is a different request
+
+`solve()` with `method = "auto"` refuses a rectangular operator, and says what to
+name instead:
+
+```{r rect-refuse, error = TRUE}
+G <- matrix(rnorm(120 * 40), 120, 40)
+R <- linop(G)
+bl <- rnorm(120)
+solve(R, bl)
+```
+
+This is deliberate. `min ||b - A x||` is a different mathematical question from
+`A x = b`, rather than the same one on a different shape, so the caller states
+which they meant. Both methods are reachable through the same verb:
+
+```{r lsqr}
+xl <- solve(R, bl, method = "lsqr")
+max(abs(xl - qr.solve(G, bl)))
+```
+
+LSQR and LSMR solve the same problem and minimise different things over the same
+bidiagonalisation. LSQR minimises `||r||`. LSMR minimises `||A^H r||`, which is
+the quantity that goes to zero at a least-squares solution and the numerator of
+the backward error the certificate reports:
+
+```{r lsmr}
+xm <- solve(R, bl, method = "lsmr")
+c(lsqr = attr(xl, "certificate")$values$backward_error,
+  lsmr = attr(xm, "certificate")$values$backward_error)
+```
+
+## Preconditioners
+
+A preconditioner is built from one direction, `M^-1`, and carries what it
+declares about itself:
+
+```{r precond-build}
+set.seed(2)
+d <- 10^runif(200, 0, 5)
+Adense <- diag(d)
+Adense[cbind(1:199, 2:200)] <- -1
+Adense[cbind(2:200, 1:199)] <- -1
+A <- linop(Adense)
+xs <- rep(1, 200)
+bb <- as.numeric(A %*% xs)
+
+P <- preconditioner(function(R) R / d, hermitian = TRUE,
+                    positive_definite = TRUE, side = "left", dim = c(200, 200))
+P
+```
+
+The diagonal of that operator spans five orders of magnitude. At a fixed budget
+of 40 iterations, with everything else equal:
+
+```{r precond-effect}
+plain  <- solve(A, bb, method = "minres", maxit = 40, tol = 1e-10)
+scaled <- solve(A, bb, method = "minres", maxit = 40, tol = 1e-10,
+                preconditioner = P)
+
+c(plain  = max(abs(plain  - xs)),
+  scaled = max(abs(scaled - xs)))
+c(plain  = attr(plain,  "certificate")$overall,
+  scaled = attr(scaled, "certificate")$overall)
+```
+
+Each method states which properties it needs of a preconditioner and which sides
+it is defined for, and enforces both at the point the preconditioner is accepted:
+
+```{r precond-table, echo = FALSE}
+knitr::kable(data.frame(
+  method = c("cg", "minres", "gmres", "fgmres", "bicgstab", "lsqr", "lsmr"),
+  requires = c("fixed, hermitian, positive definite",
+               "fixed, hermitian, positive definite",
+               "fixed", "nothing", "fixed", "fixed", "fixed"),
+  sides = c("left, right, split", "left, right, split", "left, right, split",
+            "right", "left, right, split", "right", "right"),
+  check.names = FALSE))
+```
+
+A refusal names what was missing:
+
+```{r precond-refuse, error = TRUE}
+flexible <- preconditioner(function(R) R / d, fixed = FALSE,
+                           hermitian = TRUE, positive_definite = TRUE,
+                           side = "left", dim = c(200, 200))
+solve(A, bb, method = "minres", preconditioner = flexible)
+```
+
+For CG the three sides coincide, so its row is unrestricted because the
+distinction does not arise. For GMRES all three are implemented and they produce
+different iterates, so its row is unrestricted for the opposite reason:
+
+```{r sides}
+set.seed(1)
+Gm <- matrix(rnorm(80 * 80), 80, 80)
+diag(Gm) <- diag(Gm) + 12
+Ag <- linop(Gm)
+bg <- as.numeric(Ag %*% rep(1, 80))
+dg <- diag(Gm)
+
+vapply(c("left", "right", "split"), function(sd) {
+  Ps <- preconditioner(function(R) R / dg, hermitian = TRUE,
+                       positive_definite = TRUE, side = sd, dim = c(80, 80))
+  attr(solve(Ag, bg, method = "gmres", maxit = 6, tol = 1e-12,
+             preconditioner = Ps), "certificate")$values$residual
+}, numeric(1))
+```
+
+Right preconditioning minimises the residual that gets reported. Left and split
+minimise a preconditioned one, so the outer loop converts the target going in and
+measures in your units coming out.
+
+The narrow rows are the two least-squares methods, and the reason is the shape.
+`M^-1` acts on the domain of the operator; left and split act on the codomain,
+which for a rectangular operator is a different space.
+
+## A solve that does not converge
+
+An exhausted budget is a result, not an exception. It comes back as a `fail`
+certificate that says what ran out:
+
+```{r nonconv}
+attr(plain, "certificate")
+```
+
+The iterate is finite and usable, the number reached is reported, and nothing was
+thrown. A contradicted declaration is the case that does throw, because there the
+operator is not what it claimed and no iterate is worth returning.
+
+`details = TRUE` returns the whole object rather than the solution, including the
+convergence history:
+
+```{r details}
+fit <- solve(A, bb, method = "minres", maxit = 40, tol = 1e-10, details = TRUE)
+names(fit)
+fit$iterations
+fit$converged
+```
+
+## Where to next
+
+- `vignette("certificates")` covers the table printed above: what each row
+  measures, the arithmetic floor underneath it, and which rows carry a bound
+  rather than a measurement.
+- `vignette("spectral")` covers `eigs()` and `svds()`, which are built on the
+  solvers here when a shift is given.
+- `vignette("capabilities")` covers what an operator establishes about itself,
+  which is what `auto` reads.

@@ -1,0 +1,286 @@
+---
+title: "Reading a certificate"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Reading a certificate}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+set.seed(1)
+```
+
+## One object, four shapes
+
+Every computation in this package that could be wrong comes back with a
+certificate. It is the same class each time, and it takes four shapes, because
+the questions differ:
+
+```{r shapes, echo = FALSE}
+knitr::kable(data.frame(
+  produced_by = c("verify()", "solve(), square", "solve(), least squares", "eigs(), svds()"),
+  subject = c("does the operator behave like a linear map",
+              "how close is x to solving A x = b",
+              "how close is x to minimising ||b - A x||",
+              "how close is (theta, x) to an eigenpair"),
+  check.names = FALSE))
+```
+
+This article is about the last three. `verify()` is covered in
+`vignette("adapters")`, where it belongs to the job of writing an operator.
+
+## Status and evidence are separate questions
+
+Every row carries a status and, separately, the kind of argument behind it.
+
+```{r first}
+n <- 200
+lap <- function(X) 2 * X - rbind(X[-1, , drop = FALSE], 0) - rbind(0, X[-n, , drop = FALSE])
+L <- linop(lap, adjoint = lap, dim = c(n, n), properties = c(hermitian = TRUE))
+b <- as.numeric(L %*% sin(seq_len(n) * pi / (n + 1)))
+
+cert <- attr(solve(L, b, method = "minres", tol = 1e-10), "certificate")
+cert
+```
+
+The status column answers whether the check passed. `pass`, `fail`,
+`not_checked`, and `qualified`, which means it passed for a reason weaker than
+the clean one.
+
+The three columns after it are the evidence, and they are three independent
+fields rather than a ranking. `source` is what kind of argument produced the
+number: a `computation` on data at hand, a `theorem`, a `construction`, a
+`user_declaration`. `guarantee` is what the argument gives you: an `identity`
+holds exactly, a `deterministic_bound` holds always, an `estimate` holds usually.
+`confidence` is a probability where one applies and `-` where none does.
+
+A `pass` behind an `estimate` and a `pass` behind an `identity` are both passes
+and they are not the same claim. The summary line names the rows with neither
+kind of deterministic guarantee, so that distinction survives being skimmed:
+
+```{r weak}
+cert$without_deterministic_bound
+```
+
+## The rows of a linear solve
+
+```{r rows-square, echo = FALSE}
+knitr::kable(data.frame(
+  row = c("arithmetic floor", "residual", "backward error", "convergence",
+          "forward error"),
+  measures = c("the level below which no residual is meaningful",
+               "||b - A x|| / ||b||",
+               "||r|| / (||A|| ||x|| + ||b||), the Rigal-Gaches quantity",
+               "whether the iteration stopped because it was done",
+               "how far x is from the true solution"),
+  check.names = FALSE))
+```
+
+The backward error is the row to read. It answers a question that has an exact
+answer: it is the size of the smallest perturbation to `A` and `b` for which your
+computed `x` is the exact solution. A backward error of 1e-14 means you solved a
+problem within 1e-14 of the one you asked about.
+
+`||A||` in that denominator is a lower bound rather than an estimate in either
+direction, deliberately. Shrinking the denominator can only make the reported
+backward error larger, so the number can overstate the error and never understate
+it.
+
+## The arithmetic floor
+
+Ask for an exact solve and no floating-point iteration can deliver it:
+
+```{r floor}
+tight <- solve(L, b, method = "minres", tol = 0, maxit = 400)
+bare  <- solve(L, b, method = "minres", tol = 0, maxit = 400,
+               control = list(floor_const = 0))
+
+identical(as.numeric(tight), as.numeric(bare))
+```
+
+The same iteration ran twice and produced the same vector, bit for bit. Only the
+certificates differ:
+
+```{r floor-certs}
+c(with_floor = attr(tight, "certificate")$overall,
+  without    = attr(bare,  "certificate")$overall)
+```
+
+```{r floor-detail}
+attr(bare, "certificate")
+```
+
+A backward error of 1.8e-16 is reported as a failure, because it was tested
+against a tolerance of zero with nothing underneath it. The floor is what stops a
+fully converged solve from certifying as `fail`, and it is
+`c * eps * (||A|| ||x|| + ||b||)`, which is Higham's bound on the computed
+residual. That is the same quantity as the Rigal-Gaches denominator, so once the
+backward error is written relatively the floor is a plain `c * eps`.
+
+A row that meets its tolerance only because of the floor says `qualified` and
+carries an `estimate`, never a clean `identity`. `c` counts terms in an inner
+product a matrix-free operator never exposes, so it is an argument with a default
+rather than a constant.
+
+## The same table, measured differently
+
+A least-squares solve has no exact answer. `b - A x` does not go to zero, so
+testing it against a tolerance would report a converged solution as a failure.
+What goes to zero is `A^H r`.
+
+Both are backward errors, so one row carries both readings, and which one applies
+is decided by measurement rather than by the method that was called:
+
+```{r lsq}
+G <- matrix(rnorm(120 * 40), 120, 40)
+R <- linop(G)
+
+incompatible <- solve(R, rnorm(120), method = "lsmr", tol = 1e-10)
+compatible   <- solve(R, as.numeric(G %*% rnorm(40)), method = "lsmr", tol = 1e-10)
+
+status_of <- function(x, row) {
+  ch <- attr(x, "certificate")$checks
+  ch$status[ch$check == row]
+}
+c(incompatible = status_of(incompatible, "residual"),
+  compatible   = status_of(compatible,   "residual"))
+```
+
+For the incompatible right-hand side the residual reads `not_checked`, because it
+has a nonzero minimum and comparing that to `tol` would mean nothing. For the
+compatible one the same code found a residual that did go to zero and checked it.
+
+```{r lsq-cert}
+attr(incompatible, "certificate")
+```
+
+The perturbation behind the least-squares reading is Stewart's,
+`dA = -(r r^H A) / ||r||^2`, which is exhibited rather than argued: it is an
+actual matrix of that norm making `x` an exact minimiser. That is what makes
+`||A^H r|| / (||A|| ||r||)` a backward error rather than a heuristic, and it is
+also Paige and Saunders' stopping rule.
+
+## A third shape, for an eigenpair
+
+For a solve, `b` is data and `A` is data, and the Rigal-Gaches denominator has a
+term for each. For an eigenpair, `theta` and `x` are both outputs and `A` is the
+only datum, so the denominator loses a term and the table gains rows:
+
+```{r eigen}
+fit <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)
+fit$certificate
+```
+
+`orthogonality` is new: the computed vectors should be orthonormal, and this
+measures whether they are. `target identity` is new and is always `not_checked`,
+which is the honest entry. A small residual proves the pair is an approximate
+eigenpair. That it is the *largest* one needs an inertia count, an enclosure or a
+separation bound, and matrix-free there is generally none available.
+
+## The one row that is sometimes a bound
+
+`forward error` is `not_checked` on every linear solve in this article, and it is
+not laziness. Nothing constrains it. At a condition number of 1e10:
+
+```{r forward}
+m <- 40
+Q <- qr.Q(qr(matrix(rnorm(m * m), m, m)))
+M <- Q %*% diag(10^seq(0, -10, length.out = m)) %*% t(Q)
+M <- (M + t(M)) / 2
+Aill <- linop(M)
+xtrue <- rnorm(m)
+bill <- as.numeric(Aill %*% xtrue)
+
+t(vapply(c("minres", "gmres", "bicgstab"), function(mth) {
+  z <- solve(Aill, bill, method = mth, tol = 1e-10, maxit = 400)
+  c(backward = attr(z, "certificate")$values$backward_error,
+    forward  = max(abs(z - xtrue)) / max(abs(xtrue)))
+}, numeric(2)))
+```
+
+Backward errors around 1e-11 sit beside true forward errors around 1e-1. Both
+columns are correct. `kappa^2 * eps` is 2.2e4 here, and no backward error
+constrains the forward one at that conditioning, which is exactly why the row
+refuses to report a number it cannot stand behind. Do not read that spread as one
+method being more accurate than another.
+
+For an eigenpair the same row does carry a bound, and it is the first in the
+package. `A + E` with `E = -r x^H - x r^H` is hermitian and has `theta` as an
+exact eigenvalue, so Weyl's inequality gives
+`min_j |theta - lambda_j(A)| <= ||r|| / ||x||`:
+
+```{r forward-eigen}
+fwd <- fit$certificate$checks
+fwd <- fwd[fwd$check == "forward error", ]
+fwd[, c("status", "source", "guarantee")]
+cat(fwd$detail)
+```
+
+`source` is `theorem` and `guarantee` is `deterministic_bound`, the only place
+either appears. The bound is about *some* eigenvalue of `A`; which one is the
+`target identity` question and stays `not_checked`.
+
+## Evidence can carry a dependency
+
+That bound holds because `A` is hermitian. If the only argument for that is your
+say-so, the bound inherits it, and the certificate records the inheritance rather
+than hiding it:
+
+```{r depends}
+Md <- crossprod(matrix(rnorm(20 * 20), 20, 20)) + diag(20)
+
+checked  <- eigs(linop(Md), k = 2, which = "largest_algebraic")
+declared <- eigs(linop(function(X) Md %*% X, adjoint = function(X) Md %*% X,
+                       dim = c(20, 20), properties = c(hermitian = TRUE)),
+                 k = 2, which = "largest_algebraic")
+
+checked$certificate$evidence[["forward error"]]
+declared$certificate$evidence[["forward error"]]
+```
+
+Both say `theorem / deterministic_bound`. What differs is in the brackets, and it
+is what a requirement tests:
+
+```{r depends-req}
+strict <- requirement(sources = c("construction", "computation", "theorem"),
+                      guarantees = c("identity", "deterministic_bound"))
+
+c(checked  = evidence_satisfies(checked$certificate$evidence[["forward error"]],  strict),
+  declared = evidence_satisfies(declared$certificate$evidence[["forward error"]], strict))
+```
+
+A theorem applied to a declaration is worth what the declaration is worth. This
+is the same rule that stops a sum of two declared positive-definite operators
+from satisfying CG's requirement, described in `vignette("capabilities")`,
+reaching the certificate.
+
+## Reading one in code
+
+The printed table is for people. The object is a list, so a package can test
+against it:
+
+```{r programmatic}
+names(cert)
+cert$checks[, c("check", "status")]
+cert$values$backward_error
+```
+
+```{r assert}
+stopifnot(cert$overall %in% c("pass", "qualified"))
+```
+
+`cert$dispatch` records which method ran and why, `cert$values` holds the
+measured quantities, and `cert$evidence` holds the evidence objects for rows that
+carry a dependency.
+
+## Where to next
+
+- `vignette("solvers")` covers the methods that produce the first two shapes.
+- `vignette("spectral")` covers `eigs()` and `svds()`, including a result whose
+  values are exact and whose certificate reads `fail`.
+- `vignette("capabilities")` covers evidence away from certificates, where the
+  same three fields decide what a solver will accept.
+- `vignette("adapters")` covers `verify()`, the fourth shape.

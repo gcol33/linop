@@ -20,6 +20,12 @@ articles:
   contents:
   - expressions
   - capabilities
+- title: Solving
+  navbar: Solving
+  contents:
+  - solvers
+  - spectral
+  - certificates
 - title: Extending
   navbar: Extending
   contents:

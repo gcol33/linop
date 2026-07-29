@@ -292,3 +292,5 @@ Sp %*% c(1 + 1i, 1, 1)
   action: what is known about an operator and the argument behind it.
 - `vignette("adapters")` covers adding a node type of your own to the registry
   listed at the top of this vignette.
+- `vignette("solvers")` covers solving against a tree like this one, without
+  materialising it.
