@@ -16,9 +16,17 @@ first draft and were caught by measurement rather than by reasoning.
 
 The last row is the structural difference. CG needs positive definiteness, MINRES needs
 hermitian, and GMRES needs a square operator and an apply. It is therefore the method that
-answers when the capability set says nothing at all, and the only one in the package that
-works on an operator supplying no adjoint: every apply is mode `N`. `norm2()` falls back to
-random probes there rather than failing, so the certificate still has a `||A||` to rest on.
+answers when the capability set says nothing at all. Every apply is mode `N`, so it works on
+an operator supplying no adjoint. `norm2()` falls back to random probes there rather than
+failing, so the certificate still has a `||A||` to rest on.
+
+An earlier draft of this note called GMRES the only method in the package that works
+without an adjoint. That is wrong, and the correction was measured on 2026-07-29: against a
+square operator built from a callback with no `adjoint =`, CG, MINRES, GMRES, FGMRES and
+BiCGSTAB all ran to convergence, and only LSQR and LSMR raised `this operator has no
+adjoint`. The square methods form no `A^H` at all, and CG and MINRES are confined to
+hermitian operators where it would equal `A` anyway. What singles GMRES out is requiring
+nothing of the operator, which is the row above, not the absence of an adjoint.
 
 The recurrence needed no correction. The iterate at step `m` matched a dense least-squares
 solve over the same Krylov space to 1e-16 relative on the first run, at every `m` from 1 to

@@ -6,10 +6,15 @@
 ## methods ran to different maxit is a measurement of the budget, and the MINRES
 ## suite already shipped one draft that made exactly that mistake.
 ##
-## The roster per fixture is not a ranking. It is what the operator supplies:
-## convdiff_1d has no adjoint, so five of the seven cannot run on it at all, and
-## CG is absent wherever the operator is indefinite because running it there
-## contradicts a declaration rather than converging slowly.
+## The roster per fixture is not a ranking. It is what the operator supplies.
+## convdiff_1d is nonsymmetric and offers the forward action alone, and those are
+## two separate exclusions: CG and MINRES go for the missing symmetry, LSQR and
+## LSMR for the missing adjoint. Only those last two require an adjoint at all;
+## every square method forms no A^H and runs on the forward action alone. CG is
+## absent wherever the operator is indefinite because running it there
+## contradicts a declaration rather than converging slowly. FGMRES is on no
+## fixture here, since every fixture runs unpreconditioned and the flexible
+## preconditioner is the whole of what separates it from GMRES.
 ##
 ## Each fixture also carries a ||A|| row. The certificate's arithmetic floor
 ## rests on that estimate, every solve row above it paid for one, and the counted

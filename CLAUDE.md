@@ -4,19 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository state
 
-Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. Phase 2 is under way:
-the solve certificate with its arithmetic floor, the `||A||` estimate it rests on, **all
-seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and BiCGSTAB — and
-section 7.2's two spectral verbs are in.
+Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. **Phase 2 is complete
+and Gate 2 is met**: the solve certificate with its arithmetic floor, the `||A||` estimate it
+rests on, **all seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and
+BiCGSTAB — and section 7.2's two spectral verbs are in.
 
 `solve()` is an S3 method on the base generic and cost no export. `eigs()` and `svds()` are
 new names and cost one each, which is the whole of what Phase 2 spends on the public surface.
 The benchmark harness runs end to end with committed results in `dev_notes/bench/`. The
 reference-agreement line is met for both methods the gate names: LSMR against SciPy 1.17.1,
 MINRES against two references at once over kappa 1e2 to 1e10 with breakdown and
-near-breakdown constructed rather than hoped for. `_pkgdown.yml` now indexes every topic in
-`man/`, `pkgdown::check_pkgdown()` clean. **The one open Gate 2 item is a solver vignette**:
-the articles list is still the four Phase 1 vignettes, none of which teaches solving.
+near-breakdown constructed rather than hoped for.
+
+The articles list is seven, `pkgdown::check_pkgdown()` clean. Phase 2 added three:
+`solvers` (`solve()`, dispatch, the seven methods, preconditioner sides), `spectral`
+(`eigs()`, `svds()`, `ncv`, shift-invert) and `certificates`. The split is deliberate and
+the reason is the certificate: it takes **four shapes** (`verify()`'s operator conformance,
+the square system, least squares, the eigenpair), and the differences between them are the
+content, so one article holds them side by side rather than each verb explaining its own.
+eigencore made the same call for the same reason; KrylovKit.jl separates by problem class.
+All seven knit in 3.9 s total, so vignette build cost is not a constraint on example size.
 
 Two things section 7.2 lists for v0.1 are deliberately not here, and
 `dev_notes/eigs-svds-and-the-third-certificate.md` records why: RSpectra delegation (deferred
@@ -312,9 +319,12 @@ Gate 2's reference line added two more, in
 GMRES and FGMRES (`R/solvers-gmres.R`) are one implementation, and the four findings are in
 `dev_notes/gmres-and-the-second-pass.md`:
 
-- **GMRES requires nothing of the operator, so it has no declaration to contradict.** It is
-  the only method that works on an operator supplying no adjoint: every apply is mode `N`.
-  That also makes it the fallback that turns `method = "auto"` from partial into total.
+- **GMRES requires nothing of the operator, so it has no declaration to contradict.** That
+  is what makes it the fallback turning `method = "auto"` from partial into total. Every
+  apply is mode `N`, so it also runs on an operator supplying no adjoint, but that part is
+  not particular to it: measured against an adjoint-less operator, CG, MINRES, FGMRES and
+  BiCGSTAB all run too, and **only LSQR and LSMR require an adjoint**. Requiring nothing and
+  needing no adjoint are different properties and only the first singles GMRES out.
 - **`side` selects an algorithm here, not a label.** CG's row is unrestricted because the
   three sides *coincide*; GMRES's is unrestricted because all three are implemented and they
   produce different iterates. Right minimises the reported residual; left and split do not
@@ -407,8 +417,9 @@ BiCGSTAB (`R/solvers-bicgstab.R`) is the last of the seven, and the three findin
   solves the same system to 3.8e-16. The two methods that require nothing of the operator
   are not interchangeable.
 
-BiCGSTAB is the second method that runs without an adjoint, so `method = "auto"` has two
-candidates for an operator supplying only a forward action, not one.
+BiCGSTAB is the second method that requires nothing of the operator, so `method = "auto"`
+has two candidates for an operator that establishes no capability, not one. Both also run
+without an adjoint, which every square method in the roster does.
 
 `solve_certificate()`'s `forward error: not_checked` got its first live demonstration here.
 At `kappa` 1e10 with an incompatible right-hand side, four runs certifying backward errors
