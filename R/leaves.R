@@ -99,11 +99,16 @@ fun_apply <- function(op, X, mode) {
   if (need_adjoint && is.null(g)) {
     stopf("this operator has no adjoint; supply adjoint = to linop() to use mode '%s'", mode)
   }
+  ## Conj() on real storage returns the numbers it was given and allocates a
+  ## duplicate to do it, so a real operator applied to a real block pays two
+  ## copies of the block for the two identities above. Dropping them is the same
+  ## quantity, bitwise; the complex path is unchanged.
+  conj_if <- function(Z) if (is.complex(Z)) Conj(Z) else Z
   switch(mode,
     N = f(X),
     C = g(X),
-    T = Conj(g(Conj(X))),
-    R = Conj(f(Conj(X))))
+    T = conj_if(g(conj_if(X))),
+    R = conj_if(f(conj_if(X))))
 }
 
 linop_fun <- function(apply, adjoint = NULL, dim, dtype = "double",
@@ -138,7 +143,7 @@ linop_identity <- function(n, dtype = "double") {
 
 diag_apply <- function(op, X, mode) {
   d <- op$args$d
-  if (mode %in% c("C", "R")) d <- Conj(d)
+  if (is.complex(d) && mode %in% c("C", "R")) d <- Conj(d)
   d * X
 }
 
