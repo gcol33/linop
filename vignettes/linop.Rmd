@@ -276,14 +276,30 @@ verify(Bad)$overall
 The full certificate, and what each check is for, is covered in
 `vignette("adapters")`.
 
+## Solving
+
+An operator you can apply is an operator you can solve against. `solve()` is R's
+own generic, so it needs no new verb:
+
+```{r solve}
+Lap <- linop(function(X) 2 * X - rbind(X[-1, , drop = FALSE], 0) -
+                         rbind(0, X[-8, , drop = FALSE]), dim = c(8, 8))
+rhs <- as.numeric(Lap %*% rep(1, 8))
+round(solve(Lap, rhs), 12)
+```
+
+`eigs()` and `svds()` are the other two, for eigenpairs and singular triplets.
+All three return a certificate alongside the answer.
+
 ## Where to next
 
 - `vignette("expressions")` covers the expression graph: the simplification
   rules, the cost model, `collapse()` and materialisation.
 - `vignette("capabilities")` covers what an operator knows about itself and how
   a solver states what it will accept.
-- `vignette("adapters")` covers writing `linop.myclass()`, reading a
-  certificate, registering a node type, and the preconditioner contract.
-
-Krylov solvers, `solve()`, `eigs()` and `svds()` are the next phase of the
-package.
+- `vignette("solvers")` covers `solve()` and the seven Krylov methods behind it,
+  with preconditioners.
+- `vignette("spectral")` covers `eigs()` and `svds()`.
+- `vignette("certificates")` covers what comes back attached to every answer.
+- `vignette("adapters")` covers writing `linop.myclass()`, registering a node
+  type, and the preconditioner contract.

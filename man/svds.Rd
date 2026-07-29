@@ -48,7 +48,9 @@ and `"auto"` resolves to it, recording the reason in the certificate.}
 }
 \value{
 An object of class `linop_svd`, with `d`, `u`, `v` and the
-  `certificate`.
+  `certificate`. A run that exhausts its budget returns the best triplets it
+  reached and a `fail` certificate rather than an error, and it may hold fewer
+  than `k` of them: nothing is padded.
 }
 \description{
 Golub-Kahan-Lanczos with full reorthogonalisation, run against the operator's

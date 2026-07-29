@@ -61,7 +61,9 @@ restored afterwards.}
 }
 \value{
 An object of class `linop_eigen`, with `values`, `vectors` and the
-  `certificate`.
+  `certificate`. A run that exhausts its budget returns the best pairs it
+  reached and a `fail` certificate rather than an error, and it may hold fewer
+  than `k` of them: nothing is padded.
 }
 \description{
 Lanczos with full reorthogonalisation, run against the operator's action. The
@@ -76,7 +78,7 @@ The eigenvalue reported for each pair is the Rayleigh quotient
 `target identity` is `not_checked`, always. A small residual proves the pair is
 an approximate eigenpair; that it is the largest, smallest or nearest one
 requires an inertia count, an enclosure or a separation bound, and matrix-free
-there is generally none. See `vignette("solvers")`.
+there is generally none. See `vignette("certificates")`.
 }
 \examples{
 n <- 40

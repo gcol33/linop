@@ -98,7 +98,10 @@ verify(C)
 ```
 
 Eleven checks, each reporting its own status, its source and the kind of
-guarantee it gives.
+guarantee it gives. This is one of four shapes the certificate takes, and the
+only one about the operator rather than about a computed result;
+`vignette("certificates")` covers the status and evidence columns, which are the
+same everywhere, and the other three shapes.
 
 **adjoint consistency** tests `<y, A x> = <A^H y, x>` over random probe pairs.
 This is the check that earns its keep. A missing or misplaced conjugation is the
@@ -384,3 +387,6 @@ Before shipping an adapter:
 - `vignette("capabilities")` covers what to declare and what a solver will do
   with it.
 - `vignette("expressions")` covers the cost model your `cost` function feeds.
+- `vignette("certificates")` covers the three other shapes the certificate takes,
+  the ones a solve and a spectral computation return.
+- `vignette("solvers")` covers the methods your adapter will be run through.
