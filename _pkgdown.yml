@@ -73,6 +73,20 @@ reference:
   contents:
   - linop_register_node
   - linop_nodes
+- title: Solve a system
+  desc: >
+    One verb over seven Krylov methods, choosing on declared capabilities and
+    shape, returning what a matrix solve returns with a certificate attached.
+  contents:
+  - solve.linop
+- title: Eigenvalues and singular values
+  desc: >
+    Restarted Lanczos with full reorthogonalisation, and the same loop on the
+    augmented operator. Each pair carries a backward error and a bound on how
+    far the value can be from an exact one.
+  contents:
+  - eigs
+  - svds
 - title: Preconditioners
   desc: >
     One direction internally, and a contract each method enforces at the point
