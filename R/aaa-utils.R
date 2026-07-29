@@ -21,8 +21,16 @@ stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 ## on complex and real storage through one path. Re(<x, y>) = Re(x).Re(y) +
 ## Im(x).Im(y), which is the only part of the inner product the Krylov scalars
 ## use, since the quantities they form are real for a hermitian operator.
+## x * x rather than x^2, which is the same bits at about twice the speed,
+## measured 1.76x to 1.98x over n = 1e4 to 1e6 by
+## dev_notes/spikes/allocation-sweep.R.
 col_norms <- function(X) {
-  if (is.complex(X)) sqrt(colSums(Re(X)^2 + Im(X)^2)) else sqrt(colSums(X^2))
+  if (is.complex(X)) {
+    re <- Re(X); im <- Im(X)
+    sqrt(colSums(re * re + im * im))
+  } else {
+    sqrt(colSums(X * X))
+  }
 }
 
 col_dot <- function(X, Y) {
@@ -68,7 +76,16 @@ conj_prod <- function(X, Y) {
 }
 
 ## Y[, j] * v[j], without transposing twice.
-scale_cols <- function(X, v) X * rep(v, each = nrow(X))
+##
+## rep(v, each = nrow(X)) materialises a full n x k array to hold k distinct
+## values, so a block one column wide pays an allocation the size of itself to
+## express a scalar multiply. The guarded branch is the same arithmetic, bitwise,
+## and a single right-hand side is the shape most solves have: this sits at 23 to
+## 47 per cent of self time across the six solver loops, and the guard measures
+## 3.6x to 8.9x on the helper (dev_notes/spikes/allocation-sweep.R).
+scale_cols <- function(X, v) {
+  if (length(v) == 1L) X * v else X * rep(v, each = nrow(X))
+}
 
 ## A block of zeros in the storage mode of an existing one, so a recurrence that
 ## starts from zero does not silently demote a complex iterate to real.
