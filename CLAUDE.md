@@ -11,12 +11,12 @@ section 7.2's two spectral verbs are in.
 
 `solve()` is an S3 method on the base generic and cost no export. `eigs()` and `svds()` are
 new names and cost one each, which is the whole of what Phase 2 spends on the public surface.
-The benchmark harness runs end to end with committed results in `dev_notes/bench/`. The open
-Gate 2 items are a solver vignette and MINRES reference agreement on an ill-conditioned
-problem: the gate line asks for MINRES and LSMR against a trusted reference including
-near-breakdown, LSMR has that against SciPy 1.17.1, and MINRES's independent check
-(`krylov_argmin`, `test-solve-minres.R`) computes the iterate densely from the definition on a
-prescribed spectrum in `[-5, 8]`.
+The benchmark harness runs end to end with committed results in `dev_notes/bench/`. The
+reference-agreement line is met for both methods the gate names: LSMR against SciPy 1.17.1,
+MINRES against two references at once over kappa 1e2 to 1e10 with breakdown and
+near-breakdown constructed rather than hoped for. **The one open Gate 2 item is a solver
+vignette**, and `_pkgdown.yml` still omits `solve.linop`, `eigs` and `svds` from its
+reference index, which fails the site build on missing topics.
 
 Two things section 7.2 lists for v0.1 are deliberately not here, and
 `dev_notes/eigs-svds-and-the-third-certificate.md` records why: RSpectra delegation (deferred
@@ -35,6 +35,7 @@ Two documents govern:
   `dev_notes/cg-and-the-arithmetic-floor.md`,
   `dev_notes/fgmres-and-preconditioner-sides.md`,
   `dev_notes/minres-and-the-preconditioned-norm.md`,
+  `dev_notes/minres-and-the-breakdown-that-does-not-end.md`,
   `dev_notes/gmres-and-the-second-pass.md`,
   `dev_notes/lsqr-and-the-least-squares-certificate.md`,
   `dev_notes/lsmr-and-the-monotone-backward-error.md`,
@@ -153,7 +154,7 @@ is the point. Never edit the budget as a side effect of adding a function.
 `perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
 registry. A test fails if one appears. This is the mechanism, not a preference.
 
-**Tests are recovery and contract tests, not shape tests.** 11,538 assertions across 331
+**Tests are recovery and contract tests, not shape tests.** 11,976 assertions across 340
 tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
@@ -283,6 +284,30 @@ MINRES carried all three and forced two refinements, both in
   spectra. The test that works is the definition, `<x, A y> = <A x, y>`, which needs no extra
   apply and stays at 1e-10. Measure the noise floor on correct operators before choosing any
   such threshold.
+
+Gate 2's reference line added two more, in
+`dev_notes/minres-and-the-breakdown-that-does-not-end.md`:
+
+- **An exact Lanczos breakdown is one collapsed off-diagonal, not the end of the sequence,
+  and stopping there returns the worse answer.** With `b` inside a `d`-dimensional invariant
+  subspace, `beta_{d+1}/||A v_d||` collapses to between 8.3e-16 (`d = 1`) and 9.6e-11
+  (`d = 8`), and the *next* entry comes back at O(1), because rounding in `A v` re-seeds the
+  space. Neither reference stops at `d` either, and SciPy's minres does not. Iterating past
+  the breakdown improves the iterate: at `d = 8` the exact-arithmetic termination step is
+  wrong by 3.9e-12 and eight more steps bring that to 9.7e-15. So nothing thresholds `beta`
+  to detect a breakdown and nothing should be added; the residual test is the stopping rule.
+  `spent` in `minres_recurrence()` is not breakdown detection, it separates an exhausted `w`
+  from a preconditioner that contradicted its declaration, and it suppresses an error rather
+  than a step.
+- **The reproducibility ceiling belongs to the method, and here that is provable rather than
+  suspected.** The suite carries two references that share no code and no idea: the
+  definition (`krylov_argmin`, a dense minimiser over an orthonormalised basis) and the
+  published Paige-Saunders recurrence (`reference_minres`, validated against SciPy 1.17.1 in
+  the spike, not in the suite, so there is no Python dependency). Run against *each other* at
+  kappa 1e6 they agree to 1.4e-15 at four steps, 2.8e-13 at eight, 2.0e-8 at twelve and not
+  at all at sixteen, which is the same schedule each of them follows against this
+  implementation. Eight steps is what a reference test can assert, where LSQR and LSMR manage
+  four. Do not try to extend it by tightening anything.
 
 GMRES and FGMRES (`R/solvers-gmres.R`) are one implementation, and the four findings are in
 `dev_notes/gmres-and-the-second-pass.md`:
