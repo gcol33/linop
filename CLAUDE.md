@@ -31,6 +31,15 @@ to Phase 3 with the section 3 backend registry, since wiring it in first means a
 branch the registry then has to absorb) and Arnoldi, so a non-hermitian operator has no
 eigensolver. The generalized problem `A x = lambda B x` is refused by name.
 
+`dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md` measures what that
+delegation could carry. RSpectra closes the non-hermitian gap matrix-free and does `svds`
+and `which = "SM"`, and it refuses a block apply, a complex dense matrix and `sigma` on a
+function, which `eigs()` supplies. **A complex operator behind a callback is not refused:
+it is coerced, and the returned spectrum is `Re(A)`'s**, matching `eigen(Re(A))` to
+2.842e-14 and wrong by 6.946 against the truth. Any wrapper has to refuse on linop's own
+dtype before the call. The note also puts RSpectra ahead of `linop.primme` as the first
+backend, since it exercises the registry with no compiled code.
+
 Two documents govern:
 
 - `implementation_plan.md` — the design, in numbered sections. Cite section numbers.

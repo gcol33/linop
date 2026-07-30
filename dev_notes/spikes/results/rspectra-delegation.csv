@@ -1,0 +1,8 @@
+"case","route","dtype","outcome","detail"
+"non-symmetric","matrix-free","double","works","max |diff| vs dense = 3.682e-12"
+"block apply","matrix-free","double","single column only","shapes: 60x1"
+"complex","dense","complex","refused","REAL() can only be applied to a 'numeric', not a 'complex'"
+"complex","matrix-free","complex","answers the wrong operator","vs A = 6.946e+00, vs Re(A) = 2.842e-14, warnings = 54"
+"svds","matrix-free","double","works","max |diff| vs svd() = 1.243e-14"
+"smallest","matrix-free","double","works","SM works, smallest = 0.00833893"
+"shift-invert","matrix-free","double","refused","function: ERROR: unsupported matrix type | dense: works, smallest = 0.00833893"

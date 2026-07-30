@@ -1,0 +1,27 @@
+RSpectra 0.16.2 | R 4.6.0 | x86_64-w64-mingw32
+
+1. real non-symmetric, matrix-free
+   max |diff| vs dense eigen(): 3.682e-12
+
+2. callback input shapes over a whole run: 60x1  (37 calls)
+
+3. complex dense: ERROR: REAL() can only be applied to a 'numeric', not a 'complex'
+
+4. complex hermitian, matrix-free
+   returned            : -16.560944   15.872478  -15.506388
+   eigenvalues of A    : -23.507308  -22.238910   22.172162
+   eigenvalues of Re(A): -16.560944   15.872478  -15.506388
+   warnings raised     : 54
+   max |diff| vs A     : 6.946
+   max |diff| vs Re(A) : 2.842e-14
+
+5. svds formals: A, k, nu, nv, opts, ...
+   matrix-free svds: works, max |diff| vs svd() = 1.243e-14
+
+6. eigs formals:     A, k, which, sigma, opts, ...
+   eigs_sym formals: A, k, which, sigma, opts, lower, ...
+   which = 'SM', matrix-free: SM works, smallest = 0.00833893
+   sigma on a function: ERROR: unsupported matrix type
+   sigma on a matrix:   works, smallest = 0.00833893
+
+wrote dev_notes/spikes/results/rspectra-delegation.csv
