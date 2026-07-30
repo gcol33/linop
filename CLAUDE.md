@@ -583,3 +583,34 @@ holding what they share. The findings are in
 For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
 macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is
 needed. The spike shim is a proof of concept with documented gaps, not shippable.
+
+## What comes next, and in what order
+
+`dev_notes/hilbert-first-and-the-envelope-that-does-not-dispatch.md` records the decision
+and what is already in place. **The Hilbert layer's first unit comes before `linop.primme`
+and before the adapters**, which reverses the plan's Phase 5 slot. Neither is a
+prerequisite: the unit is self-adjoint, so it wants `eigs()` and the certificate and not
+Arnoldi, and it couples through the provenance envelope, which is exported and in `BUDGET`.
+It also has a spike behind it where PRIMME has no caller. `dev_notes/S0.6-finite-section-bound.md`
+returned all three certificate quantities closed form and verified, and the arithmetic
+floor every Phase 2 certificate now carries came out of it.
+
+The first unit is exactly S0.6's class: `FiniteSection` on `ell^2(Z)`, self-adjoint Jacobi
+plus finite-support `V`, the three-part certificate, and refusal at `V = 0` on `q - a > 0`.
+Everything else in plan section 8 stays out, and that is what the separate package is for.
+The package split is not what moved; only the order is.
+
+**`set_provenance()` stores an unclassed list, so the four provenance generics cannot reach
+a provider's method.** Three land on a `.default` that errors naming the provider and
+`provenance_summary()` returns its fallback string, and all four messages misdescribe the
+cause. A class on the *payload* does survive, so the recommended fix is
+`UseMethod("provenance_lift", p$payload)` in each generic: no signature change, no new
+export, and core still never looks inside. `test-provenance.R` asserts round-trip and
+propagation and never asserts a registered method is reachable, which is the gap to close
+first. `dev_notes/spikes/provenance-dispatch-probe.R`.
+
+Backend order is RSpectra then PRIMME, for the reasons in
+`dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md`.
+
+Undecided and not blocking: one repo with two package directories against two repos (a
+tooling question, not a design one), and the name `linop.hilbert` (plan open question 2).

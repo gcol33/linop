@@ -1,0 +1,10 @@
+class(envelope) as stored: list
+attributes(envelope):      names
+
+provenance_lift(envelope as stored):  ERROR: no provenance_lift() method registered by provider 'linop.hilbert'
+provenance_lift(envelope hand-classed): provider method reached
+
+class(payload) after set_provenance:  hilbert_payload
+class(envelope) after set_provenance: list
+
+UseMethod on p$payload:               provider method reached via payload class
