@@ -1,0 +1,27 @@
+=== 1. the same cell, with gc.profiling on
+    stencil n = 1e+06 ncv = 80
+    sampled 2.264s
+      compiled   "%*%"                        0.662   29.2%
+      linopR     "orth_against"               0.576   25.4%
+      compiled   "crossprod"                  0.410   18.1%
+      apply      "inner"                      0.194    8.6%
+      compiled   "<GC>"                       0.166    7.3%
+      compiled   "*"                          0.096    4.2%
+      linopR     "lanczos_run"                0.054    2.4%
+      compiled   "colSums"                    0.028    1.2%
+      compiled   "stats::rnorm"               0.024    1.1%
+      linopR     "scale_cols"                 0.022    1.0%
+      compiled   "matrix"                     0.010    0.4%
+      linopR     "lanczos_core"               0.002    0.1%
+
+=== 2. the BLAS floor at the same shape
+    n = 1e+05 ncv = 20   floor     3.17 ms   full     3.88 ms   removable 1.23x  basis 15 MB
+    n = 1e+05 ncv = 80   floor    16.25 ms   full    16.29 ms   removable 1.00x  basis 61 MB
+    n = 1e+06 ncv = 20   floor    43.99 ms   full    47.29 ms   removable 1.07x  basis 153 MB
+    n = 1e+06 ncv = 80   floor   165.20 ms   full   171.09 ms   removable 1.04x  basis 610 MB
+
+median removable factor inside orth_against: 1.06x
+
+Reading: `removable` is the ratio of the shipped routine to the two products
+it cannot avoid. A compiled orth_against keeps the floor and can remove at
+most the rest, so this bounds the routine-level win with the algorithm fixed.

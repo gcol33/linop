@@ -1,0 +1,35 @@
+
+=== n = 1e+06  ncv = 80
+  wall clock, each piece timed alone
+    crossprod(Q, W)      79.09 ms   49.0% of full
+    Q %*% C              79.96 ms   49.5% of full
+    col_norms(W) x2        3.79 ms    2.3% of full
+    ----
+    orth_against        161.58 ms
+    two products        159.05 ms   98.4% of full
+  Rprof over 20 calls, 0.416s sampled
+    "%*%"                      0.200   48.1%
+    "crossprod"                0.200   48.1%
+    "-"                        0.006    1.4%
+    "*"                        0.006    1.4%
+    "cross_adjoint"            0.002    0.5%
+    "colSums"                  0.002    0.5%
+  Rprof charges orth_against 0.0% self; direct timing leaves 1.6% outside the two products
+
+=== n = 1e+05  ncv = 20
+  wall clock, each piece timed alone
+    crossprod(Q, W)       1.53 ms   43.9% of full
+    Q %*% C               1.44 ms   41.3% of full
+    col_norms(W) x2        0.40 ms   11.5% of full
+    ----
+    orth_against          3.49 ms
+    two products          2.97 ms   85.2% of full
+  Rprof over 860 calls, 0.408s sampled
+    "crossprod"                0.182   44.6%
+    "%*%"                      0.174   42.6%
+    "*"                        0.018    4.4%
+    "<GC>"                     0.016    3.9%
+    "colSums"                  0.008    2.0%
+    "-"                        0.008    2.0%
+    "Rprof"                    0.002    0.5%
+  Rprof charges orth_against 0.0% self; direct timing leaves 14.8% outside the two products

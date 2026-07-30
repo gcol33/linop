@@ -1,0 +1,20 @@
+
+=== n = 1e+05  ncv = 80   full basis 61 MB
+    i =  10   slice     3.39 ms   zeros    15.95 ms   floor     1.58 ms   zeros bitwise: TRUE
+    i =  33   slice    12.03 ms   zeros    15.89 ms   floor     6.11 ms   zeros bitwise: TRUE
+    i =  57   slice    20.68 ms   zeros    16.29 ms   floor    11.20 ms   zeros bitwise: TRUE
+    i =  80   slice    27.93 ms   zeros    15.89 ms   floor    16.08 ms   zeros bitwise: TRUE
+    summed over the sampled round:
+      slice     64.03 ms   1.00x  (ships)
+      zeros     64.03 ms   1.00x  (pure R, no copy)
+      floor     34.97 ms   1.83x  (compiled, leading dimension)
+
+=== n = 1e+06  ncv = 80   full basis 610 MB
+    i =  10   slice    44.28 ms   zeros   176.12 ms   floor    23.29 ms   zeros bitwise: TRUE
+    i =  33   slice   120.48 ms   zeros   172.33 ms   floor    72.74 ms   zeros bitwise: TRUE
+    i =  57   slice   207.28 ms   zeros   168.47 ms   floor   116.28 ms   zeros bitwise: TRUE
+    i =  80   slice   300.72 ms   zeros   170.43 ms   floor   164.44 ms   zeros bitwise: TRUE
+    summed over the sampled round:
+      slice    672.76 ms   1.00x  (ships)
+      zeros    687.36 ms   0.98x  (pure R, no copy)
+      floor    376.75 ms   1.79x  (compiled, leading dimension)

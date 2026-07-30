@@ -48,8 +48,9 @@ Two documents govern:
   `dev_notes/lsmr-and-the-monotone-backward-error.md`,
   `dev_notes/bicgstab-and-the-recurrence-with-nothing-to-lose.md`,
   `dev_notes/solve-dispatch-and-the-empty-branch.md`,
-  `dev_notes/eigs-svds-and-the-third-certificate.md` and
-  `dev_notes/benchmarks-and-the-fixture-that-solved-itself.md` carry the Phase 2 ones.
+  `dev_notes/eigs-svds-and-the-third-certificate.md`,
+  `dev_notes/benchmarks-and-the-fixture-that-solved-itself.md` and
+  `dev_notes/compile-ceiling-and-the-basis-that-was-copied.md` carry the Phase 2 ones.
 
 ## Commands
 
@@ -85,7 +86,7 @@ run them; never `Rscript -e` with complex code.
 | **S3, with a `matrixOps` group method** | One method covers `%*%`, `crossprod`, `tcrossprod`; `.Generic` tells them apart | S0.1 §2 |
 | **Not S7** | S7 0.2.2 cannot register a method on `crossprod`: `S7:::group_generics()` hardcodes `matrixOps <- "%*%"`, predating R 4.4.0. Worked around only by bypassing S7's own registrar | S0.1 §3 |
 | **`Depends: R (>= 4.4.0)`** | `crossprod`/`tcrossprod` became S3 generic in 4.4.0, not 4.3.0 as the plan assumed | S0.1 §1 |
-| **Zero `Imports`, no compiled code** | Callback overhead is 200 ns/apply, under 0.13% of an apply at n >= 1e5. The C fast path contingency is not needed | S0.2, GATE1 |
+| **Zero `Imports`, no compiled code** | Callback overhead is 200 ns/apply, under 0.13% of an apply at n >= 1e5, so the C fast path contingency is not needed **on the apply path**. What that figure does not cover, and the eigensolver's own ceiling, is `dev_notes/compile-ceiling-and-the-basis-that-was-copied.md` | S0.2, GATE1 |
 | **`dim<-`, never `as.matrix()`, on the apply path** | 300 ns vs 2300 ns | S0.2 §1 |
 
 ## The correction that bites most often
@@ -221,6 +222,25 @@ the Rigal-Gaches denominator, so a reported backward error can only overstate. D
 needs. Structural routes are exact; a structural rule over an estimated child records
 `construction <- [computation/estimate]`, so `evidence_satisfies()` still sees the estimate
 at the top. That is the laundering case of section 5.3 outside capabilities.
+
+**A profiler's self time is not a compile ceiling, because a subscript is billed to the
+callee.** R forces a promise at its first use, so `f(V[, seq_len(i), drop = FALSE], W)`
+allocates and copies inside `f`, and `Rprof` charges `f`'s own frame for a subscript the
+caller wrote. `orth_against()` reads 1.132 s of self time inside `eigs()` on the largest
+cell measured, the single largest entry in the run, and **0.0%** profiled on its own, where
+its two BLAS products account for 96%. Timed against those products it runs at 1.04x, so
+there is nothing in it to compile. Before quoting any cell of
+`dev_notes/spikes/results/eigs-compilable-ceiling*.csv`, read
+`dev_notes/compile-ceiling-and-the-basis-that-was-copied.md`: the figures are real
+measurements of a real cost, and that cost is the basis copy rather than R's interpreter.
+
+The ceiling is **1.01x to 1.12x for the six solvers** and **1.18x to 1.70x, median 1.36x,
+for the eigensolver alone**. Never state the second as the package's. Pure R cannot close
+it: the one bitwise-identical route (orthogonalise against the whole preallocated basis,
+whose unused columns are zero) is measured at 0.98x, because the copy it removes and the
+extra BLAS it adds are the same quantity averaged over a round. What closes it is a GEMM
+with a leading dimension, and the loop it sits in is the one `linop.primme` deletes rather
+than compiles, so the finding argues for Phase 3 rather than for `src/`.
 
 ## Landscape — read before writing any comparative copy
 

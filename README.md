@@ -82,7 +82,13 @@ it and by the operator's own working set.
 
 Wrapping a callback costs 200 ns per apply, measured during design against a
 bare closure call. Against an operator of 1e5 elements or more that is 0.13% of
-one application or less, which is why the package carries no compiled code.
+one application or less, so the apply path costs what the operator costs.
+
+The solvers sit within 1% to 12% of what compiling them could reach, measured by
+profile against operators of 1e5 and 1e6 elements. `eigs()` and `svds()` keep a
+wider margin at large subspaces, and
+`dev_notes/compile-ceiling-and-the-basis-that-was-copied.md` measures where it
+goes and what would close it.
 
 ## Capabilities carry their evidence
 
