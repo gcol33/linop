@@ -82,9 +82,19 @@ Three routes, and the last is the recommendation:
   and the provider owns both. One token per generic, no signature change, no new export,
   no budget movement.
 
-Whichever is chosen, `test-provenance.R` currently asserts round-trip and propagation and
-does not assert that a registered method is reachable. That test is the gap that let this
-through, and it is the one to add first.
+Whichever is chosen, the test that should have caught this is already there and does not.
+`test-provenance.R:46` is named "a provider can register methods and core will route to
+them", and it builds its envelope by hand:
+
+```r
+p <- structure(list(provider = "demo", payload = list(n = 256)), class = "demo_prov")
+```
+
+That `structure()` is the one step `set_provenance()` does not do. So the test asserts the
+generics dispatch, which they do, and never asserts that what core hands back is
+dispatchable. The half the title names is the half not exercised. Constructing the fixture
+the way a caller would would have failed it. That is the edit to make first, and it is an
+edit rather than an addition.
 
 ## 4. What the first unit is, and is not
 
@@ -123,3 +133,4 @@ never be described as certifying more than it certifies.
 | Assessment given in session before reading S0.6 | The Hilbert layer is the weakest of the three splits and should not be a committed deliverable | The split reasoning is unchanged, but the first unit is the one part of section 8 with executed evidence behind it. Risk 5's control was run as a spike and returned feasible |
 | Plan Phase 5 ordering | Hilbert unit follows `linop.primme` and the adapters | Neither is a prerequisite. The unit is self-adjoint and couples through provenance, which is in v0.1 |
 | `R/provenance.R` | Four generics a provider registers methods on | As stored the envelope is unclassed, so the methods are unreachable and the `.default` messages name the wrong cause |
+| This note, first draft | `test-provenance.R` does not assert a registered method is reachable | It does, at line 46, and passes: it hand-classes the envelope instead of obtaining one from `set_provenance()`. The assertion is present and the caller's path is not |

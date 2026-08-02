@@ -605,9 +605,11 @@ a provider's method.** Three land on a `.default` that errors naming the provide
 `provenance_summary()` returns its fallback string, and all four messages misdescribe the
 cause. A class on the *payload* does survive, so the recommended fix is
 `UseMethod("provenance_lift", p$payload)` in each generic: no signature change, no new
-export, and core still never looks inside. `test-provenance.R` asserts round-trip and
-propagation and never asserts a registered method is reachable, which is the gap to close
-first. `dev_notes/spikes/provenance-dispatch-probe.R`.
+export, and core still never looks inside. The test that should have caught it is already
+there: `test-provenance.R:46` is named "a provider can register methods and core will route
+to them" and hand-classes its envelope with `structure()` instead of obtaining one from
+`set_provenance()`, so it exercises the generics and not core. Build that fixture the way a
+caller would and it fails. `dev_notes/spikes/provenance-dispatch-probe.R`.
 
 Backend order is RSpectra then PRIMME, for the reasons in
 `dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md`.
