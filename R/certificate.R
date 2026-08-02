@@ -26,8 +26,8 @@ CERT_COLUMNS <- c("check", "status", "source", "guarantee", "confidence", "detai
 #' A certificate takes a different shape for each kind of claim -- operator
 #' conformance, a square system, a least-squares problem, an eigenpair -- and the
 #' differences between those shapes are the rows. The object is the same one in
-#' every case, which is why this is exported: a provider package certifying its
-#' own quantities reports in this object rather than in a second one of its own.
+#' every case: the roll-up, the evidence fields and the printed table do not vary
+#' with the claim, so a new shape is a new set of rows and nothing else.
 #'
 #' `overall` is `"fail"` if any check failed, `"qualified"` if any is
 #' `"qualified"` or `"not_checked"`, and `"pass"` otherwise. It is a roll-up and
@@ -39,8 +39,8 @@ CERT_COLUMNS <- c("check", "status", "source", "guarantee", "confidence", "detai
 #'   `guarantee`, `confidence` and `detail`, one row per check in the order the
 #'   checks were made. `status` is one of `"pass"`, `"qualified"`, `"fail"` or
 #'   `"not_checked"`. [cert_rows()] collects such a frame.
-#' @param subject What was certified, as a single string. Core builds
-#'   `"operator"`, `"solve"` and `"eigen"`; a provider names its own.
+#' @param subject What was certified, as a single string: `"operator"`,
+#'   `"solve"`, `"eigen"`, and `"finite section"` once that shape lands.
 #' @param probes Optional record of the probes a check was made with.
 #' @param values Optional named list of the quantities the checks were made on,
 #'   so a caller can read a number the printed table only summarises.
@@ -50,15 +50,7 @@ CERT_COLUMNS <- c("check", "status", "source", "guarantee", "confidence", "detai
 #'   `user_declaration` fails a requirement the declaration would have failed
 #'   directly. [cert_rows()] collects this list.
 #' @return An object of class `linop_certificate`.
-#' @seealso [cert_rows()] to collect the rows, [verify()] for the operator shape.
-#' @examples
-#' r <- cert_rows()
-#' r$add("truncation bound", "pass", "eta = 3.9e-05 at n = 20",
-#'       source = "theorem", guarantee = "deterministic_bound")
-#' r$add("isolation gap", "pass", "q - a = 2.4e-01 against the band edge 2",
-#'       source = "theorem", guarantee = "deterministic_bound")
-#' build_certificate(r$collect(), subject = "finite section")
-#' @export
+#' @noRd
 build_certificate <- function(checks, subject, probes = NULL, values = NULL,
                               evidence = NULL) {
   if (!is.data.frame(checks) || !nrow(checks)) {
@@ -151,13 +143,7 @@ print.linop_certificate <- function(x, ...) {
 #' fields, since those are what the printed certificate shows.
 #'
 #' @return A list of three functions, described above.
-#' @seealso [build_certificate()], [evidence()].
-#' @examples
-#' r <- cert_rows()
-#' r$add("truncation bound", "pass", "eta = 3.9e-05 at n = 20",
-#'       source = "theorem", guarantee = "deterministic_bound")
-#' r$collect()
-#' @export
+#' @noRd
 cert_rows <- function() {
   rows <- list()
   evs <- list()

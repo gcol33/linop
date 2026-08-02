@@ -25,11 +25,13 @@ content, so one article holds them side by side rather than each verb explaining
 eigencore made the same call for the same reason; KrylovKit.jl separates by problem class.
 All seven knit in 3.9 s total, so vignette build cost is not a constraint on example size.
 
-Two things section 7.2 lists for v0.1 are deliberately not here, and
-`dev_notes/eigs-svds-and-the-third-certificate.md` records why: RSpectra delegation (deferred
-to Phase 3 with the section 3 backend registry, since wiring it in first means an ad-hoc
-branch the registry then has to absorb) and Arnoldi, so a non-hermitian operator has no
-eigensolver. The generalized problem `A x = lambda B x` is refused by name.
+**Two gaps are open and both are now capability gaps rather than integration gaps.** A
+non-hermitian operator has no eigensolver, because Arnoldi is not written, and the
+generalized problem `A x = lambda B x` is refused by name. Under the one-package design
+neither may be filled by delegating to an external library: they are native mathematics
+this package owns, and `dev_notes/one-package-and-the-abstractions-that-were-holding-a-boundary.md`
+records why. RSpectra and PRIMME become optional engines behind `method =` for capability
+that already exists here.
 
 `dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md` measures what that
 delegation could carry. RSpectra closes the non-hermitian gap matrix-free and does `svds`
@@ -66,7 +68,7 @@ Two documents govern:
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~3 min, 11,538 assertions
+devtools::test(".")                      # ~80 s, 11,997 assertions
 ```
 
 ```powershell
@@ -114,7 +116,7 @@ unconditionally. `test-propagation.R` asserts both halves.
 
 `R/` in dependency order: `aaa-utils` → `evidence`, `caps`, `dtype` → `node-registry` →
 `core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
-`materialize`, `print`, `norm` → `certificate` → `verify` → `provenance`, `linsolve`,
+`materialize`, `print`, `norm` → `certificate` → `verify` → `linsolve`,
 `preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
 `solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `solve` →
 `eigen-common` → `eigs`, `svds` → `zzz`.
@@ -164,15 +166,16 @@ splitting into real and imaginary parts (`leaves.R:sparse_apply`).
 ## Working rules
 
 **The API budget is a test.** `test-api-budget.R` asserts the exported set exactly and
-asserts Phase 2 names are absent. Adding an export fails it until `BUDGET` is edited, which
-is the point. Never edit the budget as a side effect of adding a function.
+asserts deferred names are absent. Adding an export fails it until `BUDGET` is edited, which
+is the point. Never edit the budget as a side effect of adding a function. The cap is **25**
+and it came down from 32; a change in either direction is a decision with a note behind it.
 
 **The deferred node types are asserted absent.** `lowrank`, `kron`, stacks, `blockdiag`,
-`perm`, `power`, `inverse` are Phase 3, after an external adapter has exercised the
-registry. A test fails if one appears. This is the mechanism, not a preference.
+`perm`, `power`, `inverse` are later work. A test fails if one appears. This is the
+mechanism, not a preference. `section`, the truncation node, is the next one to land and is
+deliberately not on that list.
 
-**Tests are recovery and contract tests, not shape tests.** 11,976 assertions across 340
-tests. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
+**Tests are recovery and contract tests, not shape tests.** 11,997 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
 section 10 fixtures with their closed forms: `laplacian_1d()` with
@@ -586,99 +589,70 @@ needed. The spike shim is a proof of concept with documented gaps, not shippable
 
 ## What comes next, and in what order
 
-`dev_notes/hilbert-first-and-the-envelope-that-does-not-dispatch.md` records the decision
-and what is already in place. **The Hilbert layer's first unit comes before `linop.primme`
-and before the adapters**, which reverses the plan's Phase 5 slot. Neither is a
-prerequisite: the unit is self-adjoint, so it wants `eigs()` and the certificate and not
-Arnoldi, and it couples through the provenance envelope, which is exported and in `BUDGET`.
-It also has a spike behind it where PRIMME has no caller. `dev_notes/S0.6-finite-section-bound.md`
-returned all three certificate quantities closed form and verified, and the arithmetic
-floor every Phase 2 certificate now carries came out of it.
+`dev_notes/one-package-and-the-abstractions-that-were-holding-a-boundary.md` is the
+governing decision and supersedes plan section 3's package-split rule, the three-package
+model, and every earlier note about a satellite.
 
-The first unit is exactly S0.6's class: `FiniteSection` on `ell^2(Z)`, self-adjoint Jacobi
-plus finite-support `V`, the three-part certificate, and refusal at `V = 0` on `q - a > 0`.
-Everything else in plan section 8 stays out, and that is what the separate package is for.
-The package split is not what moved; only the order is.
+**`linop` owns the whole mathematical system and the complete user-facing API.** A user
+installs and learns one package. RSpectra and PRIMME stay external numerical libraries and
+their integration lives here behind `method =`; whether a library is an `Imports`, a
+`Suggests` or an optional compiled component is an installation detail, and installation
+details do not fragment an API. `gcol33/linop.hilbert` is archived and its ideas come here.
 
-**The four provenance generics dispatch on `p$payload`, not on the envelope.**
-`set_provenance()` stores an unclassed `list(provider =, payload =)`, so dispatching on the
-envelope reaches nothing but the defaults: a provider's method was unreachable and all four
-`.default` messages named the wrong cause. The payload's class survives and belongs to the
-provider, so `UseMethod(generic, p$payload)` fixes it with no signature change, no new
-export and a byte-identical `NAMESPACE`. Handing a class to `UseMethod()` is not inspecting
-the payload, so section 5.11 holds.
+**Step 1 is done: eleven exports came out, and the budget cap came down from 32 to 25.**
+That is the first time it has moved in that direction, and each removal is a mechanism that
+existed only to hold a package boundary:
 
-The test that should have caught it was already there and passed:
-`test-provenance.R`'s "a provider can register methods and core will route to them"
-hand-built its envelope with `structure()` instead of obtaining one from
-`set_provenance()`, so it exercised the generics and not core — the half its title names
-was the half not run. **A fixture for an object the caller never builds by hand is not a
-test of the path the caller takes.** It now goes through `set_provenance()` and covers all
-four generics; against the old generics it fails. `dev_notes/spikes/provenance-dispatch-probe.R`.
+- **Provenance is deleted.** Section 5.11's rationale was that a schema naming a
+  discretisation would leak Layer 3 concepts into core; Layer 3 *is* core now, so there is
+  nothing to leak across. Opacity buys core not needing to know a payload's structure,
+  which is worth nothing once core owns the structure. **A truncation is a node with a
+  child**, which is structural rather than annotated and which `explain()` already walks.
+  `db7e289` was a real fix to a mechanism that should not exist.
+- **`build_certificate()` and `cert_rows()` are internal again.** Internal for all of Phase
+  2, public for one day, for one consumer in another package. The public certificate
+  surface is a reader (`certificate()`, step 4), never a builder. The validation added when
+  they were briefly public is kept: `CERT_STATUSES` is closed because the roll-up reads
+  those four strings exactly and a fifth would count as a pass, and `$add()` checks `source`
+  and `guarantee` against the vocabulary `evidence()` uses.
+- **`linop_register_node()` and `linop_nodes()` are internal.** They are how a package
+  outside this one would add a composition type. A *user* bringing their own operator writes
+  `linop.<class>()`, plain S3, no registry. The adapters vignette's circulant example was
+  the argument for shipping a circulant node type here, not for exposing the registry.
 
-**The first unit has been built against v0.1 core and the operator path costs no export.**
-`dev_notes/hilbert-first-unit-and-the-certificate-a-provider-cannot-build.md` has the run:
-a matrix-free `finite_section(V, n)`, `verify()` passing eleven checks, all four provenance
-generics routing including through `t(H) %*% H`, and S0.6's table reproduced through
-`eigs()` rather than dense `eigen()`. Three things came out of it:
+What survives does so on its own merits and was never about packaging: evidence and
+capabilities, the certificate object and its shapes, `verify()`, and `method =`.
 
-- **The certificate was the one thing a provider could not build, and now it is exported.**
-  The Hilbert certificate is a fourth *shape* — truncation, isolation, arithmetic floor, no
-  residual row and no backward-error row — but the row table, the evidence fields, the
-  `overall` roll-up and the print method are the same object all four shapes share, so the
-  alternative was a second copy of the roll-up in every satellite. `build_certificate()` and
-  `cert_rows()` are exported; `BUDGET` was edited deliberately and the surface now stands at
-  exactly the 32 `test-api-budget.R` allows, so the next export fails that test. Both gained
-  the validation a public entry point needs: `CERT_STATUSES` is closed because the roll-up
-  reads those four strings exactly and a fifth would be counted as a pass, and `$add()`
-  checks `source` and `guarantee` against the same vocabulary `evidence()` uses.
-  `test-certificate.R` is new and asserts the contract an outside caller sees.
-- **A matrix-free provider cannot say `construction`.** `properties=` stamps
-  `ev_declared()` unconditionally, so the finite section — hermitian because it is
-  tridiagonal with unit off-diagonals — reports `user_declaration`, while the *dense* leaf
-  of the same operator gets `computation` for free. `eigs()` carries that into the
-  forward-error row's `depends_on`, so a provable Weyl bound reports as resting on a
-  declaration. The smallest route out is a `properties=` form accepting `capability()`
-  objects, which needs no new export since `capability()` and `evidence()` are both public.
-- **The eigensolver is a second signal for the `V = 0` refusal and not a substitute.** At
-  `n = 10` and `40` `eigs()` converges cleanly and returns a value still inside the band; at
-  `n = 100` it stalls, and that stall is clustering near the band edge rather than absence of
-  an eigenvalue. Only `q - a > 0` separates the two.
+**The consequence that is not packaging: Arnoldi has to be native.** `eigs()` refuses a
+non-hermitian operator today and the plan defers Arnoldi until a backend arrives — a
+capability gap in `linop` filled by a satellite. A package that owns eigensolvers cannot be
+missing the non-hermitian one, and Arnoldi is pure R with no dependency. Same for the
+generalized problem, currently refused by name. That largely deletes RSpectra as a *source*
+of capability: `dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md` measured
+that it refuses a block apply, a complex dense matrix and `sigma` on a function, and
+silently returns `Re(A)`'s spectrum, wrong by 6.946. PRIMME stays external for one reason,
+that it is compiled and `linop` installs without compilation.
 
-**The satellite exists.** `~/dev/linop.hilbert`, its own repository, `linop.hilbert`,
-first commit `9e48e98`: `finite_section()`, `discretise()`, `eigenpairs()`,
-`decay_rate()`, `sites()`, 319 assertions, `R CMD check` at one WARNING whose two halves
-are linop not being on CRAN yet and the GitHub repo not existing yet. It uses no `:::`.
-Its own `dev_notes/the-first-unit-and-the-subspace-that-was-too-narrow.md` carries three
-findings, and the first is about **this** package:
+Remaining work order:
 
-- **`eigs()`'s default `ncv` is too narrow for a near-band eigenvalue.** On
-  `finite_section(0.3)`, whose eigenvalue is 2.0224 against a band edge of 2, `ncv = 21`
-  (the default at `k = 1`) converges *nothing* at `n = 80` and lands 7.3e-04 from the
-  truth, where `n = 40` reaches 4.2e-07 — a wider block giving a worse answer, with only
-  `nconv` saying so. `ncv = 40` reaches 2.7e-12 and `ncv = 80` and `160` change no digit.
-  This is the benchmark note's "`ncv` is the binding knob" on a fixture that is not
-  `laplacian_1d`, and it argues the default deserves a second look here rather than only
-  in the satellite.
-- The satellite's certificate needed a fifth row for that, as a **qualification and never
-  a failure**, because `dist(theta, sigma(H)) <= ||(H - theta)u||/||u||` holds for every
-  `theta` and every nonzero `u`. A stalled inner solve gives a true bound, a worse one.
-- **The arithmetic floor is load-bearing only once the inner solve is good enough.** At
-  `ncv = 21` the truncation residual plateaus three orders above the true error and the
-  crossing never happens; at the satellite's default it happens at `n = 80`, 7.734e-17
-  against a true error of 8.882e-16, which is S0.6's row exactly. A test that fixed `n`
-  would be measuring the eigensolver rather than the floor.
+2. **`dim` admits `Inf`.** Audit every consumer: `verify()` cannot probe an infinite
+   operator, `as.matrix()` must refuse it, the algebra must still compose it. This is the
+   real engineering and the rest depends on it.
+3. `linop_jacobi()` and the `section` node, with the five-row certificate.
+4. `eigs()` generic over both, and the `certificate()` accessor.
+5. Arnoldi.
+6. `method = "rspectra"` and `method = "primme"` as gated optional engines.
 
-Two repos and the name `linop.hilbert` are settled, with the reasoning and the one
-constraint the name carries (**never a class called `hilbert`**, since `linop()` is a
-generic whose adapter convention is `linop.<class>()`) in
-`dev_notes/hilbert-first-and-the-envelope-that-does-not-dispatch.md`. **`linop` goes to
-CRAN before the satellite**, or the satellite needs `Additional_repositories:` and a live
-`PACKAGES` file. Core must never gain a `Suggests` on the layer; the dependency runs one
-direction.
+The four names step 3 onward adds — `finite_section`, `certificate`, `decay_rate`,
+`linop_jacobi` — land under the 25 cap. `linop_jacobi()` rather than `linop()` because
+`linop()` is a generic dispatching on its first argument and an operator given by
+coefficient sequences has no `x` to dispatch on.
 
-Backend order is RSpectra then PRIMME, for the reasons in
-`dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md`.
-
-Undecided and not blocking: one repo with two package directories against two repos (a
-tooling question, not a design one), and the name `linop.hilbert` (plan open question 2).
+**S0.6 is the mathematics step 3 implements**, and it is already verified:
+`dev_notes/S0.6-finite-section-bound.md` returned the decay rate, the truncation bound and
+the Kato-Temple bracket in closed form, and the arithmetic floor every Phase 2 certificate
+carries came out of its last table. `dev_notes/the-first-unit-and-the-subspace-that-was-too-narrow.md`
+in the archived repository carries three measurements that still apply, the sharpest being
+that **`eigs()`'s default `ncv` of 21 at `k = 1` converges nothing on a near-band eigenvalue
+and makes a wider block give a worse answer than a narrower one** — a defect in this
+package, found from outside it, still open.

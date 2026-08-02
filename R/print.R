@@ -54,8 +54,7 @@ summary.linop <- function(object, ...) {
                stringsAsFactors = FALSE)
   })
   out <- list(dim = object$dim, dtype = object$dtype, node = object$node,
-              cost = linop_cost(object), caps = do.call(rbind, caps),
-              provenance = object$provenance)
+              cost = linop_cost(object), caps = do.call(rbind, caps))
   class(out) <- "summary.linop"
   out
 }
@@ -67,8 +66,5 @@ print.summary.linop <- function(x, ...) {
   df <- x$caps
   df$evidence[is.na(df$value)] <- ""
   print(df, row.names = FALSE, right = FALSE)
-  if (!is.null(x$provenance)) {
-    cat(sprintf("\nprovenance: provider '%s'\n", x$provenance$provider))
-  }
   invisible(x)
 }

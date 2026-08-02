@@ -203,111 +203,38 @@ verify(Liar)$probes
 verify(Liar)$overall
 ```
 
-## Registering a node type
-
-The callback form covers most adapters. Storage that wants its own place in the
-expression graph, its own cost function and its own materialisation registers a
-node type instead. The internal nodes go through this same door, which is what
-keeps it honest.
-
-A node handler is three functions. `apply(op, X, mode)` is the only required one.
-
-```{r register}
-flip <- function(w) w[c(1L, length(w):2L)]
-
-linop_register_node("circulant",
-  apply = function(op, X, mode) {
-    w <- op$args$symbol
-    conv(switch(mode, N = w, T = flip(w), C = Conj(w), R = Conj(flip(w))), X)
-  },
-  materialize = function(op) {
-    E <- diag(1, op$dim[1L])
-    if (op$dtype == "complex") storage.mode(E) <- "complex"
-    conv(op$args$symbol, E)
-  },
-  cost = function(op) 15 * op$dim[1L] * log2(op$dim[1L]))
-
-linop_nodes()
-```
+## The four modes
 
 The four modes are the BLAS convention: `N` is `A X`, `T` is `A^T X`, `C` is
-`A^H X`, `R` is `conj(A) X`. A callback leaf supplies two of them and lets the
-package derive the rest; a node handler is asked for all four, and in exchange
-gets to implement each one at its natural cost. For a circulant, the symbol of
-the transpose is the cyclic reversal of the symbol and the symbol of the adjoint
-is its conjugate, so all four are one multiply.
+`A^H X`, `R` is `conj(A) X`. A callback leaf supplies `apply` and `adjoint`, and
+the package derives `T` and `R` from them by conjugation, so an adapter author
+implements two functions and gets four modes.
 
-Nodes are constructed through the package's internal constructor, so in practice
-a node type ships with a user-facing constructor beside it:
+That derivation is exact and it is not always the cheapest route. For a circulant
+operator the symbol of the transpose is the cyclic reversal of the symbol and the
+symbol of the adjoint is its conjugate, so each of the four is one multiply and
+the conjugation the derivation inserts is avoidable work. Where that matters the
+operator belongs in the package as a node type of its own, beside `linop_eye()`
+and `linop_scaling()`, rather than in a wrapper around a callback.
 
-```{r node-construct}
-circ_node <- function(col1) {
-  n <- length(col1)
-  linop:::new_linop("circulant", c(n, n),
-                    dtype = if (is.complex(col1)) "complex" else "double",
-                    args = list(symbol = fft(col1)))
-}
-
-Cn <- circ_node(c(1, 2, 3, 0, 0, 0))
-Cn
-linop_cost(Cn)
-```
-
-Run the same conformance suite. It is the same suite, and it is where a mode you
-got wrong shows up:
-
-```{r node-verify}
-verify(Cn)$overall
-```
-
-Complex kernels exercise all four modes independently, which is the case worth
-testing:
+Complex kernels are the case worth testing, because they exercise all four modes
+independently:
 
 ```{r node-complex}
-Zn <- circ_node(c(1 + 1i, 2, 0, 0, 3 - 1i, 0))
-verify(Zn)$overall
+wz <- c(1 + 1i, 2, 0, 0, 3 - 1i, 0)
+Zc <- linop(function(X) conv(wz, X),
+            adjoint = function(X) conv(Conj(wz), X),
+            dim = c(6, 6))
+verify(Zc)$overall
 ```
 
-The `materialize` handler above is written the way it is for a reason found by
-running exactly this check. The first version built `diag(1, n)`, a real
+A materialisation trap worth knowing, found by running exactly this check on a
+node that built its own dense form: the first version used `diag(1, n)`, a real
 identity, and `conv()` faithfully preserved the input type by discarding the
 imaginary part of a complex operator's own columns. Every other line of the
-certificate passed and `materialisation agreement` failed with a gap of 1.0.
-
-## Provenance
-
-An operator that came from somewhere else can carry an envelope back to its
-provider. The core stores it and never looks inside, which keeps concepts like
-discretisation, lifting and refinement out of the object model while still
-letting a provider recover them.
-
-```{r provenance}
-Cp <- set_provenance(Cn, provider = "mypkg",
-                     payload = list(h = 0.1, grid = "uniform", n_original = 6))
-
-provenance(Cp)$provider
-provenance(Cp)$payload$h
-```
-
-Four generics are dispatched on the envelope, and a provider implements the ones
-it can support: `provenance_lift()` maps a finite vector into the provider's
-space, `provenance_refine()` produces a finer discretisation,
-`provenance_original_residual()` measures a finite result against the original
-problem, and `provenance_summary()` describes the envelope in one line. The
-default methods raise an error naming the provider that did not register one,
-apart from `provenance_summary()`, which degrades to a description.
-
-```{r provenance-summary}
-provenance_summary(provenance(Cp))
-```
-
-The envelope travels through views, scales, sums and products, and
-`strip_provenance()` removes it.
-
-```{r provenance-travel}
-provenance(2 * Cp)$provider
-is.null(provenance(strip_provenance(Cp)))
-```
+certificate passed and `materialisation agreement` failed with a gap of 1.0. If
+you materialise by applying to an identity, build that identity in the operator's
+own dtype.
 
 ## Preconditioners carry a contract
 

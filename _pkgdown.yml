@@ -73,12 +73,6 @@ reference:
   desc: The conformance suite an adapter author runs before shipping.
   contents:
   - verify
-- title: Extend the package
-  desc: >
-    Register a node type through the same door the built-in nodes use.
-  contents:
-  - linop_register_node
-  - linop_nodes
 - title: Solve a system
   desc: >
     One verb over seven Krylov methods, choosing on declared capabilities and
@@ -101,18 +95,6 @@ reference:
   - preconditioner
   - as_preconditioner
   - as_preconditioner_inverse
-- title: Provenance
-  desc: >
-    An opaque envelope back to the provider of an operator that came from a
-    continuous problem. The core never looks inside.
-  contents:
-  - provenance
-  - set_provenance
-  - strip_provenance
-  - provenance_lift
-  - provenance_refine
-  - provenance_original_residual
-  - provenance_summary
 - title: internal
   contents:
   - promote

@@ -20,7 +20,7 @@ new_view <- function(A, kind) {
     adjoint   = caps_adjoint(A),
     conjugate = caps_conjugate(A))
   new_linop(kind, d, A$dtype, do.call(new_caps, caps), list(A = A),
-            cost = linop_cost(A), provenance = A$provenance)
+            cost = linop_cost(A))
 }
 
 ## ------------------------------------------------------------------ scale ---
@@ -37,8 +37,7 @@ new_scale <- function(A, a) {
   if (length(a) != 1L) stopf("scalar multiplier must have length 1")
   dt <- promote(A$dtype, dtype_of_data(a))
   new_linop("scale", A$dim, dt, do.call(new_caps, caps_scale(A, a)),
-            list(A = A, a = a), cost = linop_cost(A) + A$dim[1L],
-            provenance = A$provenance)
+            list(A = A, a = a), cost = linop_cost(A) + A$dim[1L])
 }
 
 ## -------------------------------------------------------------------- sum ---
@@ -61,8 +60,7 @@ new_sum <- function(ops) {
   }
   dt <- promote_all(vapply(ops, function(A) A$dtype, character(1)))
   new_linop("sum", d, dt, do.call(new_caps, caps_sum(ops)), list(ops = ops),
-            cost = sum(vapply(ops, linop_cost, numeric(1))),
-            provenance = first_provenance(ops))
+            cost = sum(vapply(ops, linop_cost, numeric(1))))
 }
 
 ## ---------------------------------------------------------------- product ---
@@ -94,13 +92,7 @@ new_product <- function(ops) {
   d <- c(ops[[1L]]$dim[1L], ops[[length(ops)]]$dim[2L])
   dt <- promote_all(vapply(ops, function(A) A$dtype, character(1)))
   new_linop("product", d, dt, do.call(new_caps, caps_product(ops)), list(ops = ops),
-            cost = sum(vapply(ops, linop_cost, numeric(1))),
-            provenance = first_provenance(ops))
-}
-
-first_provenance <- function(ops) {
-  for (A in ops) if (!is.null(A$provenance)) return(A$provenance)
-  NULL
+            cost = sum(vapply(ops, linop_cost, numeric(1))))
 }
 
 register_composite_nodes <- function() {

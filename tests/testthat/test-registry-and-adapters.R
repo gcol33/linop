@@ -56,7 +56,7 @@ test_that("the registry refuses a duplicate without overwrite", {
 })
 
 test_that("all v0.1 node types are registered and none of the deferred ones are", {
-  have <- linop_nodes()
+  have <- linop:::linop_nodes()
   v01 <- c("dense", "sparse", "fun", "identity", "diag",
            "transpose", "adjoint", "conjugate", "scale", "sum", "product")
   expect_true(all(v01 %in% have))
