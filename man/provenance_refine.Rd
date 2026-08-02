@@ -17,5 +17,6 @@ provenance_refine(p, n_new, ...)
 Provider-defined.
 }
 \description{
-Refine a discretisation
+Dispatches on the class of `p$payload`, so a provider registers its method
+against a class it puts on its own payload.
 }

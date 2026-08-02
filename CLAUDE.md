@@ -600,16 +600,21 @@ plus finite-support `V`, the three-part certificate, and refusal at `V = 0` on `
 Everything else in plan section 8 stays out, and that is what the separate package is for.
 The package split is not what moved; only the order is.
 
-**`set_provenance()` stores an unclassed list, so the four provenance generics cannot reach
-a provider's method.** Three land on a `.default` that errors naming the provider and
-`provenance_summary()` returns its fallback string, and all four messages misdescribe the
-cause. A class on the *payload* does survive, so the recommended fix is
-`UseMethod("provenance_lift", p$payload)` in each generic: no signature change, no new
-export, and core still never looks inside. The test that should have caught it is already
-there: `test-provenance.R:46` is named "a provider can register methods and core will route
-to them" and hand-classes its envelope with `structure()` instead of obtaining one from
-`set_provenance()`, so it exercises the generics and not core. Build that fixture the way a
-caller would and it fails. `dev_notes/spikes/provenance-dispatch-probe.R`.
+**The four provenance generics dispatch on `p$payload`, not on the envelope.**
+`set_provenance()` stores an unclassed `list(provider =, payload =)`, so dispatching on the
+envelope reaches nothing but the defaults: a provider's method was unreachable and all four
+`.default` messages named the wrong cause. The payload's class survives and belongs to the
+provider, so `UseMethod(generic, p$payload)` fixes it with no signature change, no new
+export and a byte-identical `NAMESPACE`. Handing a class to `UseMethod()` is not inspecting
+the payload, so section 5.11 holds.
+
+The test that should have caught it was already there and passed:
+`test-provenance.R`'s "a provider can register methods and core will route to them"
+hand-built its envelope with `structure()` instead of obtaining one from
+`set_provenance()`, so it exercised the generics and not core — the half its title names
+was the half not run. **A fixture for an object the caller never builds by hand is not a
+test of the path the caller takes.** It now goes through `set_provenance()` and covers all
+four generics; against the old generics it fails. `dev_notes/spikes/provenance-dispatch-probe.R`.
 
 Backend order is RSpectra then PRIMME, for the reasons in
 `dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md`.

@@ -47,6 +47,13 @@ against v0.1 core as it stands.
 
 ## 3. The envelope does not dispatch
 
+**Fixed.** All four generics now dispatch on `p$payload`, the third route below, and the
+test was rebuilt to obtain its envelope from `set_provenance()`. The counterfactual was
+run rather than assumed: against the previous generics the rebuilt test fails 2 of its
+assertions with `no provenance_lift() method registered by provider 'demo'` while the
+method is registered, which is the misdescription this section is about. `NAMESPACE` is
+byte-identical afterwards. The rest of the section is what was measured before the fix.
+
 The four generics dispatch on the envelope. `set_provenance()` stores the envelope as a
 bare `list(provider =, payload =)` with no class, so the dispatch sees `"list"`:
 

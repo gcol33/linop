@@ -17,5 +17,6 @@ provenance_lift(p, x, ...)
 Provider-defined.
 }
 \description{
-Lift a finite vector into the provider's space
+Dispatches on the class of `p$payload`, so a provider registers its method
+against a class it puts on its own payload.
 }

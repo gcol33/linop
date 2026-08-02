@@ -44,12 +44,41 @@ test_that("the provider generics error informatively when unregistered", {
 })
 
 test_that("a provider can register methods and core will route to them", {
-  registerS3method("provenance_summary", "demo_prov",
+  ## The envelope comes from set_provenance(), which is the only way a provider
+  ## ever obtains one. Hand-building it with structure() tests the generics and
+  ## not core, and passes while the caller's path is broken.
+  registerS3method("provenance_summary", "demo_payload",
                    function(p, ...) sprintf("finite section at n = %d", p$payload$n),
                    envir = globalenv())
-  p <- structure(list(provider = "demo", payload = list(n = 256)),
-                 class = "demo_prov")
+  registerS3method("provenance_lift", "demo_payload",
+                   function(p, x, ...) rep(x, times = 2L),
+                   envir = globalenv())
+  registerS3method("provenance_refine", "demo_payload",
+                   function(p, n_new, ...) n_new * p$payload$n,
+                   envir = globalenv())
+  registerS3method("provenance_original_residual", "demo_payload",
+                   function(p, result, ...) sqrt(sum(result^2)),
+                   envir = globalenv())
+
+  A <- set_provenance(linop(rmat(3, 3, seed = 6)), "demo",
+                      structure(list(n = 256), class = "demo_payload"))
+  p <- provenance(A)
+
   expect_equal(provenance_summary(p), "finite section at n = 256")
+  expect_equal(provenance_lift(p, c(1, 2)), c(1, 2, 1, 2))
+  expect_equal(provenance_refine(p, 2), 512)
+  expect_equal(provenance_original_residual(p, c(3, 4)), 5)
+
+  ## and through the algebra, where the envelope is the propagated one
+  expect_equal(provenance_summary(provenance(t(A) %*% A)),
+               "finite section at n = 256")
+})
+
+test_that("an unclassed payload reaches the defaults", {
+  A <- set_provenance(linop(rmat(3, 3, seed = 7)), "plain", list(n = 8))
+  p <- provenance(A)
+  expect_error(provenance_lift(p, 1), "no provenance_lift\\(\\) method")
+  expect_match(provenance_summary(p), "no summary method registered")
 })
 
 test_that("set_provenance validates its arguments", {
