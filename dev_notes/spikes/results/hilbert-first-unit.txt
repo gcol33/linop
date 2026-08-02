@@ -1,0 +1,87 @@
+=== 1. the capability a provider can state, and the one it can prove ===
+  matrix-free leaf, properties = c('hermitian'):
+    value  : TRUE
+    source : user_declaration
+    guarantee: identity
+  the same operator as a dense leaf, with no properties given:
+    value  : TRUE
+    source : computation
+    guarantee: identity
+
+  So the route that materialises the operator gets the better evidence, and
+  the matrix-free route -- the one the layer exists for -- gets a bare
+  declaration. normalise_properties() stamps ev_declared() unconditionally;
+  ev_construction() is internal and there is no properties= form reaching it.
+
+  verify(H) on the matrix-free leaf: pass
+    checks: adjoint consistency, view identities, real transpose equals adjoint, linearity, block consistency, shape and dtype, complex linearity, declared capabilities, purity, gemm agreement, materialisation agreement
+
+=== 2. provenance round trip through the caller's path ===
+  summary   : finite section of a discrete Schrodinger operator, n = 20, supp V = [-0, 0]
+  lift      : 41 indexed entries, j from -20
+  refine    : dim of refine(p, 30) = 61 x 61
+  after t(H) %*% H: finite section of a discrete Schrodinger operator, n = 20, supp V = [-0, 0]
+
+=== 3. eigs() on V = 1 * delta_0, exact lambda = sqrt(5) ===
+  lambda_exact = 2.236067977500   rho_exact = 0.618033988750
+     n   lambda_n         true err     eta          floor       err<=eta+floor  eta/rho^n  eigs
+     5  2.233209543058  2.858e-03   5.407e-02   2.665e-15   TRUE         0.5997     qualified
+    10  2.236045382463  2.260e-05   4.754e-03   2.665e-15   TRUE         0.5847     qualified
+    20  2.236067976007  1.493e-09   3.864e-05   2.665e-15   TRUE         0.5845     qualified
+    40  2.236067977500  4.441e-16   2.554e-09   2.665e-15   TRUE         0.5844     qualified
+    80  2.236067977500  8.882e-16   7.734e-17   2.665e-15   TRUE         4.0499     qualified
+
+  Without the floor the n = 80 row is the S0.6 failure: eta has decayed below
+  the arithmetic plateau, so a converged answer certifies as fail. The floor
+  is the provider's own, 2 + max|V| in closed form, no norm estimate needed.
+
+=== 4. Kato-Temple, band edge a = 2 known from the symbol ===
+     n   eta (linear)   KT half-width   contains sqrt(5)
+     5   5.407483e-02   1.253846e-02    TRUE
+    10   4.754377e-03   9.576169e-05    TRUE
+    20   3.863955e-05   6.324513e-09    TRUE
+    40   2.554104e-09   2.763377e-17    TRUE
+
+=== 5. refusal at V = 0: the isolation condition and the refusal are one ===
+     n    q (top Ritz)      q - a         issue?  eigs nconv  eigs cert
+    10   1.979642883762   -2.035712e-02   FALSE   1 of 1      qualified
+    40   1.998532362102   -1.467638e-03   FALSE   1 of 1      qualified
+   100   1.999602918148   -3.970819e-04   FALSE   0 of 1      fail
+  Every top Ritz value sits strictly inside (-2, 2): these are discretisations
+  of continuous spectrum and H_free has no eigenvalues at all. q - a > 0 fails
+  on its own terms, so nothing separate has to detect the case.
+
+  The eigensolver is a second signal and not a substitute for the first. Where
+  it converges, the value it returns is still inside the band and the layer
+  still has to refuse; where it stalls, the stall is about the clustering near
+  the band edge rather than about the absence of an eigenvalue. Only q - a > 0
+  distinguishes 'no eigenvalue here' from 'a hard eigenvalue here'.
+
+=== 6. the exported surface, measured ===
+  linop                          exported: TRUE   used by the unit: TRUE
+  set_provenance                 exported: TRUE   used by the unit: TRUE
+  provenance                     exported: TRUE   used by the unit: TRUE
+  strip_provenance               exported: TRUE   used by the unit: FALSE
+  provenance_lift                exported: TRUE   used by the unit: TRUE
+  provenance_refine              exported: TRUE   used by the unit: TRUE
+  provenance_original_residual   exported: TRUE   used by the unit: TRUE
+  provenance_summary             exported: TRUE   used by the unit: TRUE
+  eigs                           exported: TRUE   used by the unit: TRUE
+  verify                         exported: TRUE   used by the unit: TRUE
+  capability                     exported: TRUE   used by the unit: FALSE
+  evidence                       exported: TRUE   used by the unit: FALSE
+  cap                            exported: TRUE   used by the unit: TRUE
+  cap_value                      exported: FALSE  used by the unit: FALSE
+  requirement                    exported: TRUE   used by the unit: FALSE
+  evidence_satisfies             exported: TRUE   used by the unit: FALSE
+  build_certificate              exported: FALSE  used by the unit: FALSE
+  cert_rows                      exported: FALSE  used by the unit: FALSE
+  solve_certificate              exported: FALSE  used by the unit: FALSE
+  arithmetic_floor               exported: FALSE  used by the unit: FALSE
+  norm2                          exported: FALSE  used by the unit: FALSE
+  ev_construction                exported: FALSE  used by the unit: FALSE
+  linop_apply                    exported: FALSE  used by the unit: FALSE
+  SOLVE_FLOOR_CONST              exported: FALSE  used by the unit: FALSE
+
+  reached and not exported: none
+  needed to build a linop_certificate: build_certificate, cert_rows, arithmetic_floor, norm2

@@ -616,6 +616,31 @@ was the half not run. **A fixture for an object the caller never builds by hand 
 test of the path the caller takes.** It now goes through `set_provenance()` and covers all
 four generics; against the old generics it fails. `dev_notes/spikes/provenance-dispatch-probe.R`.
 
+**The first unit has been built against v0.1 core and the operator path costs no export.**
+`dev_notes/hilbert-first-unit-and-the-certificate-a-provider-cannot-build.md` has the run:
+a matrix-free `finite_section(V, n)`, `verify()` passing eleven checks, all four provenance
+generics routing including through `t(H) %*% H`, and S0.6's table reproduced through
+`eigs()` rather than dense `eigen()`. Three things came out of it:
+
+- **The certificate is the one thing a provider cannot build.** `cert_rows()`,
+  `build_certificate()` and `arithmetic_floor()` are internal. The Hilbert certificate is a
+  fourth *shape* — truncation, isolation, arithmetic floor, no residual row and no
+  backward-error row — but the row table, the evidence fields, the `overall` roll-up and the
+  print method are the same object all four shapes share. So it is export two names or keep
+  a second copy of the roll-up in the satellite, and the second is the facade-over-duplicate
+  outcome. That is a `BUDGET` edit and therefore a decision, not a fix.
+- **A matrix-free provider cannot say `construction`.** `properties=` stamps
+  `ev_declared()` unconditionally, so the finite section — hermitian because it is
+  tridiagonal with unit off-diagonals — reports `user_declaration`, while the *dense* leaf
+  of the same operator gets `computation` for free. `eigs()` carries that into the
+  forward-error row's `depends_on`, so a provable Weyl bound reports as resting on a
+  declaration. The smallest route out is a `properties=` form accepting `capability()`
+  objects, which needs no new export since `capability()` and `evidence()` are both public.
+- **The eigensolver is a second signal for the `V = 0` refusal and not a substitute.** At
+  `n = 10` and `40` `eigs()` converges cleanly and returns a value still inside the band; at
+  `n = 100` it stalls, and that stall is clustering near the band edge rather than absence of
+  an eigenvalue. Only `q - a > 0` separates the two.
+
 Backend order is RSpectra then PRIMME, for the reasons in
 `dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md`.
 

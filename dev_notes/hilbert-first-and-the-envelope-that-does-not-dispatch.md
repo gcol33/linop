@@ -127,9 +127,12 @@ never be described as certifying more than it certifies.
   Separate repos suit r-lib workflows, pkgdown and r-universe topic discovery; a monorepo
   costs `working-directory` overrides and buys a single tracker.
 - **The name.** Plan open question 2 still has `linop.hilbert` as a proposal.
-- **Whether the first unit needs any new core export.** Unknown until it is built. `BUDGET`
+- **Whether the first unit needs any new core export.** Answered by building it:
+  `dev_notes/hilbert-first-unit-and-the-certificate-a-provider-cannot-build.md`. The
+  operator path needs none. The certificate object needs `cert_rows()` and
+  `build_certificate()` exported, or a second copy of them in the satellite. `BUDGET`
   is a test, and editing it as a side effect of adding a function is the thing that test
-  exists to catch.
+  exists to catch, so that stays a decision.
 - **`Additional_repositories:`** if core ever gains a `Suggests` on the layer before the
   layer is on CRAN.
 
