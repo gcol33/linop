@@ -56,6 +56,15 @@ Kato-Temple against the band edge `a = 2`, known from the symbol rather than est
 
 ## 2. The certificate is the one thing a provider cannot build
 
+**Resolved.** `build_certificate()` and `cert_rows()` are exported, `BUDGET` was edited
+deliberately, and `test-certificate.R` asserts the contract an outside caller sees. Both
+gained the validation a public entry point needs, which the internal versions did not have:
+the status vocabulary is closed, because the roll-up reads those four strings exactly and a
+fifth would be silently counted as a pass, and `$add()` checks `source` and `guarantee`
+against the same vocabulary `evidence()` uses. The surface now stands at exactly the 32
+`test-api-budget.R` allows. The rest of this section is the argument that produced the
+choice.
+
 `build_certificate()`, `cert_rows()`, `arithmetic_floor()` and `norm2()` are all internal.
 A satellite package can compute every number in its own certificate -- it just did, above --
 and has no way to put them in the object the rest of the package reports.
@@ -134,6 +143,6 @@ of an eigenvalue -- the same stall a genuinely hard isolated eigenvalue would pr
 
 | Where | Was | Is |
 |---|---|---|
-| `hilbert-first-and-the-envelope...`, section 5 | whether the first unit needs any new core export is unknown until it is built | Built. The operator path needs none; the certificate object needs `cert_rows()` and `build_certificate()`, or a second copy of them in the satellite |
+| `hilbert-first-and-the-envelope...`, section 5 | whether the first unit needs any new core export is unknown until it is built | Built. The operator path needs none. The certificate object needed `cert_rows()` and `build_certificate()`, which are now exported, and the surface sits at exactly the 32 the budget allows |
 | Implicit in the provenance surface | a provider states its capabilities through `properties=` | It states values through `properties=` and cannot state evidence. A construction argument reports as `user_declaration`, and `eigs()` carries that into the forward-error row's `depends_on` |
 | S0.6 section (d) | at `V = 0` the finite-section eigenvalues lie inside the band, so `eigs()` must refuse | True, and `eigs()` does not refuse -- it converges and returns one. The refusal is the layer's, on `q - a > 0` |

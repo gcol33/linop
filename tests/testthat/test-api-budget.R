@@ -14,6 +14,18 @@
 ##
 ## print() and summary() on the two spectral results are the same mechanism and
 ## cost nothing either.
+##
+## build_certificate() and cert_rows() are the third and fourth Phase 2 names, and
+## they were spent on the provider surface rather than on a verb. A provider
+## package can compute every quantity in its own certificate and had no way to put
+## them in the object the rest of the package reports: the row table, the evidence
+## fields, the roll-up and the print method are the same object in all four
+## certificate shapes, so the alternative was a second copy of them in every
+## satellite. dev_notes/hilbert-first-unit-and-the-certificate-a-provider-cannot-build.md
+## has the measurement that forced the choice.
+##
+## That puts the surface at exactly the 32 the last test allows. The next export
+## fails that test, which is the mechanism and not an obstacle to route around.
 
 BUDGET <- list(
   common = c("linop", "adjoint", "verify", "eigs", "svds"),
@@ -29,7 +41,8 @@ BUDGET <- list(
                 "cap", "dtype", "is_linop", "linop_cost",
                 "provenance", "set_provenance", "strip_provenance",
                 "provenance_lift", "provenance_refine",
-                "provenance_original_residual", "provenance_summary")
+                "provenance_original_residual", "provenance_summary",
+                "build_certificate", "cert_rows")
 )
 
 PLANNED_PHASE2 <- c("solver", "linsolve",

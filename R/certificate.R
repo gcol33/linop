@@ -9,14 +9,81 @@
 ## reading of that line that cannot be right.
 DETERMINISTIC_GUARANTEES <- c("identity", "deterministic_bound")
 
-build_certificate <- function(df, subject, probes = NULL, values = NULL,
+## A check either passed, failed, met its tolerance only through an arithmetic
+## floor, or could not be made. The roll-up below reads these four exactly, so a
+## fifth string would be silently counted as a pass, which is why the vocabulary
+## is closed rather than free text.
+CERT_STATUSES <- c("pass", "qualified", "fail", "not_checked")
+
+CERT_COLUMNS <- c("check", "status", "source", "guarantee", "confidence", "detail")
+
+#' Assemble a certificate from a table of checks
+#'
+#' The object every verb in this package returns alongside its result: one row
+#' per check, each carrying a status and the evidence triple behind it, plus a
+#' roll-up and the list of checks with no deterministic bound under them.
+#'
+#' A certificate takes a different shape for each kind of claim -- operator
+#' conformance, a square system, a least-squares problem, an eigenpair -- and the
+#' differences between those shapes are the rows. The object is the same one in
+#' every case, which is why this is exported: a provider package certifying its
+#' own quantities reports in this object rather than in a second one of its own.
+#'
+#' `overall` is `"fail"` if any check failed, `"qualified"` if any is
+#' `"qualified"` or `"not_checked"`, and `"pass"` otherwise. It is a roll-up and
+#' not a verdict. `"qualified"` says a line met its tolerance only through an
+#' arithmetic floor, or that a check could not be made at all, and both are
+#' reported rather than folded into a pass.
+#'
+#' @param checks A data frame with columns `check`, `status`, `source`,
+#'   `guarantee`, `confidence` and `detail`, one row per check in the order the
+#'   checks were made. `status` is one of `"pass"`, `"qualified"`, `"fail"` or
+#'   `"not_checked"`. [cert_rows()] collects such a frame.
+#' @param subject What was certified, as a single string. Core builds
+#'   `"operator"`, `"solve"` and `"eigen"`; a provider names its own.
+#' @param probes Optional record of the probes a check was made with.
+#' @param values Optional named list of the quantities the checks were made on,
+#'   so a caller can read a number the printed table only summarises.
+#' @param evidence Optional named list of [evidence()] objects keyed by check
+#'   name, for rows resting on a declaration. [evidence_satisfies()] reads
+#'   through the `depends_on` of these, so a bound resting on a bare
+#'   `user_declaration` fails a requirement the declaration would have failed
+#'   directly. [cert_rows()] collects this list.
+#' @return An object of class `linop_certificate`.
+#' @seealso [cert_rows()] to collect the rows, [verify()] for the operator shape.
+#' @examples
+#' r <- cert_rows()
+#' r$add("truncation bound", "pass", "eta = 3.9e-05 at n = 20",
+#'       source = "theorem", guarantee = "deterministic_bound")
+#' r$add("isolation gap", "pass", "q - a = 2.4e-01 against the band edge 2",
+#'       source = "theorem", guarantee = "deterministic_bound")
+#' build_certificate(r$collect(), subject = "finite section")
+#' @export
+build_certificate <- function(checks, subject, probes = NULL, values = NULL,
                               evidence = NULL) {
-  overall <- if (any(df$status == "fail")) "fail"
-             else if (any(df$status %in% c("qualified", "not_checked"))) "qualified"
+  if (!is.data.frame(checks) || !nrow(checks)) {
+    stopf("checks must be a data frame with at least one row")
+  }
+  missing_cols <- setdiff(CERT_COLUMNS, names(checks))
+  if (length(missing_cols)) {
+    stopf("checks is missing the column%s %s\n  a certificate row carries: %s",
+          if (length(missing_cols) == 1L) "" else "s",
+          paste(missing_cols, collapse = ", "), paste(CERT_COLUMNS, collapse = ", "))
+  }
+  bad <- setdiff(checks$status, CERT_STATUSES)
+  if (length(bad)) {
+    stopf(paste0("unknown status: %s\n",
+                 "  a status is one of: %s. The roll-up reads these four exactly, so\n",
+                 "  anything else would be counted as a pass."),
+          paste(unique(bad), collapse = ", "), paste(CERT_STATUSES, collapse = ", "))
+  }
+  if (!is_scalar_string(subject)) stopf("subject must be a single string")
+  overall <- if (any(checks$status == "fail")) "fail"
+             else if (any(checks$status %in% c("qualified", "not_checked"))) "qualified"
              else "pass"
-  weak <- df$check[!df$guarantee %in% DETERMINISTIC_GUARANTEES |
-                   df$status == "not_checked"]
-  structure(list(subject = subject, checks = df, overall = overall,
+  weak <- checks$check[!checks$guarantee %in% DETERMINISTIC_GUARANTEES |
+                       checks$status == "not_checked"]
+  structure(list(subject = subject, checks = checks, overall = overall,
                  without_deterministic_bound = weak, probes = probes,
                  values = values, evidence = evidence),
             class = "linop_certificate")
@@ -56,15 +123,41 @@ print.linop_certificate <- function(x, ...) {
   invisible(x)
 }
 
-## Collects rows in the order they are added, so a certificate reads top to
-## bottom in the order the checks were made.
-##
-## A row may carry an evidence() object instead of the three fields, in which case
-## the fields are read off it rather than typed a second time. That is what a
-## conditional check needs: a bound resting on a declared capability records the
-## dependency, so evidence_satisfies() sees the declaration underneath the row the
-## way it already sees it underneath a propagated capability (section 5.3). The
-## table keeps the flat fields, since it is what the printed certificate shows.
+#' Collect the rows of a certificate
+#'
+#' Collects checks in the order they are added, so a certificate reads top to
+#' bottom in the order the checks were made. Hand the result of `$collect()` and
+#' `$collect_evidence()` to [build_certificate()].
+#'
+#' The returned list holds three functions:
+#'
+#' \describe{
+#'   \item{`$add(check, status, detail, source, guarantee, confidence, evidence)`}{
+#'     Append one row. `check` names it, `status` is one of `"pass"`,
+#'     `"qualified"`, `"fail"` or `"not_checked"`, and `detail` is the sentence
+#'     the printed certificate shows under a failure. The evidence triple is
+#'     given either as the three fields or, for a row resting on something, as an
+#'     [evidence()] object in `evidence`, in which case the three fields are read
+#'     off it rather than typed a second time and the object itself is kept.}
+#'   \item{`$collect()`}{The rows, as one data frame.}
+#'   \item{`$collect_evidence()`}{The named list of [evidence()] objects that
+#'     were passed, or `NULL` if none were.}
+#' }
+#'
+#' Passing an [evidence()] object is what a conditional check needs. A bound
+#' resting on a declared capability records the dependency in `depends_on`, so
+#' [evidence_satisfies()] sees the declaration underneath the row the way it
+#' already sees it underneath a propagated capability. The table keeps the flat
+#' fields, since those are what the printed certificate shows.
+#'
+#' @return A list of three functions, described above.
+#' @seealso [build_certificate()], [evidence()].
+#' @examples
+#' r <- cert_rows()
+#' r$add("truncation bound", "pass", "eta = 3.9e-05 at n = 20",
+#'       source = "theorem", guarantee = "deterministic_bound")
+#' r$collect()
+#' @export
 cert_rows <- function() {
   rows <- list()
   evs <- list()
@@ -72,10 +165,23 @@ cert_rows <- function() {
     add = function(check, status, detail = "", source = "computation",
                    guarantee = "identity", confidence = 1, evidence = NULL) {
       if (!is.null(evidence)) {
+        if (!inherits(evidence, "linop_evidence")) {
+          stopf("evidence must come from evidence()")
+        }
         source <- evidence$source
         guarantee <- evidence$guarantee
         confidence <- evidence$confidence
         evs[[check]] <<- evidence
+      }
+      if (!is_scalar_string(check)) stopf("check must be a single string")
+      if (!is_scalar_string(status) || !status %in% CERT_STATUSES) {
+        stopf("status must be one of: %s", paste(CERT_STATUSES, collapse = ", "))
+      }
+      if (!source %in% EVIDENCE_SOURCES) {
+        stopf("source must be one of: %s", paste(EVIDENCE_SOURCES, collapse = ", "))
+      }
+      if (!guarantee %in% EVIDENCE_GUARANTEES) {
+        stopf("guarantee must be one of: %s", paste(EVIDENCE_GUARANTEES, collapse = ", "))
       }
       rows[[length(rows) + 1L]] <<- data.frame(
         check = check, status = status, source = source, guarantee = guarantee,

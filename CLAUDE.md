@@ -622,13 +622,17 @@ a matrix-free `finite_section(V, n)`, `verify()` passing eleven checks, all four
 generics routing including through `t(H) %*% H`, and S0.6's table reproduced through
 `eigs()` rather than dense `eigen()`. Three things came out of it:
 
-- **The certificate is the one thing a provider cannot build.** `cert_rows()`,
-  `build_certificate()` and `arithmetic_floor()` are internal. The Hilbert certificate is a
-  fourth *shape* — truncation, isolation, arithmetic floor, no residual row and no
-  backward-error row — but the row table, the evidence fields, the `overall` roll-up and the
-  print method are the same object all four shapes share. So it is export two names or keep
-  a second copy of the roll-up in the satellite, and the second is the facade-over-duplicate
-  outcome. That is a `BUDGET` edit and therefore a decision, not a fix.
+- **The certificate was the one thing a provider could not build, and now it is exported.**
+  The Hilbert certificate is a fourth *shape* — truncation, isolation, arithmetic floor, no
+  residual row and no backward-error row — but the row table, the evidence fields, the
+  `overall` roll-up and the print method are the same object all four shapes share, so the
+  alternative was a second copy of the roll-up in every satellite. `build_certificate()` and
+  `cert_rows()` are exported; `BUDGET` was edited deliberately and the surface now stands at
+  exactly the 32 `test-api-budget.R` allows, so the next export fails that test. Both gained
+  the validation a public entry point needs: `CERT_STATUSES` is closed because the roll-up
+  reads those four strings exactly and a fifth would be counted as a pass, and `$add()`
+  checks `source` and `guarantee` against the same vocabulary `evidence()` uses.
+  `test-certificate.R` is new and asserts the contract an outside caller sees.
 - **A matrix-free provider cannot say `construction`.** `properties=` stamps
   `ev_declared()` unconditionally, so the finite section — hermitian because it is
   tridiagonal with unit off-diagonals — reports `user_declaration`, while the *dense* leaf
