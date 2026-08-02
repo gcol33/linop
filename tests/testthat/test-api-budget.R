@@ -15,17 +15,22 @@
 ## print() and summary() on the two spectral results are the same mechanism and
 ## cost nothing either.
 ##
-## build_certificate() and cert_rows() are the third and fourth Phase 2 names, and
-## they were spent on the provider surface rather than on a verb. A provider
-## package can compute every quantity in its own certificate and had no way to put
-## them in the object the rest of the package reports: the row table, the evidence
-## fields, the roll-up and the print method are the same object in all four
-## certificate shapes, so the alternative was a second copy of them in every
-## satellite. dev_notes/hilbert-first-unit-and-the-certificate-a-provider-cannot-build.md
-## has the measurement that forced the choice.
+## Eleven names came OUT in the one-package redesign, which is the first time this
+## budget has moved down. dev_notes/one-package-and-the-abstractions-that-were-holding-a-boundary.md
+## records the reassessment; the short version is that every one of them existed to
+## hold a package boundary that no longer exists:
 ##
-## That puts the surface at exactly the 32 the last test allows. The next export
-## fails that test, which is the mechanism and not an obstacle to route around.
+##   provenance, set_provenance, strip_provenance and the four generics
+##     -- an opaque envelope buys core not needing to know a payload's structure,
+##        which is worth nothing once core owns the structure. A truncation is a
+##        node with a child instead, which is structural rather than annotated.
+##   build_certificate, cert_rows
+##     -- internal for all of Phase 2, public for one day, for one consumer in
+##        another package. The public certificate surface is a reader, not a builder.
+##   linop_register_node, linop_nodes
+##     -- how a package outside this one would add a composition type. There is no
+##        package outside this one, and a user bringing their own operator writes
+##        linop.<class>(), which needs no registry.
 
 BUDGET <- list(
   common = c("linop", "adjoint", "verify", "eigs", "svds"),
@@ -36,13 +41,8 @@ BUDGET <- list(
   advanced = c("preconditioner", "as_preconditioner", "as_preconditioner_inverse",
                "collapse", "explain", "as_sparse"),
 
-  developer = c("linop_register_node", "linop_nodes",
-                "evidence", "capability", "requirement", "evidence_satisfies",
-                "cap", "dtype", "is_linop", "linop_cost",
-                "provenance", "set_provenance", "strip_provenance",
-                "provenance_lift", "provenance_refine",
-                "provenance_original_residual", "provenance_summary",
-                "build_certificate", "cert_rows")
+  developer = c("evidence", "capability", "requirement", "evidence_satisfies",
+                "cap", "dtype", "is_linop", "linop_cost")
 )
 
 PLANNED_PHASE2 <- c("solver", "linsolve",
@@ -73,8 +73,11 @@ test_that("the names Phase 2 deliberately keeps private are not exported", {
 
 test_that("the budget stays small", {
   expect_lte(length(BUDGET$common), 6L)
-  ## the whole surface, so a slow drift upward is visible in the diff
-  expect_lte(length(unlist(BUDGET, use.names = FALSE)), 32L)
+  ## The whole surface, so a slow drift upward is visible in the diff. The cap
+  ## came down from 32 with the eleven names the one-package redesign removed, and
+  ## the four the Hilbert layer adds land under it: finite_section, certificate,
+  ## decay_rate, linop_jacobi.
+  expect_lte(length(unlist(BUDGET, use.names = FALSE)), 25L)
 })
 
 test_that("R's own generics work without being exported", {

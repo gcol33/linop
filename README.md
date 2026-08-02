@@ -188,20 +188,7 @@ linop.my_format <- function(x, ...) {
 }
 ```
 
-Then run `verify()` on an instance and read the certificate. Storage that does
-not fit the callback shape registers a node type instead, through the same door
-the built-in nodes use:
-
-```r
-linop_register_node("scaled_identity",
-  apply       = function(op, X, mode) op$args$a * X,
-  materialize = function(op) diag(op$args$a, op$dim[1L]),
-  cost        = function(op) op$dim[1L])
-```
-
-`linop_nodes()` lists what is registered. An operator that came from a continuous
-problem can carry an opaque envelope back to its provider with
-`set_provenance()`, which the core never looks inside.
+Then run `verify()` on an instance and read the certificate.
 
 ## Installation
 

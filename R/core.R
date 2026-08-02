@@ -1,7 +1,7 @@
 ## Section 5.1. Immutable; every operation returns a new object.
 
 new_linop <- function(node, dim, dtype, caps = new_caps(), args = list(),
-                      cost = NULL, provenance = NULL) {
+                      cost = NULL) {
   dim <- as.integer(dim)
   if (length(dim) != 2L || anyNA(dim) || any(dim < 0L)) {
     stopf("dim must be two non-negative integers")
@@ -17,7 +17,7 @@ new_linop <- function(node, dim, dtype, caps = new_caps(), args = list(),
   caps <- close_caps(caps)
   structure(
     list(node = node, dim = dim, dtype = dtype, caps = caps, args = args,
-         cost = cost, provenance = provenance),
+         cost = cost),
     class = c(paste0("linop_", node), "linop"))
 }
 

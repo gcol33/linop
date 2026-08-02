@@ -276,45 +276,6 @@ stopifnot(cert$overall %in% c("pass", "qualified"))
 measured quantities, and `cert$evidence` holds the evidence objects for rows that
 carry a dependency.
 
-## Building one
-
-The four shapes above are the ones core produces. A package that computes its own
-certified quantities gets the same object rather than one of its own, through
-`cert_rows()` and `build_certificate()`:
-
-```{r building}
-r <- cert_rows()
-r$add("arithmetic floor", "pass", "||H|| <= 2 + max|V| = 3, c = 4",
-      source = "construction", guarantee = "identity")
-r$add("truncation bound", "pass", "dist(theta, spec H) <= 3.864e-05",
-      evidence = evidence("theorem", "deterministic_bound", 1,
-                          depends_on = list(evidence("user_declaration", "identity", 1))))
-r$add("isolation gap", "pass", "q - a = 2.361e-01 against the band edge 2",
-      source = "computation", guarantee = "identity")
-
-hcert <- build_certificate(r$collect(), subject = "finite section",
-                           evidence = r$collect_evidence())
-hcert
-```
-
-Those rows are none of the four shapes: a finite-section eigenvalue answers no
-equation with a right-hand side, so there is no residual line and no
-backward-error line. The rows are the shape; the roll-up, the evidence fields and
-the printed table are the object, and they are the same here as everywhere else.
-So the dependency recorded on the truncation row reads back the same way it does
-on `eigs()`'s forward-error row, and a bound resting on a declaration is worth
-what the declaration is worth:
-
-```{r building-evidence}
-evidence_satisfies(hcert$evidence[["truncation bound"]],
-                   requirement(sources = c("construction", "computation", "theorem")))
-```
-
-`status` is one of `"pass"`, `"qualified"`, `"fail"` or `"not_checked"`, and
-`source` and `guarantee` come from the same vocabulary `evidence()` uses. All three
-are checked when the row is added, since the roll-up reads those four statuses
-exactly.
-
 ## Where to next
 
 - `vignette("solvers")` covers the methods that produce the first two shapes.

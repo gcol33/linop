@@ -39,7 +39,7 @@ mode_transposes <- function(mode) mode %in% c("T", "C")
 #' @param cost `function(op)` returning estimated flops per column.
 #' @param overwrite Replace an existing registration.
 #' @return Invisibly, the node name.
-#' @export
+#' @noRd
 linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
                                 overwrite = FALSE) {
   if (!is_scalar_string(node)) stopf("node must be a single string")
@@ -62,5 +62,5 @@ get_node <- function(node) {
 
 #' Node types currently registered
 #' @return A character vector of node names.
-#' @export
+#' @noRd
 linop_nodes <- function() sort(ls(.linop_nodes))

@@ -20,8 +20,13 @@ is known. This vignette is about the tree.
 
 ## Leaves and composites
 
-```{r nodes}
-linop_nodes()
+Every operator in the package is one of nine node kinds, and every expression is a
+tree of them:
+
+```{r nodes, echo = FALSE}
+cat(paste(c("dense", "sparse", "fun", "identity", "diag",
+            "transpose", "adjoint", "conjugate", "scale", "sum", "product"),
+          collapse = "  "), "\n")
 ```
 
 Five of those are leaves and hold data or a callback:
