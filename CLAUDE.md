@@ -645,6 +645,38 @@ generics routing including through `t(H) %*% H`, and S0.6's table reproduced thr
   `n = 100` it stalls, and that stall is clustering near the band edge rather than absence of
   an eigenvalue. Only `q - a > 0` separates the two.
 
+**The satellite exists.** `~/dev/linop.hilbert`, its own repository, `linop.hilbert`,
+first commit `9e48e98`: `finite_section()`, `discretise()`, `eigenpairs()`,
+`decay_rate()`, `sites()`, 319 assertions, `R CMD check` at one WARNING whose two halves
+are linop not being on CRAN yet and the GitHub repo not existing yet. It uses no `:::`.
+Its own `dev_notes/the-first-unit-and-the-subspace-that-was-too-narrow.md` carries three
+findings, and the first is about **this** package:
+
+- **`eigs()`'s default `ncv` is too narrow for a near-band eigenvalue.** On
+  `finite_section(0.3)`, whose eigenvalue is 2.0224 against a band edge of 2, `ncv = 21`
+  (the default at `k = 1`) converges *nothing* at `n = 80` and lands 7.3e-04 from the
+  truth, where `n = 40` reaches 4.2e-07 — a wider block giving a worse answer, with only
+  `nconv` saying so. `ncv = 40` reaches 2.7e-12 and `ncv = 80` and `160` change no digit.
+  This is the benchmark note's "`ncv` is the binding knob" on a fixture that is not
+  `laplacian_1d`, and it argues the default deserves a second look here rather than only
+  in the satellite.
+- The satellite's certificate needed a fifth row for that, as a **qualification and never
+  a failure**, because `dist(theta, sigma(H)) <= ||(H - theta)u||/||u||` holds for every
+  `theta` and every nonzero `u`. A stalled inner solve gives a true bound, a worse one.
+- **The arithmetic floor is load-bearing only once the inner solve is good enough.** At
+  `ncv = 21` the truncation residual plateaus three orders above the true error and the
+  crossing never happens; at the satellite's default it happens at `n = 80`, 7.734e-17
+  against a true error of 8.882e-16, which is S0.6's row exactly. A test that fixed `n`
+  would be measuring the eigensolver rather than the floor.
+
+Two repos and the name `linop.hilbert` are settled, with the reasoning and the one
+constraint the name carries (**never a class called `hilbert`**, since `linop()` is a
+generic whose adapter convention is `linop.<class>()`) in
+`dev_notes/hilbert-first-and-the-envelope-that-does-not-dispatch.md`. **`linop` goes to
+CRAN before the satellite**, or the satellite needs `Additional_repositories:` and a live
+`PACKAGES` file. Core must never gain a `Suggests` on the layer; the dependency runs one
+direction.
+
 Backend order is RSpectra then PRIMME, for the reasons in
 `dev_notes/rspectra-and-the-delegation-that-is-not-a-superset.md`.
 

@@ -122,11 +122,29 @@ never be described as certifying more than it certifies.
 
 ## 5. Still open
 
-- **Repo layout.** Two packages is settled by install cost. One repo with two package
-  directories against two repos is a tooling question, not a design one, and is undecided.
-  Separate repos suit r-lib workflows, pkgdown and r-universe topic discovery; a monorepo
-  costs `working-directory` overrides and buys a single tracker.
-- **The name.** Plan open question 2 still has `linop.hilbert` as a proposal.
+- ~~**Repo layout.**~~ **Two repos.** The case for a monorepo is atomic cross-package
+  commits, and it does not apply: the satellite depends on a *released* `linop`, not on
+  `linop@main`, so the coupling is versioned and asynchronous and a monorepo would only
+  make it look otherwise. Against it: r-universe discovery is driven by a per-repository
+  GitHub topic, every install instruction grows a `subdir`, every CI step needs a
+  `working-directory` override plus path filters, and two pkgdown sites need two deploy
+  workflows. The single tracker is a real win and does not cover four frictions.
+  `linop.primme` makes it three packages, and three uniform repos beat a monorepo of two
+  plus an outlier.
+- ~~**The name.**~~ **`linop.hilbert`**, and the dot is forced rather than chosen. R package
+  names take only letters, digits and dots, so a family is marked by a dot or by
+  concatenation and nothing else; concatenation breaks on this stem (`linophilbert` reads
+  as "lino-philbert", `linopprimme` has a double seam). **One constraint comes with it:
+  the satellite must never name a class `hilbert`.** `linop()` is an S3 generic whose
+  adapter convention is `linop.<class>()`, so a class of that name would produce a method
+  whose name is the package's. Nothing breaks technically, since the two live in different
+  namespaces, but it is the kind of collision that surfaces years later as a confusing
+  `R CMD check` message.
+- **Sequencing.** `linop` goes to CRAN first. While it is not there, the satellite's
+  `Imports: linop` needs `Additional_repositories: https://gcol33.r-universe.dev` with a
+  live `PACKAGES` file, which is the failure mode taxify 0.2.5 was rejected for. With core
+  on CRAN the field is not needed at all, and it must stay that way: the dependency runs
+  one direction only and core must never gain a `Suggests` on the layer.
 - ~~**Whether the first unit needs any new core export.**~~ Answered by building it:
   `dev_notes/hilbert-first-unit-and-the-certificate-a-provider-cannot-build.md`. The
   operator path needs none. The certificate object needed `cert_rows()` and
