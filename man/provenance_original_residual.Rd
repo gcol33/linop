@@ -17,5 +17,6 @@ provenance_original_residual(p, result, ...)
 Provider-defined.
 }
 \description{
-Residual against the original operator
+Dispatches on the class of `p$payload`, so a provider registers its method
+against a class it puts on its own payload.
 }

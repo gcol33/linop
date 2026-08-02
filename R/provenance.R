@@ -2,6 +2,11 @@
 ## schema naming HilbertOperator, Discretisation, lift and project would leak
 ## Layer 3 concepts into core and invites retained object graphs, closures
 ## capturing large environments, serialization problems and unstable hashes.
+##
+## The four generics dispatch on the payload's class rather than the envelope's.
+## The envelope is core's own structure and carries no class, so dispatching on
+## it reaches nothing but the defaults. The payload is the provider's, and
+## handing its class to UseMethod() is not inspecting it.
 
 #' Attach an opaque provenance envelope
 #'
@@ -34,12 +39,16 @@ strip_provenance <- function(A) {
 provenance <- function(A) A$provenance
 
 #' Lift a finite vector into the provider's space
+#'
+#' Dispatches on the class of `p$payload`, so a provider registers its method
+#' against a class it puts on its own payload.
+#'
 #' @param p A provenance envelope.
 #' @param x A vector or matrix in the finite space.
 #' @param ... Passed to methods.
 #' @return Provider-defined.
 #' @export
-provenance_lift <- function(p, x, ...) UseMethod("provenance_lift")
+provenance_lift <- function(p, x, ...) UseMethod("provenance_lift", p$payload)
 
 #' @export
 provenance_lift.default <- function(p, x, ...) {
@@ -47,12 +56,16 @@ provenance_lift.default <- function(p, x, ...) {
 }
 
 #' Refine a discretisation
+#'
+#' Dispatches on the class of `p$payload`, so a provider registers its method
+#' against a class it puts on its own payload.
+#'
 #' @param p A provenance envelope.
 #' @param n_new The new discretisation size.
 #' @param ... Passed to methods.
 #' @return Provider-defined.
 #' @export
-provenance_refine <- function(p, n_new, ...) UseMethod("provenance_refine")
+provenance_refine <- function(p, n_new, ...) UseMethod("provenance_refine", p$payload)
 
 #' @export
 provenance_refine.default <- function(p, n_new, ...) {
@@ -60,12 +73,18 @@ provenance_refine.default <- function(p, n_new, ...) {
 }
 
 #' Residual against the original operator
+#'
+#' Dispatches on the class of `p$payload`, so a provider registers its method
+#' against a class it puts on its own payload.
+#'
 #' @param p A provenance envelope.
 #' @param result A finite solver result.
 #' @param ... Passed to methods.
 #' @return Provider-defined.
 #' @export
-provenance_original_residual <- function(p, result, ...) UseMethod("provenance_original_residual")
+provenance_original_residual <- function(p, result, ...) {
+  UseMethod("provenance_original_residual", p$payload)
+}
 
 #' @export
 provenance_original_residual.default <- function(p, result, ...) {
@@ -73,11 +92,15 @@ provenance_original_residual.default <- function(p, result, ...) {
 }
 
 #' One-line description of a provenance envelope
+#'
+#' Dispatches on the class of `p$payload`, so a provider registers its method
+#' against a class it puts on its own payload.
+#'
 #' @param p A provenance envelope.
 #' @param ... Passed to methods.
 #' @return A string.
 #' @export
-provenance_summary <- function(p, ...) UseMethod("provenance_summary")
+provenance_summary <- function(p, ...) UseMethod("provenance_summary", p$payload)
 
 #' @export
 provenance_summary.default <- function(p, ...) {

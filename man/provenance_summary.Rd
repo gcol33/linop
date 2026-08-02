@@ -15,5 +15,6 @@ provenance_summary(p, ...)
 A string.
 }
 \description{
-One-line description of a provenance envelope
+Dispatches on the class of `p$payload`, so a provider registers its method
+against a class it puts on its own payload.
 }
