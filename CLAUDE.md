@@ -7,7 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. **Phase 2 is complete
 and Gate 2 is met**: the solve certificate with its arithmetic floor, the `||A||` estimate it
 rests on, **all seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and
-BiCGSTAB — and section 7.2's two spectral verbs are in.
+BiCGSTAB — and section 7.2's two spectral verbs are in. The one-package redesign is
+through **step 3 of six**: eleven exports came out, `dim` admits `Inf`, and
+`linop_jacobi()`, `finite_section()` and `decay_rate()` give the package its first
+operators on a sequence space.
 
 `solve()` is an S3 method on the base generic and cost no export. `eigs()` and `svds()` are
 new names and cost one each, which is the whole of what Phase 2 spends on the public surface.
@@ -16,14 +19,16 @@ reference-agreement line is met for both methods the gate names: LSMR against Sc
 MINRES against two references at once over kappa 1e2 to 1e10 with breakdown and
 near-breakdown constructed rather than hoped for.
 
-The articles list is seven, `pkgdown::check_pkgdown()` clean. Phase 2 added three:
+The articles list is eight, `pkgdown::check_pkgdown()` clean. Phase 2 added three:
 `solvers` (`solve()`, dispatch, the seven methods, preconditioner sides), `spectral`
 (`eigs()`, `svds()`, `ncv`, shift-invert) and `certificates`. The split is deliberate and
-the reason is the certificate: it takes **four shapes** (`verify()`'s operator conformance,
-the square system, least squares, the eigenpair), and the differences between them are the
-content, so one article holds them side by side rather than each verb explaining its own.
+the reason is the certificate: it takes **five shapes** (`verify()`'s operator conformance,
+the square system, least squares, the eigenpair, the finite section), and the differences
+between them are the content, so one article holds them side by side rather than each verb
+explaining its own.
 eigencore made the same call for the same reason; KrylovKit.jl separates by problem class.
-All seven knit in 3.9 s total, so vignette build cost is not a constraint on example size.
+Step 3 added `sequence-spaces`. All eight knit in about 6 s total, so vignette build cost
+is not a constraint on example size.
 
 **Two gaps are open and both are now capability gaps rather than integration gaps.** A
 non-hermitian operator has no eigensolver, because Arnoldi is not written, and the
@@ -68,7 +73,7 @@ Two documents govern:
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~82 s, 12,044 assertions
+devtools::test(".")                      # ~84 s, 12,255 assertions
 ```
 
 ```powershell
@@ -115,14 +120,18 @@ unconditionally. `test-propagation.R` asserts both halves.
 ## Architecture
 
 `R/` in dependency order: `aaa-utils` → `evidence`, `caps`, `dtype` → `node-registry` →
-`core` → `leaves`, `nodes` → `propagate` → `simplify` → `linop`, `algebra` →
-`materialize`, `print`, `norm` → `certificate` → `verify` → `linsolve`,
+`core` → `leaves`, `nodes`, `jacobi` → `propagate` → `simplify` → `linop`, `algebra` →
+`materialize`, `print`, `norm` → `certificate` → `section` → `verify` → `linsolve`,
 `preconditioner` → `solvers-common` → `solvers-cg`, `solvers-minres`, `solvers-gmres`,
 `solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `solve` →
 `eigen-common` → `eigs`, `svds` → `zzz`.
 
 `certificate.R` owns the certificate object: `build_certificate()`, its print method and
-`solve_certificate()` all live there, and `verify.R` holds only the operator checks.
+`solve_certificate()` all live there, and `verify.R` holds only the operator checks. It
+also owns the rows more than one shape makes: `cert_level()`, the pass / qualified / fail
+verdict against a target and a floor, and `cert_add_orthogonality()` and
+`cert_add_convergence()`, which the eigenpair and finite-section shapes share rather than
+spell twice.
 `solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT`, `REORTH_ETA`
 (the Daniel-Gragg-Kaufman-Stewart second-pass criterion, used by GMRES and by both
 eigensolvers), `solver_setup()`, which validates the operator, the block, the budget and the starting
@@ -169,13 +178,13 @@ splitting into real and imaginary parts (`leaves.R:sparse_apply`).
 asserts deferred names are absent. Adding an export fails it until `BUDGET` is edited, which
 is the point. Never edit the budget as a side effect of adding a function. The cap is **25**
 and it came down from 32; a change in either direction is a decision with a note behind it.
+**Twenty-four are spent**, and the one left is `certificate()`, the step 4 accessor.
 
 **The deferred node types are asserted absent.** `lowrank`, `kron`, stacks, `blockdiag`,
 `perm`, `power`, `inverse` are later work. A test fails if one appears. This is the
-mechanism, not a preference. `section`, the truncation node, is the next one to land and is
-deliberately not on that list.
+mechanism, not a preference. `jacobi` and `section` were never on that list and have landed.
 
-**Tests are recovery and contract tests, not shape tests.** 12,044 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
+**Tests are recovery and contract tests, not shape tests.** 12,255 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
 section 10 fixtures with their closed forms: `laplacian_1d()` with
@@ -656,23 +665,52 @@ against doubles.
   operator goes through `fmt_dim()`. `length()` is `NA_integer_`, which is what R calls an
   unknown length.
 
+**Step 3 is done: `linop_jacobi()`, `finite_section()` and `decay_rate()` are in**, with
+S0.6's mathematics as the certificate's fifth shape.
+`dev_notes/the-section-and-the-certificate-about-an-operator-that-is-not-there.md` has the
+findings and `dev_notes/S0.6-finite-section-bound.md` the derivations. Four things to not
+re-derive:
+
+- **The certificate rests on one exact identity, and it has two terms rather than one.**
+  With `u` solving the finite problem and `u~` its extension by zero,
+  `||(H - q) u~||^2 = ||(H_n - q) u||^2 + b_inf^2 (u_n^2 + u_{-n}^2)` exactly, because the
+  couplings the truncation removed multiply zeros and both edge coefficients are at their
+  limits. S0.6's table bounds the error by the second term alone, since it used dense
+  `eigen()` where the first is at rounding level; through `eigs()` at a tolerance the first
+  **dominates** at `v = 1, n = 80`. The two are reported separately because they answer to
+  different knobs: `tol` and `ncv` for one, `n` for the other. The sketch's "five-row
+  certificate" is eight, and this is why.
+- **The `forward error` row rests on nothing declared**, unlike the eigenpair one, which
+  records the hermitian capability under its Weyl bound. The class is self-adjoint by
+  construction and the identity is arithmetic, so `depends_on` is empty and the row
+  satisfies `requirement(guarantees = "deterministic_bound")` outright. That also closes the
+  hilbert spike's section 3: a constructor inside the package says `construction` where a
+  provider outside it could only say `user_declaration`, and no export was needed for it.
+- **Temple's bracket covers one value per side and is an `estimate`, not a bound.** It needs
+  no spectrum between the band edge and the eigenvalue, which is available only for the
+  value adjacent to the band, and is unverifiable from a residual even there. `source` is
+  the theorem and `guarantee` is what the theorem yields with an unchecked hypothesis, so
+  `without_deterministic_bound` names it. The far end needs nothing: the Rayleigh quotient
+  of `u~` against `H` *is* the one of `u` against `H_n`, exactly, so the variational
+  principle puts the extreme eigenvalue beyond `q` — in exact arithmetic, which is why the
+  reported end carries the floor.
+- **A finite section gets a wider default `ncv`, and the defect it fixes inverts with `n`.**
+  At `v = 0.3` the ordinary default of 21 reaches 4.2e-7 at `n = 40` and **9.8e-3 at
+  `n = 80`**, a wider section giving the worse answer, because enlarging `n` densifies the
+  discretised continuum rather than adding isolated eigenvalues. More budget does not
+  recover it. `SECTION_NCV_MIN = 40` was measured over `n = 80` to `800` and does not have
+  to grow with `n` — the failure is a threshold, not a trend — so it is a floor and not a
+  formula. `dev_notes/spikes/section-ncv-probe.R`. The archived note recorded this as open;
+  it is closed. The narrow run was never a silent wrong answer: residual 4.5e-2, `nconv` 0,
+  certificate `fail`.
+
 Remaining work order:
 
-3. `linop_jacobi()` and the `section` node, with the five-row certificate.
-4. `eigs()` generic over both, and the `certificate()` accessor.
+4. `eigs()` on the infinite operator directly, choosing `n` itself, and the `certificate()`
+   accessor.
 5. Arnoldi.
 6. `method = "rspectra"` and `method = "primme"` as gated optional engines.
 
-The four names step 3 onward adds — `finite_section`, `certificate`, `decay_rate`,
-`linop_jacobi` — land under the 25 cap. `linop_jacobi()` rather than `linop()` because
-`linop()` is a generic dispatching on its first argument and an operator given by
+`certificate` is the one name left under the 25 cap. `linop_jacobi()` rather than `linop()`
+because `linop()` is a generic dispatching on its first argument and an operator given by
 coefficient sequences has no `x` to dispatch on.
-
-**S0.6 is the mathematics step 3 implements**, and it is already verified:
-`dev_notes/S0.6-finite-section-bound.md` returned the decay rate, the truncation bound and
-the Kato-Temple bracket in closed form, and the arithmetic floor every Phase 2 certificate
-carries came out of its last table. `dev_notes/the-first-unit-and-the-subspace-that-was-too-narrow.md`
-in the archived repository carries three measurements that still apply, the sharpest being
-that **`eigs()`'s default `ncv` of 21 at `k = 1` converges nothing on a near-band eigenvalue
-and makes a wider block give a worse answer than a narrower one** — a defect in this
-package, found from outside it, still open.

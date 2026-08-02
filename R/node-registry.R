@@ -37,11 +37,16 @@ mode_transposes <- function(mode) mode %in% c("T", "C")
 #'   under `mode`, one of `"N"`, `"T"`, `"C"`, `"R"`.
 #' @param materialize `function(op)` returning a dense matrix, or `NULL`.
 #' @param cost `function(op)` returning estimated flops per column.
+#' @param certify `function(ctx)` returning the certificate [eigs()] should
+#'   attach to a result on this node type, or `NULL` for the eigenpair
+#'   certificate every other node gets. A finite section supplies one because its
+#'   result is a statement about the operator it truncates rather than about
+#'   itself, which is a different set of rows.
 #' @param overwrite Replace an existing registration.
 #' @return Invisibly, the node name.
 #' @noRd
 linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
-                                overwrite = FALSE) {
+                                certify = NULL, overwrite = FALSE) {
   if (!is_scalar_string(node)) stopf("node must be a single string")
   if (!is.function(apply)) stopf("apply must be a function(op, X, mode)")
   if (!overwrite && !is.null(.linop_nodes[[node]])) {
@@ -49,7 +54,7 @@ linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
   }
   .linop_nodes[[node]] <- list(
     node = node, apply = apply,
-    materialize = materialize,
+    materialize = materialize, certify = certify,
     cost = cost %||% function(op) prod(op$dim))
   invisible(node)
 }

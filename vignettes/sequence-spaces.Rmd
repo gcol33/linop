@@ -1,0 +1,234 @@
+---
+title: "Operators on a sequence space"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Operators on a sequence space}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(linop)
+```
+
+## An operator with no matrix and no size
+
+A `linop` is defined by its action rather than its entries, and a dimension of
+`Inf` is what that promise looks like taken all the way. `linop_jacobi()` builds
+a self-adjoint operator on `l^2(Z)`, the square-summable sequences indexed by the
+integers:
+
+```{r build}
+H <- linop_jacobi(diagonal = 1)
+H
+dim(H)
+```
+
+It is tridiagonal in the standard basis:
+
+`(H u)[j] = u[j-1] + u[j+1] + V[j] u[j]`
+
+with `V` here the potential `1` at the origin and zero elsewhere. Both coefficient
+sequences are real and *eventually constant*: they take the values you supply on a
+finite window and their limiting values everywhere else.
+
+Nothing numeric runs on it, and the refusals say so by name:
+
+```{r refuse, error = TRUE}
+as.matrix(H)
+```
+
+`Inf` is the extent of the index set here, not a flag. The ordinary shape
+arithmetic keeps working on it with no special case, so the algebra composes
+these operators as it composes any other:
+
+```{r algebra}
+dim(t(H))
+dim(2 * H + H)
+```
+
+## Truncating it
+
+`finite_section(H, n)` is `P_n H P_n` on the indices `-n` to `n`. What comes back
+is an ordinary operator of dimension `2n + 1`:
+
+```{r section}
+F <- finite_section(H, n = 20)
+F
+dim(F)
+```
+
+The printed tree shows the infinite operator underneath the finite one, because
+that is what the section holds. It is not an annotation: the child is the operator
+itself, and everything the certificate says about it is read off that child.
+
+```{r structure}
+explain(F)
+```
+
+A section is an ordinary `linop` in every other respect. It has a matrix, the
+solvers run on it, and it composes:
+
+```{r ordinary}
+round(as.matrix(finite_section(H, n = 2)), 3)
+x <- solve(F, rep(1, 41), method = "minres")
+max(abs(as.numeric(F %*% x) - 1))
+```
+
+`n` has to be large enough that the window sits strictly inside it. Outside the
+window the coefficients are at their limits and the eigenvalue equation is the
+free recurrence, which is what makes everything below a closed form:
+
+```{r narrow, error = TRUE}
+finite_section(linop_jacobi(diagonal = c(1, 2, 3)), n = 2)
+```
+
+## Two things that are known exactly
+
+The reason this class comes first is that two quantities are exact rather than
+estimated.
+
+The perturbation is finitely supported, hence finite rank, hence compact, so by
+Weyl's theorem the essential spectrum is that of the free operator. The free
+operator has symbol `a + 2 b cos(theta)`, so:
+
+`sigma_ess(H) = [a - 2|b|, a + 2|b|]`
+
+which for this operator is `[-2, 2]`, from the coefficients and with nothing
+computed.
+
+The second is the decay. Outside the window an eigenfunction satisfies the free
+recurrence exactly, whose solutions are `z^j` for the two roots of
+`z^2 - mu z + 1` with `mu = (lambda - a)/b`. The roots are reciprocal, so for a
+value outside the band exactly one is inside the unit disc, and square
+summability forces it on each side:
+
+```{r decay}
+decay_rate(H, sqrt(5))
+(sqrt(5) - 1) / 2
+```
+
+The eigenfunction is *exactly* geometric outside the window at that rate, not
+asymptotically so. Inside the band both roots sit on the unit circle, nothing
+decays, and there is nothing to report:
+
+```{r decay-band}
+decay_rate(H, c(0, 1.9, 2, 3))
+```
+
+## Solving it
+
+`eigs()` on the section certifies a statement about `H`:
+
+```{r eigs}
+fit <- eigs(F, k = 1, which = "largest_algebraic")
+fit$values
+```
+
+For a single site at the origin the answer is closed form,
+`lambda = sign(v) sqrt(v^2 + 4)`, so the error is available:
+
+```{r truth}
+c(computed = fit$values, exact = sqrt(5), error = abs(fit$values - sqrt(5)))
+```
+
+and the certificate bounded it without knowing it:
+
+```{r bound}
+v <- fit$certificate$values
+c(bound = v$bound, true_error = abs(fit$values - sqrt(5)))
+```
+
+That bound is two terms in quadrature and a floor. The truncation term is two
+entries of the computed eigenvector and nothing else, and it falls at the closed-
+form rate:
+
+```{r ladder}
+rho <- decay_rate(H, sqrt(5))
+t(vapply(c(10, 20, 30, 40), function(n) {
+  cv <- eigs(finite_section(H, n = n), k = 1,
+             which = "largest_algebraic")$certificate$values
+  c(n = n, truncation = cv$truncation, over_rho_n = cv$truncation / rho^n)
+}, numeric(3)))
+```
+
+The last column is constant, which says the rate is `rho` with a computable
+constant rather than merely `O(rho^n)`. Push far enough and it stops being
+constant, because the tail has fallen below what the finite eigensolve resolves
+and the term is reading noise rather than truncation:
+
+```{r plateau}
+deep <- eigs(finite_section(H, n = 80), k = 1, which = "largest_algebraic")
+c(measured = deep$certificate$values$truncation, analytic = 0.5845 * rho^80)
+```
+
+The bound still holds, because it is an identity about the vector actually
+computed rather than a statement about the exact eigenvector. Where the term has
+gone all the way down to the arithmetic floor the row says so:
+
+```{r plateau-floor}
+sharp <- eigs(finite_section(linop_jacobi(diagonal = 4), n = 40), k = 1,
+              which = "largest_algebraic")
+ch <- sharp$certificate$checks
+cat(ch$detail[ch$check == "truncation bound"])
+```
+
+## The subspace is the knob to watch
+
+A section's spectrum is a discretisation of the essential spectrum together with
+whatever separated from it. Enlarging `n` densifies that cluster rather than
+adding isolated eigenvalues, so a value close to the band edge has to be told
+apart from an ever tighter crowd. `eigs()` widens its default subspace for a
+section because of it, and a narrower one fails in a way worth seeing:
+
+```{r ncv}
+W <- finite_section(linop_jacobi(diagonal = 0.3), n = 80)
+narrow <- eigs(W, k = 1, which = "largest_algebraic", ncv = 21)
+wide   <- eigs(W, k = 1, which = "largest_algebraic")
+
+c(narrow = narrow$values, wide = wide$values, exact = sqrt(0.3^2 + 4))
+```
+
+The narrow run is wrong in the second digit, and it reports that it is. The row
+to read is the eigensolve's own residual, which is eleven orders apart:
+
+```{r ncv-cert}
+c(narrow = narrow$certificate$values$residual,
+  wide   = wide$certificate$values$residual)
+```
+
+More budget does not recover it and a wider section makes it worse, which is what
+separates this from an ordinary shortage of iterations. See
+`vignette("spectral")` for `ncv` on operators generally.
+
+## When there is nothing to find
+
+A potential of zero leaves the free operator, which has no eigenvalues at all.
+Every finite section still produces numbers, and they look like eigenvalues:
+
+```{r free}
+free <- eigs(finite_section(linop_jacobi(diagonal = 0), n = 40), k = 1,
+             which = "largest_algebraic")
+free$values
+free$certificate$values$residual
+```
+
+The value sits just inside `[-2, 2]` and approaches the edge from below as `n`
+grows. The eigensolve converged cleanly and has nothing to report. What does is
+the isolation row, which tests the value against the essential spectrum:
+
+```{r free-cert}
+free$certificate
+```
+
+This is the case the exact essential spectrum exists for. A value that has not
+cleared the band is a discretisation of continuous spectrum, and the certificate
+refuses rather than issuing a number that would read like an eigenvalue.
+
+## Where to next
+
+- `vignette("certificates")` covers the fifth certificate shape beside the other
+  four.
+- `vignette("spectral")` covers `eigs()` and `svds()` on ordinary operators.
+- `vignette("expressions")` covers the algebra these operators compose under.

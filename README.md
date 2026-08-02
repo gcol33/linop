@@ -212,6 +212,7 @@ three matrix products.
 - [Capabilities and evidence](https://gillescolling.com/linop/articles/capabilities.html)
 - [Solving a system](https://gillescolling.com/linop/articles/solvers.html)
 - [Eigenvalues and singular values](https://gillescolling.com/linop/articles/spectral.html)
+- [Operators on a sequence space](https://gillescolling.com/linop/articles/sequence-spaces.html)
 - [Reading a certificate](https://gillescolling.com/linop/articles/certificates.html)
 - [Writing an adapter](https://gillescolling.com/linop/articles/adapters.html)
 

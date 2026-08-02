@@ -10,9 +10,9 @@ First development release. The finite object model and the expression graph.
 * `%*%`, `crossprod()`, `tcrossprod()`, `+`, `-`, `*`, `/`, `t()`, `Conj()` and
   `adjoint()` build a lazy expression graph. Nothing is applied until a block
   arrives.
-* Eleven node types: the `dense`, `sparse`, `fun`, `identity` and `diag` leaves,
-  and the `transpose`, `adjoint`, `conjugate`, `scale`, `sum` and `product`
-  composites. `linop_register_node()` adds more through the same door.
+* Thirteen node types: the `dense`, `sparse`, `fun`, `identity`, `diag` and
+  `jacobi` leaves, and the `transpose`, `adjoint`, `conjugate`, `scale`, `sum`,
+  `product` and `section` composites.
 * Four apply modes composed through a Klein four-group, so transpose, adjoint
   and conjugate stay three distinct things.
 * Operators are `"double"` or `"complex"` and no path downcasts. A real operator
@@ -50,6 +50,30 @@ First development release. The finite object model and the expression graph.
   hermitian declaration it rests on.
 * Non-convergence returns a `fail` certificate naming what stopped the run. A
   contradicted declaration is what throws.
+
+## Operators on a sequence space
+
+* A dimension is two non-negative whole numbers or `Inf`. `Inf` is the extent of
+  the index set rather than a flag, so the conformability test in a product, the
+  squareness test for a hermitian operator and `rev()` for a transpose all keep
+  working with no special case.
+* `linop_jacobi()` builds a self-adjoint Jacobi operator on `l^2(Z)` from its
+  diagonal and off-diagonal sequences, both real and eventually constant. Its
+  essential spectrum is exact by Weyl rather than estimated.
+* `finite_section()` truncates it to an ordinary operator, as a node holding the
+  operator it truncates, so the printed tree shows the infinite one underneath
+  the finite one.
+* `decay_rate()` returns the rate an eigenvector decays at outside the window,
+  closed form in the eigenvalue alone, and `NA` inside the essential spectrum
+  where nothing decays.
+* `eigs()` on a finite section certifies a statement about the operator that was
+  truncated. `forward error` bounds the distance from the computed value to the
+  spectrum of that operator, and it is the first row in the package to rest on
+  nothing declared. `isolation` refuses a value that has not cleared the
+  essential spectrum, which is what separates an eigenvalue from a
+  discretisation of continuous spectrum.
+* Every numeric verb refuses an infinite operator by name and points at
+  `finite_section()`.
 
 ## Checking
 

@@ -125,6 +125,10 @@ operator given by coefficient sequences has no `x` to dispatch on; it belongs wi
 
 ## Work order
 
+Steps 1 to 3 are done. Step 3's own findings, including two corrections to this
+list, are in
+`dev_notes/the-section-and-the-certificate-about-an-operator-that-is-not-there.md`.
+
 1. Delete provenance. Un-export the certificate builders and the node registry. Move
    the budget down. This is subtraction and it lands first, so nothing later is built
    against machinery that is going away.

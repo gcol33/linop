@@ -38,6 +38,12 @@ BUDGET <- list(
   ## constructors for the leaves a user builds directly
   constructors = c("linop_eye", "linop_scaling"),
 
+  ## An operator on a sequence space, the truncation that makes it computable,
+  ## and the rate the closed forms in its certificate are written in. Three names
+  ## for a whole layer, because the truncation returns an ordinary linop and
+  ## everything downstream of it is the surface that already existed.
+  sequence_space = c("linop_jacobi", "finite_section", "decay_rate"),
+
   advanced = c("preconditioner", "as_preconditioner", "as_preconditioner_inverse",
                "collapse", "explain", "as_sparse"),
 
@@ -74,9 +80,8 @@ test_that("the names Phase 2 deliberately keeps private are not exported", {
 test_that("the budget stays small", {
   expect_lte(length(BUDGET$common), 6L)
   ## The whole surface, so a slow drift upward is visible in the diff. The cap
-  ## came down from 32 with the eleven names the one-package redesign removed, and
-  ## the four the Hilbert layer adds land under it: finite_section, certificate,
-  ## decay_rate, linop_jacobi.
+  ## came down from 32 with the eleven names the one-package redesign removed.
+  ## Three of the four the Hilbert layer adds are in; certificate() is the last.
   expect_lte(length(unlist(BUDGET, use.names = FALSE)), 25L)
 })
 

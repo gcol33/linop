@@ -109,6 +109,29 @@ eigen_random_vector <- function(n, dtype, seed, round) {
   })
 }
 
+## The subspace a round works in, where the caller did not choose one. Wide enough
+## to hold what was asked for plus a working margin, and floored higher for a
+## finite section.
+##
+## A section's spectrum is a discretisation of a continuum together with whatever
+## separated from it, so enlarging n densifies the cluster the wanted value has to
+## be told apart from rather than adding isolated eigenvalues. That makes a
+## subspace which is adequate at one size inadequate at the next: on the potential
+## v = 0.3 at the default 21, n = 40 reaches 4.2e-7 and n = 80 reaches 9.8e-3, the
+## wider section giving the worse answer, and more budget does not recover it.
+##
+## 40 was measured at k = 1 over n = 80 to 800 and over two potentials, and it does
+## not have to grow with n: the failure is a threshold rather than a trend. It is a
+## floor rather than a formula, so a request for many pairs still widens the
+## subspace by the ordinary rule. dev_notes/spikes/section-ncv-probe.R.
+SECTION_NCV_MIN <- 40L
+
+default_ncv <- function(A, k) {
+  base <- max(2L * k + 1L, k + 20L)
+  if (A$node == "section") base <- max(base, SECTION_NCV_MIN)
+  base
+}
+
 ## The preamble both verbs share: the operator is a linop of the right shape, the
 ## number of pairs asked for fits inside it, and the subspace is wide enough to
 ## hold them and the budget is positive.
@@ -120,7 +143,7 @@ eigen_setup <- function(A, k, ncv, maxit, verb, dim_limit) {
   if (k > dim_limit) {
     stopf("k = %d exceeds the %d pairs this operator has", k, dim_limit)
   }
-  ncv <- as.integer(ncv %||% max(2L * k + 1L, k + 20L))
+  ncv <- as.integer(ncv %||% default_ncv(A, k))
   if (is.na(ncv) || ncv < k) {
     stopf("ncv = %d cannot hold %d pairs", ncv, k)
   }
