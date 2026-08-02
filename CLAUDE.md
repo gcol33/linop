@@ -68,7 +68,7 @@ Two documents govern:
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~80 s, 11,997 assertions
+devtools::test(".")                      # ~82 s, 12,044 assertions
 ```
 
 ```powershell
@@ -175,7 +175,7 @@ and it came down from 32; a change in either direction is a decision with a note
 mechanism, not a preference. `section`, the truncation node, is the next one to land and is
 deliberately not on that list.
 
-**Tests are recovery and contract tests, not shape tests.** 11,997 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
+**Tests are recovery and contract tests, not shape tests.** 12,044 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
 section 10 fixtures with their closed forms: `laplacian_1d()` with
@@ -633,11 +633,31 @@ that it refuses a block apply, a complex dense matrix and `sigma` on a function,
 silently returns `Re(A)`'s spectrum, wrong by 6.946. PRIMME stays external for one reason,
 that it is compiled and `linop` installs without compilation.
 
+**Step 2 is done: `dim` admits `Inf`.** A dimension is two non-negative whole numbers or
+`Inf`, and Inf is the extent of the index set rather than a flag, so `rev()` for a
+transpose, the conformability test in a product and the squareness test for a hermitian
+operator all keep working with no special case. Finite dimensions stay **integer** and only
+an infinite one is double, so nothing that compared against integers before now compares
+against doubles.
+
+- **`is_finite_dim()` is recursive, and the root's own shape does not settle it.** An
+  operator from `l^2(Z)` to `R^4` composed with one from `R^4` to `l^2(Z)` is `4 x 4`, and
+  the intermediate vector lives in the sequence space. A gate that read only the root's dim
+  let it through to `diag(1, Inf)`. `test-infinite-dim.R` caught that; it was not reasoned
+  out in advance. The flag is computed once in `new_linop()` from the children's flags,
+  because `linop_apply()` is the hot path and a per-apply tree walk to re-derive a property
+  that cannot change is not affordable.
+- **`require_finite_dim(A, verb)` is the one gate**, on `apply`, `materialise`, `as.matrix`,
+  `as_sparse`, `collapse`, `verify`, `norm2`, `solve`, `eigs` and `svds`. It goes *after*
+  the class check and after any more specific refusal, never before: it reads a field, so a
+  raw matrix reaching it first reports the wrong thing about the right mistake. Two suites
+  caught that ordering.
+- **`sprintf("%d", Inf)` is an error**, so every shape message reachable by an infinite
+  operator goes through `fmt_dim()`. `length()` is `NA_integer_`, which is what R calls an
+  unknown length.
+
 Remaining work order:
 
-2. **`dim` admits `Inf`.** Audit every consumer: `verify()` cannot probe an infinite
-   operator, `as.matrix()` must refuse it, the algebra must still compose it. This is the
-   real engineering and the rest depends on it.
 3. `linop_jacobi()` and the `section` node, with the five-row certificate.
 4. `eigs()` generic over both, and the `certificate()` accessor.
 5. Arnoldi.

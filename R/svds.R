@@ -76,6 +76,7 @@ svds <- function(A, k, which = "largest", tol = 1e-10, maxit = NULL,
                  ncv = NULL, v0 = NULL, seed = 1L, method = "auto",
                  floor_const = SOLVE_FLOOR_CONST, norm_control = list()) {
   if (!is_linop(A)) stopf("svds() expects a linop")
+  require_finite_dim(A, "svds")
   m <- A$dim[1L]; n <- A$dim[2L]
   if (!expr_has_adjoint(A)) {
     stopf(paste0("svds() needs the adjoint as well as the forward action.\n",

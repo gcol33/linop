@@ -49,6 +49,7 @@ expr_has_adjoint <- function(A) {
 norm2 <- function(A, tol = 1e-2, maxit = 20L, seed = 1L, exact_max = 1e5,
                   n_probe = 8L) {
   if (!is_linop(A)) stopf("norm2() expects a linop")
+  require_finite_dim(A, "norm2")
   if (prod(as.numeric(A$dim)) == 0) {
     return(new_norm_estimate(0, ev_construction(), "structure", "empty operator"))
   }

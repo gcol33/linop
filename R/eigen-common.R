@@ -114,6 +114,7 @@ eigen_random_vector <- function(n, dtype, seed, round) {
 ## hold them and the budget is positive.
 eigen_setup <- function(A, k, ncv, maxit, verb, dim_limit) {
   if (!is_linop(A)) stopf("%s() expects a linop", verb)
+  require_finite_dim(A, verb)
   k <- as.integer(k)
   if (is.na(k) || k < 1L) stopf("k must be a positive integer")
   if (k > dim_limit) {
