@@ -3,6 +3,9 @@
 ## problems are allowed. What follows is the explicit-request path.
 
 linop_materialize <- function(A) {
+  ## Recursive entry point, so it gates too: as.matrix() on a FINITE composite
+  ## of infinite factors passes the gate at the verb and would allocate here.
+  require_finite_dim(A, "materialise")
   h <- get_node(A$node)
   if (!is.null(h$materialize)) return(h$materialize(A))
   fun_materialize(A)
@@ -19,6 +22,7 @@ linop_materialize <- function(A) {
 #' @return A base matrix.
 #' @export
 as.matrix.linop <- function(x, max_entries = 1e7, ...) {
+  require_finite_dim(x, "as.matrix")
   n <- prod(as.numeric(x$dim))
   if (n > max_entries) {
     stopf(paste0("refusing to materialise a %d x %d operator (%.3g entries, about %.1f GB).\n",
@@ -37,6 +41,7 @@ as.array.linop <- function(x, ...) as.matrix(x, ...)
 #' @return A `Matrix` object.
 #' @export
 as_sparse <- function(A, max_entries = 1e7) {
+  require_finite_dim(A, "as_sparse")
   if (!requireNamespace("Matrix", quietly = TRUE)) {
     stopf("as_sparse() needs the Matrix package")
   }
@@ -58,6 +63,7 @@ as_sparse <- function(A, max_entries = 1e7) {
 #' @return A `linop` carrying a `report` attribute.
 #' @export
 collapse <- function(A, expected_applies = 100, max_entries = 1e6) {
+  require_finite_dim(A, "collapse")
   if (!is_linop(A)) stopf("collapse() expects a linop")
   report <- list(collapsed = character(), retained = character(),
                  memory_added = 0, break_even = NA_real_)
@@ -71,14 +77,14 @@ collapse <- function(A, expected_applies = 100, max_entries = 1e6) {
       bytes <- n * if (op$dtype == "complex") 16 else 8
       if (saved_per_apply * expected_applies > 0) {
         report$collapsed <<- c(report$collapsed,
-          sprintf("%s of %d x %d", op$node, op$dim[1L], op$dim[2L]))
+          sprintf("%s of %s", op$node, fmt_dim(op$dim)))
         report$memory_added <<- report$memory_added + bytes
         report$break_even <<- ceiling(bytes / 8 / max(saved_per_apply, 1))
         return(linop_dense(linop_materialize(op), check = FALSE))
       }
     }
     report$retained <<- c(report$retained,
-      sprintf("%d x %d %s expression", op$dim[1L], op$dim[2L], op$node))
+      sprintf("%s %s expression", fmt_dim(op$dim), op$node))
     switch(op$node,
       sum = make_sum(lapply(op$args$ops, walk)),
       product = make_product(lapply(op$args$ops, walk)),
@@ -125,8 +131,8 @@ explain <- function(A) {
   }
   walk(A, 0L)
   df <- do.call(rbind, rows)
-  cat(sprintf("operator %d x %d, dtype %s, estimated %.3g flops per column\n",
-              A$dim[1L], A$dim[2L], A$dtype, linop_cost(A)))
+  cat(sprintf("operator %s, dtype %s, estimated %.3g flops per column\n",
+              fmt_dim(A$dim), A$dtype, linop_cost(A)))
   cat(sprintf("%d nodes, depth %d\n\n", nrow(df), max(df$depth)))
   print(df, row.names = FALSE)
   invisible(df)

@@ -94,11 +94,12 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                  method = "auto", inner = list(),
                  floor_const = SOLVE_FLOOR_CONST, norm_control = list()) {
   if (!is_linop(A)) stopf("eigs() expects a linop")
+  require_finite_dim(A, "eigs")
   n <- A$dim[1L]
   if (A$dim[1L] != A$dim[2L]) {
-    stopf(paste0("eigs() needs a square operator; this one is %d x %d.\n",
+    stopf(paste0("eigs() needs a square operator; this one is %s.\n",
                  "  The singular triplets of a rectangular operator are svds()."),
-          A$dim[1L], A$dim[2L])
+          fmt_dim(A$dim))
   }
   if (!is.null(B)) {
     stopf(paste0("eigs() does not take B in this version.\n",

@@ -42,13 +42,17 @@ REORTH_ETA <- 1 / sqrt(2)
 ## here rather than in each solver is what keeps a rectangular method from
 ## carrying its own copy of the checks that have nothing to do with its shape.
 solver_setup <- function(A, b, x0, maxit, method, square = TRUE) {
+  ## After the class check, never before it: require_finite_dim() reads a field,
+  ## so a raw matrix reaching it first would report the wrong thing about the
+  ## right mistake.
   if (!is_linop(A)) stopf("%s() expects a linop", method)
+  require_finite_dim(A, "solve")
   m <- A$dim[1L]
   n <- A$dim[2L]
   if (square && m != n) {
-    stopf(paste0("%s() needs a square operator; this one is %d x %d.\n",
+    stopf(paste0("%s() needs a square operator; this one is %s.\n",
                  "  A rectangular system is a least-squares problem and takes a different method."),
-          method, m, n)
+          method, fmt_dim(A$dim))
   }
 
   was_vector <- is.null(dim(b))

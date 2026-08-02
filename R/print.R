@@ -1,6 +1,6 @@
 #' @export
 print.linop <- function(x, ...) {
-  cat(sprintf("<linop> %d x %d, %s\n", x$dim[1L], x$dim[2L], x$dtype))
+  cat(sprintf("<linop> %s, %s\n", fmt_dim(x$dim), x$dtype))
   known <- known_caps(x)
   if (length(known)) cat("  ", paste(known, collapse = ", "), "\n", sep = "")
   cat("\n")
@@ -20,9 +20,9 @@ known_caps <- function(A) {
 
 node_label <- function(op) {
   base <- switch(op$node,
-    dense = sprintf("dense[%d x %d]", op$dim[1L], op$dim[2L]),
-    sparse = sprintf("sparse[%d x %d]", op$dim[1L], op$dim[2L]),
-    fun = sprintf("fun[%d x %d]%s", op$dim[1L], op$dim[2L],
+    dense = sprintf("dense[%s]", fmt_dim(op$dim)),
+    sparse = sprintf("sparse[%s]", fmt_dim(op$dim)),
+    fun = sprintf("fun[%s]%s", fmt_dim(op$dim),
                   if (is.null(op$args$adjoint)) " (no adjoint)" else ""),
     identity = sprintf("I[%d]", op$dim[1L]),
     diag = sprintf("diag[%d]", op$dim[1L]),
@@ -61,7 +61,7 @@ summary.linop <- function(object, ...) {
 
 #' @export
 print.summary.linop <- function(x, ...) {
-  cat(sprintf("<linop> %d x %d, %s, root node '%s'\n", x$dim[1L], x$dim[2L], x$dtype, x$node))
+  cat(sprintf("<linop> %s, %s, root node '%s'\n", fmt_dim(x$dim), x$dtype, x$node))
   cat(sprintf("estimated cost: %.3g flops per column\n\n", x$cost))
   df <- x$caps
   df$evidence[is.na(df$value)] <- ""

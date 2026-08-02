@@ -25,11 +25,17 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
   ## Gate 1: running the operator suite against a solve object is an error, not
   ## a purity failure. A history-dependent solve returns different output for the
   ## same input by design (section 4.2).
+  ##
+  ## Ahead of the finite-dimension gate, because this method can be reached
+  ## directly with an object that is not a linop at all, and "this is a linsolve"
+  ## is the accurate thing to say about it.
   if (is_linsolve(A)) {
     stopf(paste0("this is a linsolve, not a linop, so the operator conformance suite does not apply.\n",
                  "  A solve object may be adaptive and history-dependent by design.\n",
                  "  Use the linsolve suite instead: verify() dispatches to it automatically."))
   }
+  ## Gate 2: every check below is a probe, and a probe needs a block.
+  require_finite_dim(A, "verify")
   set.seed(seed)
   checks <- list()
   add <- function(name, status, detail = "", source = "computation",

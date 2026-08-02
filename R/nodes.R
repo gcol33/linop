@@ -55,7 +55,7 @@ new_sum <- function(ops) {
   d <- ops[[1L]]$dim
   for (A in ops) {
     if (!identical(A$dim, d)) {
-      stopf("non-conformable sum: %d x %d and %d x %d", d[1L], d[2L], A$dim[1L], A$dim[2L])
+      stopf("non-conformable sum: %s and %s", fmt_dim(d), fmt_dim(A$dim))
     }
   }
   dt <- promote_all(vapply(ops, function(A) A$dtype, character(1)))
@@ -84,9 +84,8 @@ product_materialize <- function(op) {
 new_product <- function(ops) {
   for (i in seq_along(ops)[-1L]) {
     if (ops[[i - 1L]]$dim[2L] != ops[[i]]$dim[1L]) {
-      stopf("non-conformable product: %d x %d times %d x %d",
-            ops[[i - 1L]]$dim[1L], ops[[i - 1L]]$dim[2L],
-            ops[[i]]$dim[1L], ops[[i]]$dim[2L])
+      stopf("non-conformable product: %s times %s",
+            fmt_dim(ops[[i - 1L]]$dim), fmt_dim(ops[[i]]$dim))
     }
   }
   d <- c(ops[[1L]]$dim[1L], ops[[length(ops)]]$dim[2L])
