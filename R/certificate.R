@@ -177,6 +177,51 @@ cert_rows <- function() {
     collect_evidence = function() if (length(evs)) evs else NULL)
 }
 
+## ------------------------------------------------------------- shared rows --
+
+## The three-way verdict every quantitative line in the package makes: it met the
+## target, it met it only through the arithmetic floor, or it did not meet it.
+## Written once because a fourth certificate shape spelling it a fourth time is
+## how the qualified branch goes missing from one of them.
+cert_level <- function(value, target, floor) {
+  if (!is.finite(value) || value <= target) "pass"
+  else if (value <= target + floor) "qualified"
+  else "fail"
+}
+
+## Measured on what is returned, not on the basis the iteration held. A dot
+## product of length n carries a rounding error of about n eps for unit
+## arguments, which is the level a reorthogonalised basis is entitled to reach and
+## no better.
+cert_add_orthogonality <- function(r, X, floor_const) {
+  eps <- .Machine$double.eps
+  k <- ncol(X)
+  orth <- max(Mod(cross_adjoint(X, X) - diag(1, k)))
+  orth_floor <- floor_const * eps * nrow(X)
+  r$add("orthogonality",
+        if (orth <= orth_floor) "pass"
+        else if (orth <= sqrt(eps)) "qualified" else "fail",
+        sprintf("||X^H X - I||_max = %.3e against the dot-product floor %.3e",
+                orth, orth_floor))
+  orth
+}
+
+## Whether the iteration reached what was asked, and if not, why it stopped. An
+## iteration that gave up early is not a converged one merely because it had
+## budget left over, and one that produced a single pair and converged it has not
+## answered a request for four.
+cert_add_convergence <- function(r, met, requested, iterations, maxit,
+                                 stop_reason, early) {
+  complete <- all(met) && length(met) >= requested
+  r$add("convergence", if (complete) "pass" else "fail",
+        sprintf("%d of %d requested pairs converged in %d of at most %d iterations; %s",
+                sum(met), requested, iterations, maxit,
+                if (complete) "target reached"
+                else if (!is.null(stop_reason)) stop_reason
+                else if (iterations >= maxit) "budget exhausted"
+                else paste("stopped early,", early)))
+}
+
 ## ------------------------------------------------------- the arithmetic floor
 
 ## S0.6 measured the correction this exists for. The a posteriori bound keeps
@@ -514,18 +559,7 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         confidence = if (clean) 1 else NA_real_)
 
   ## ----------------------------------------------------- orthogonality row --
-  ## Measured on what is returned, not on the basis the iteration held. A dot
-  ## product of length n carries a rounding error of about n eps for unit
-  ## arguments, which is the level a reorthogonalised basis is entitled to reach
-  ## and no better.
-  G <- cross_adjoint(X, X) - diag(1, k)
-  orth <- max(Mod(G))
-  orth_floor <- floor_const * eps * nrow(X)
-  r$add("orthogonality",
-        if (orth <= orth_floor) "pass"
-        else if (orth <= sqrt(eps)) "qualified" else "fail",
-        sprintf("||X^H X - I||_max = %.3e against the dot-product floor %.3e",
-                orth, orth_floor))
+  orth <- cert_add_orthogonality(r, X, floor_const)
 
   ## ---------------------------------------------------- backward error row --
   ## E = -r x^H - x r^H is hermitian, exhibited, and of norm exactly ||r||, and
@@ -552,15 +586,8 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         source = "computation", guarantee = "identity", confidence = NA_real_)
 
   ## ------------------------------------------------------- convergence row --
-  spent <- iterations >= maxit
-  complete <- all(met) && k >= requested
-  r$add("convergence", if (complete) "pass" else "fail",
-        sprintf("%d of %d requested pairs converged in %d of at most %d iterations; %s",
-                sum(met), requested, iterations, maxit,
-                if (complete) "target reached"
-                else if (!is.null(stop_reason)) stop_reason
-                else if (spent) "budget exhausted"
-                else "stopped early, the subspace had stopped improving"))
+  cert_add_convergence(r, met, requested, iterations, maxit, stop_reason,
+                       "the subspace had stopped improving")
 
   ## ----------------------------------------------------- forward error row --
   ## The one line in the package that carries a theorem rather than a

@@ -27,6 +27,9 @@ node_label <- function(op) {
     identity = sprintf("I[%d]", op$dim[1L]),
     diag = sprintf("diag[%d]", op$dim[1L]),
     scale = sprintf("scale by %s", format(op$args$a)),
+    jacobi = sprintf("jacobi on l^2(Z), sigma_ess [%.6g, %.6g]",
+                     jacobi_band(op)[1L], jacobi_band(op)[2L]),
+    section = sprintf("section |j| <= %d", op$args$n),
     op$node)
   base
 }

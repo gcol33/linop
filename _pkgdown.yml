@@ -25,6 +25,7 @@ articles:
   contents:
   - solvers
   - spectral
+  - sequence-spaces
   - certificates
 - title: Extending
   navbar: Extending
@@ -42,6 +43,16 @@ reference:
   - linop_scaling
   - is_linop
   - dtype
+- title: Operators on a sequence space
+  desc: >
+    An operator whose index set is infinite, the truncation that makes it
+    computable, and the rate its eigenvectors decay at. What comes back from the
+    truncation is an ordinary operator, and what comes back from a spectral
+    computation on it is a statement about the operator underneath.
+  contents:
+  - linop_jacobi
+  - finite_section
+  - decay_rate
 - title: Views
   desc: The conjugate transpose, distinct from the transpose.
   contents:

@@ -141,6 +141,6 @@ explain <- function(A) {
 node_children <- function(op) {
   switch(op$node,
     sum = , product = op$args$ops,
-    transpose = , adjoint = , conjugate = , scale = list(op$args$A),
+    transpose = , adjoint = , conjugate = , scale = , section = list(op$args$A),
     list())
 }

@@ -13,23 +13,25 @@ library(linop)
 set.seed(1)
 ```
 
-## One object, four shapes
+## One object, five shapes
 
 Every computation in this package that could be wrong comes back with a
-certificate. It is the same class each time, and it takes four shapes, because
+certificate. It is the same class each time, and it takes five shapes, because
 the questions differ:
 
 ```{r shapes, echo = FALSE}
 knitr::kable(data.frame(
-  produced_by = c("verify()", "solve(), square", "solve(), least squares", "eigs(), svds()"),
+  produced_by = c("verify()", "solve(), square", "solve(), least squares",
+                  "eigs(), svds()", "eigs() on a finite_section()"),
   subject = c("does the operator behave like a linear map",
               "how close is x to solving A x = b",
               "how close is x to minimising ||b - A x||",
-              "how close is (theta, x) to an eigenpair"),
+              "how close is (theta, x) to an eigenpair",
+              "how close is theta to the spectrum of the operator that was truncated"),
   check.names = FALSE))
 ```
 
-This article is about the last three. `verify()` is covered in
+This article is about the last four. `verify()` is covered in
 `vignette("adapters")`, where it belongs to the job of writing an operator.
 
 ## Status and evidence are separate questions
@@ -257,6 +259,74 @@ is the same rule that stops a sum of two declared positive-definite operators
 from satisfying CG's requirement, described in `vignette("capabilities")`,
 reaching the certificate.
 
+## A fifth shape, about an operator that is not there
+
+Every shape so far certifies a computation against the operator the computation
+ran on. A finite section certifies a statement about the operator it truncated,
+which no computation touched:
+
+```{r section}
+H <- linop_jacobi(diagonal = 1)
+dim(H)
+
+fit <- eigs(finite_section(H, n = 50), k = 1, which = "largest_algebraic")
+fit$certificate
+```
+
+`residual` and `backward error` are gone, because a truncated eigenvalue answers
+no equation with data in it. What replaces them is a split, and the split is the
+point:
+
+```{r section-values}
+v <- fit$certificate$values
+c(finite_residual = v$residual, truncation = v$truncation, bound = v$bound)
+```
+
+The residual of the extended eigenvector against the infinite operator is those
+two terms in quadrature, exactly. The first is what the eigensolve left behind
+and answers to `tol` and `ncv`; the second is what the truncation costs and
+answers to `n`. Reported as one number you would know the size of the error
+without knowing which knob moves it:
+
+```{r section-knobs}
+narrow <- eigs(finite_section(H, n = 12), k = 1, which = "largest_algebraic")
+nv <- narrow$certificate$values
+c(finite_residual = nv$residual, truncation = nv$truncation)
+```
+
+At `n = 12` the eigensolve is four orders better than it needs to be and the
+section is six orders short, and the convergence row says which:
+
+```{r section-reason}
+ch <- narrow$certificate$checks
+cat(ch$detail[ch$check == "convergence"])
+```
+
+`isolation` is the row with no counterpart anywhere else. The essential spectrum
+of this class is known exactly rather than estimated, so a value can be tested
+against it, and a value that has not cleared it is a discretisation of continuous
+spectrum rather than an eigenvalue:
+
+```{r section-refuse}
+free <- eigs(finite_section(linop_jacobi(diagonal = 0), n = 100), k = 1,
+             which = "largest_algebraic")
+free$values
+free$certificate$checks[, c("check", "status")]
+```
+
+The operator with no potential has no eigenvalues at all. The eigensolver does
+not notice: it converges cleanly and hands back a number just inside the band.
+Only the isolation row separates *no eigenvalue here* from *a hard eigenvalue
+here*, and it is what makes the whole certificate refuse.
+
+The `forward error` row here rests on nothing declared. The class is self-adjoint
+by construction and the residual identity is arithmetic, so unlike the eigenpair
+version it carries no dependency at all:
+
+```{r section-forward}
+fit$certificate$evidence[["forward error"]]
+```
+
 ## Reading one in code
 
 The printed table is for people. The object is a list, so a package can test
@@ -284,3 +354,4 @@ carry a dependency.
 - `vignette("capabilities")` covers evidence away from certificates, where the
   same three fields decide what a solver will accept.
 - `vignette("adapters")` covers `verify()`, the fourth shape.
+- `vignette("sequence-spaces")` covers the operators the fifth shape is about.

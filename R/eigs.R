@@ -136,15 +136,14 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
 
   run <- lanczos_core(Op, A, k, sel, tol, maxit, ncv, v0, seed)
 
-  norm_est <- do.call(norm2, c(list(A = A), norm_control))
-  cert <- eigen_certificate(A, run$values, run$vectors, tol = tol,
-                            norm_estimate = norm_est,
-                            iterations = run$steps, maxit = maxit,
-                            floor_const = floor_const,
-                            norm_lower_bound = run$anorm_lb,
-                            hermitian_evidence = cape(A, "hermitian"),
-                            requested = k,
-                            stop_reason = run$stop_reason, subject = "eigen")
+  ## Which certificate the result carries is the node type's to say. A finite
+  ## section answers a question about the operator underneath it, so its rows are
+  ## a different set; everything else gets the eigenpair certificate.
+  ctx <- list(A = A, values = run$values, vectors = run$vectors, tol = tol,
+              iterations = run$steps, maxit = maxit, floor_const = floor_const,
+              norm_control = norm_control, norm_lower_bound = run$anorm_lb,
+              requested = k, stop_reason = run$stop_reason)
+  cert <- (get_node(A$node)$certify %||% eigen_certify)(ctx)
 
   new_eigen_result(values = run$values, vectors = run$vectors,
                    certificate = cert, k = k, which = which,
@@ -154,6 +153,22 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                    dispatch = list(requested = method,
                                    chosen = if (is.null(sigma)) "lanczos" else "lanczos shift-invert",
                                    reason = reason))
+}
+
+## The default: the eigenpair certificate, on the operator the run measured
+## against. The ||A|| estimate is taken here rather than in eigs() because a node
+## certifying its own results may know the norm in closed form and have no use for
+## a power iteration.
+eigen_certify <- function(ctx) {
+  norm_est <- do.call(norm2, c(list(A = ctx$A), ctx$norm_control))
+  eigen_certificate(ctx$A, ctx$values, ctx$vectors, tol = ctx$tol,
+                    norm_estimate = norm_est,
+                    iterations = ctx$iterations, maxit = ctx$maxit,
+                    floor_const = ctx$floor_const,
+                    norm_lower_bound = ctx$norm_lower_bound,
+                    hermitian_evidence = cape(ctx$A, "hermitian"),
+                    requested = ctx$requested,
+                    stop_reason = ctx$stop_reason, subject = "eigen")
 }
 
 ## (A - sigma I)^-1 as an operator, built out of the package's own solvers.
