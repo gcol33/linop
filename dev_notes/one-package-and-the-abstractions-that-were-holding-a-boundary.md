@@ -125,9 +125,11 @@ operator given by coefficient sequences has no `x` to dispatch on; it belongs wi
 
 ## Work order
 
-Steps 1 to 3 are done. Step 3's own findings, including two corrections to this
+Steps 1 to 4 are done. Step 3's own findings, including two corrections to this
 list, are in
-`dev_notes/the-section-and-the-certificate-about-an-operator-that-is-not-there.md`.
+`dev_notes/the-section-and-the-certificate-about-an-operator-that-is-not-there.md`,
+and step 4's are in
+`dev_notes/the-width-that-is-a-division-and-the-certificate-that-is-read.md`.
 
 1. Delete provenance. Un-export the certificate builders and the node registry. Move
    the budget down. This is subtraction and it lands first, so nothing later is built
@@ -136,7 +138,7 @@ list, are in
    operator, `as.matrix()` must refuse it, the algebra must still compose it. This is
    the real engineering and the rest depends on it.
 3. `linop_jacobi()` and the `section` node, with the five-row certificate.
-4. `eigs()` generic, `certificate()` accessor.
+4. `eigs()` on the operator itself, choosing the width. `certificate()` accessor.
 5. Arnoldi, closing the non-hermitian gap natively.
 6. `method = "rspectra"` and `method = "primme"` as gated optional engines.
 

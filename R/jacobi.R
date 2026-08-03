@@ -216,6 +216,6 @@ jacobi_of <- function(A, verb) {
 }
 
 register_jacobi_node <- function() {
-  linop_register_node("jacobi", jacobi_apply, NULL,
-                      function(op) Inf, overwrite = TRUE)
+  linop_register_node("jacobi", jacobi_apply, NULL, function(op) Inf,
+                      spectrum = section_eigs, overwrite = TRUE)
 }

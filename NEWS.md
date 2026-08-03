@@ -45,6 +45,9 @@ First development release. The finite object model and the expression graph.
 * Every result carries a certificate: what residual was reached, what backward
   error it implies, and what argument establishes it. `target identity` is
   `not_checked`, because a residual does not say which eigenvalue was found.
+* `certificate()` reads it off whichever result carries it: an attribute on a
+  solution, a field of a spectral result, or the certificate `verify()` returns
+  directly. An operator has none, and the refusal names `verify()`.
 * The eigenpair certificate's `forward error` is a real bound,
   `min_j |theta - lambda_j| <= ||r|| / ||x||` by Weyl, and it records the
   hermitian declaration it rests on.
@@ -72,7 +75,13 @@ First development release. The finite object model and the expression graph.
   nothing declared. `isolation` refuses a value that has not cleared the
   essential spectrum, which is what separates an eigenvalue from a
   discretisation of continuous spectrum.
-* Every numeric verb refuses an infinite operator by name and points at
+* `eigs()` also runs on the operator itself and chooses the width. The
+  eigenvector is exactly geometric outside the window, so the truncation term at
+  one width gives it at every other and the width that meets a tolerance is a
+  division rather than a search: one section to measure and one to confirm,
+  whatever the rate. The widths tried are on the result and the reason the
+  search stopped is on the certificate.
+* Every other numeric verb refuses an infinite operator by name and points at
   `finite_section()`.
 
 ## Checking

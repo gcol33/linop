@@ -227,8 +227,15 @@ The solver layer is in. Seven Krylov methods for linear systems, reached through
 `solve()`; a hermitian eigensolver and a singular value solver, reached through
 `eigs()` and `svds()`; the preconditioner contract each method enforces where it
 accepts one; and the certificate that belongs to a result rather than to an
-operator, with the operator-norm estimate its arithmetic floor rests on. Every
-method is checked against closed-form truth.
+operator, read with `certificate()`, with the operator-norm estimate its
+arithmetic floor rests on. Every method is checked against closed-form truth.
+
+A dimension may be `Inf`. `linop_jacobi()` builds a self-adjoint operator on
+`l^2(Z)` whose essential spectrum is exact by Weyl and whose eigenvectors decay
+at a closed-form rate, `finite_section()` truncates it, and `eigs()` runs on the
+operator itself and chooses the width: the tail is exactly geometric outside the
+window, so the width that meets a tolerance is a division rather than a search.
+The certificate that comes back is about the operator, not the truncation.
 
 `eigs()` and `svds()` are labelled reference rather than production, and the
 label is about storage: a round holds its whole basis and orthogonalises against

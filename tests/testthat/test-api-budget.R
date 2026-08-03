@@ -33,7 +33,10 @@
 ##        linop.<class>(), which needs no registry.
 
 BUDGET <- list(
-  common = c("linop", "adjoint", "verify", "eigs", "svds"),
+  ## certificate() is the reader that replaced the two builders. Every verb here
+  ## returns a certificate somewhere in its result, and one accessor over the
+  ## four shapes is what a public certificate surface is.
+  common = c("linop", "adjoint", "verify", "eigs", "svds", "certificate"),
 
   ## constructors for the leaves a user builds directly
   constructors = c("linop_eye", "linop_scaling"),
@@ -80,9 +83,11 @@ test_that("the names Phase 2 deliberately keeps private are not exported", {
 test_that("the budget stays small", {
   expect_lte(length(BUDGET$common), 6L)
   ## The whole surface, so a slow drift upward is visible in the diff. The cap
-  ## came down from 32 with the eleven names the one-package redesign removed.
-  ## Three of the four the Hilbert layer adds are in; certificate() is the last.
+  ## came down from 32 with the eleven names the one-package redesign removed,
+  ## and all 25 are now spent. The next name is a decision with a note behind it,
+  ## in either direction.
   expect_lte(length(unlist(BUDGET, use.names = FALSE)), 25L)
+  expect_equal(length(unlist(BUDGET, use.names = FALSE)), 25L)
 })
 
 test_that("R's own generics work without being exported", {

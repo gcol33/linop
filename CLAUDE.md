@@ -8,9 +8,11 @@ Phase 0 (spikes) and Phase 1 (core) are complete and Gate 1 is met. **Phase 2 is
 and Gate 2 is met**: the solve certificate with its arithmetic floor, the `||A||` estimate it
 rests on, **all seven Krylov methods** — CG, MINRES, GMRES, FGMRES, LSQR, LSMR and
 BiCGSTAB — and section 7.2's two spectral verbs are in. The one-package redesign is
-through **step 3 of six**: eleven exports came out, `dim` admits `Inf`, and
+through **step 4 of six**: eleven exports came out, `dim` admits `Inf`,
 `linop_jacobi()`, `finite_section()` and `decay_rate()` give the package its first
-operators on a sequence space.
+operators on a sequence space, `eigs()` runs on one of those directly and chooses
+the truncation itself, and `certificate()` is the reader that spends the
+twenty-fifth and last export.
 
 `solve()` is an S3 method on the base generic and cost no export. `eigs()` and `svds()` are
 new names and cost one each, which is the whole of what Phase 2 spends on the public surface.
@@ -73,7 +75,7 @@ Two documents govern:
 ```r
 devtools::load_all(".")                  # after any R/ change
 roxygen2::roxygenise(".", clean = TRUE)  # regenerate NAMESPACE and man/
-devtools::test(".")                      # ~84 s, 12,255 assertions
+devtools::test(".")                      # ~90 s, 12,397 assertions
 ```
 
 ```powershell
@@ -126,12 +128,12 @@ unconditionally. `test-propagation.R` asserts both halves.
 `solvers-bicgstab`, `solvers-bidiag` → `solvers-lsqr`, `solvers-lsmr` → `solve` →
 `eigen-common` → `eigs`, `svds` → `zzz`.
 
-`certificate.R` owns the certificate object: `build_certificate()`, its print method and
-`solve_certificate()` all live there, and `verify.R` holds only the operator checks. It
-also owns the rows more than one shape makes: `cert_level()`, the pass / qualified / fail
-verdict against a target and a floor, and `cert_add_orthogonality()` and
-`cert_add_convergence()`, which the eigenpair and finite-section shapes share rather than
-spell twice.
+`certificate.R` owns the certificate object: `build_certificate()`, its print method,
+`solve_certificate()` and the public reader `certificate()` all live there, and `verify.R`
+holds only the operator checks. It also owns the rows more than one shape makes:
+`cert_level()`, the pass / qualified / fail verdict against a target and a floor, and
+`cert_add_orthogonality()` and `cert_add_convergence()`, which the eigenpair and
+finite-section shapes share rather than spell twice.
 `solvers-common.R` owns what every method shares: `KRYLOV_CONDITION_LIMIT`, `REORTH_ETA`
 (the Daniel-Gragg-Kaufman-Stewart second-pass criterion, used by GMRES and by both
 eigensolvers), `solver_setup()`, which validates the operator, the block, the budget and the starting
@@ -178,13 +180,15 @@ splitting into real and imaginary parts (`leaves.R:sparse_apply`).
 asserts deferred names are absent. Adding an export fails it until `BUDGET` is edited, which
 is the point. Never edit the budget as a side effect of adding a function. The cap is **25**
 and it came down from 32; a change in either direction is a decision with a note behind it.
-**Twenty-four are spent**, and the one left is `certificate()`, the step 4 accessor.
+**All 25 are spent**, and the test asserts equality as well as the bound, so the next name in
+either direction needs a note. Steps 5 and 6 add none: Arnoldi is a `method =` value and the
+optional engines are `method =` values.
 
 **The deferred node types are asserted absent.** `lowrank`, `kron`, stacks, `blockdiag`,
 `perm`, `power`, `inverse` are later work. A test fails if one appears. This is the
 mechanism, not a preference. `jacobi` and `section` were never on that list and have landed.
 
-**Tests are recovery and contract tests, not shape tests.** 12,255 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
+**Tests are recovery and contract tests, not shape tests.** 12,397 assertions. The propagation suite alone is 9,892 brute-force soundness checks. When adding a
 solver, the bar is parameter recovery against closed-form truth run to convergence, plus
 certificate coverage over >= 20 seeds (plan section 10). `helper-linop.R` carries the
 section 10 fixtures with their closed forms: `laplacian_1d()` with
@@ -704,13 +708,50 @@ re-derive:
   it is closed. The narrow run was never a silent wrong answer: residual 4.5e-2, `nconv` 0,
   certificate `fail`.
 
+**Step 4 is done: `eigs()` runs on the operator itself and chooses the width, and
+`certificate()` is the reader.** `dev_notes/the-width-that-is-a-division-and-the-certificate-that-is-read.md`
+has the findings and four things to not re-derive:
+
+- **The width is a division, not a search, and that is the same fact that made this class
+  first.** Outside the window the eigenvector is *exactly* geometric, so
+  `eta(n') = eta(n) rho^(n' - n)` and the width meeting a target is
+  `n' = n + log(target/eta(n))/log(rho)`. Measured against the law itself over `n = 40` to
+  `60`, the ratio is 0.9999 at `v = 0.3` and 1.0000 at `v = 0.5`; it degrades to 0.934 at
+  `v = 1` where `eta(60)` is 1.6e-13, and is meaningless at `v = 2` where both readings are
+  the 1e-16 plateau. So **the law holds exactly while `eta` is above the level the computed
+  eigenvector stores its own tail at**, which is why the search has to detect the plateau
+  rather than trust the prediction. Two widths at every rate, against two to four for a
+  doubling ladder from the same start: 340 applies against 760 at `v = 0.2`, 260 against 420
+  at `v = 0.3`, tying at `v = 1`. The chosen width lands at 0.22 of the acceptance level on
+  every fixture, because each prediction aims at a quarter of it.
+- **`n_start` is a free tail beyond the window, not an absolute width.** `eta` is read at the
+  section's edge and the rate comes from the value that section produced, so a section barely
+  containing the window predicts from a `q` that is not yet the right one. On a 121-site well
+  the absolute reading costs three widths (62 -> 80 -> 96) and the free-tail reading costs
+  one (101); on a single site they differ by one index.
+- **The interesting stop is the ordinary one.** Sweeping `tol` on `v = 1`, the search meets
+  its own target down to 1e-16 — the truncation term really does reach 1e-16 — and what
+  fails the certificate there is the *residual*, at 3.1e-15 and 5.1e-15. The split is doing
+  its job: the search owns `n`, says so, and the certificate points at `tol` and `ncv`. Only
+  below about 1e-17 is the tail the wall, and there the `truncation bound` row reads
+  **`qualified`, not `fail`**, because 7.4e-17 is inside the arithmetic floor of 2.7e-15. A
+  first draft of the test asserted `fail` and was wrong.
+- **`certificate()` is a reader over results and refuses an operator**, which corrects the
+  one-package sketch's `certificate(F)`. Every claim a certificate makes is about a
+  computation; the one claim an operator makes alone is that it satisfies the contract, and
+  that is `verify()`. The accessor exists because each verb puts its certificate where its
+  own return value has room — an attribute on a solution, a field of a spectral result, the
+  object itself from `verify()`, a field of the plain list `details = TRUE` returns.
+
+The node registry gained `spectrum` beside `certify`: a node type on a sequence space says
+how it becomes computable, so `eigs()` carries no sequence-space vocabulary. `svds()` and
+`solve()` deliberately do not get the hook and still refuse by name.
+
 Remaining work order:
 
-4. `eigs()` on the infinite operator directly, choosing `n` itself, and the `certificate()`
-   accessor.
 5. Arnoldi.
 6. `method = "rspectra"` and `method = "primme"` as gated optional engines.
 
-`certificate` is the one name left under the 25 cap. `linop_jacobi()` rather than `linop()`
+Neither adds an export: both are `method =` values. `linop_jacobi()` rather than `linop()`
 because `linop()` is a generic dispatching on its first argument and an operator given by
 coefficient sequences has no `x` to dispatch on.
