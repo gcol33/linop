@@ -17,6 +17,7 @@ eigs(
   seed = 1L,
   method = "auto",
   inner = list(),
+  section = list(),
   floor_const = SOLVE_FLOOR_CONST,
   norm_control = list()
 )
@@ -55,6 +56,12 @@ restored afterwards.}
 \item{inner}{Arguments for the inner solve when `sigma` is given, such as
 `method` or `tol`.}
 
+\item{section}{Arguments for the truncation, when `A` is an operator on a
+sequence space and has no matrix: `n_start` for how much free tail the first
+section leaves beyond the window, and `n_max` for the widest section the
+search may reach. The width itself is not among them, because
+`eigs(finite_section(A, n))` is already how a caller fixes it.}
+
 \item{floor_const}{`c` in the arithmetic floor of the certificate.}
 
 \item{norm_control}{Arguments for the `||A||` estimate.}
@@ -63,7 +70,8 @@ restored afterwards.}
 An object of class `linop_eigen`, with `values`, `vectors` and the
   `certificate`. A run that exhausts its budget returns the best pairs it
   reached and a `fail` certificate rather than an error, and it may hold fewer
-  than `k` of them: nothing is padded.
+  than `k` of them: nothing is padded. On a sequence space it also carries the
+  width `n` that was chosen and the `widths` that were tried.
 }
 \description{
 Lanczos with full reorthogonalisation, run against the operator's action. The
@@ -87,4 +95,10 @@ L <- linop(function(X) rbind(X[-1, , drop = FALSE], 0) +
            dim = c(n, n), properties = c(hermitian = TRUE))
 fit <- eigs(L, k = 3, which = "largest_algebraic")
 fit$values
+
+## on an operator with no matrix, where the width is chosen rather than given
+H <- linop_jacobi(diagonal = 1)
+fit <- eigs(H, k = 1, which = "largest_algebraic")
+fit$n
+fit$values - sqrt(5)
 }

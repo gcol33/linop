@@ -22,7 +22,7 @@ the questions differ:
 ```{r shapes, echo = FALSE}
 knitr::kable(data.frame(
   produced_by = c("verify()", "solve(), square", "solve(), least squares",
-                  "eigs(), svds()", "eigs() on a finite_section()"),
+                  "eigs(), svds()", "eigs() on a sequence space"),
   subject = c("does the operator behave like a linear map",
               "how close is x to solving A x = b",
               "how close is x to minimising ||b - A x||",
@@ -34,9 +34,12 @@ knitr::kable(data.frame(
 This article is about the last four. `verify()` is covered in
 `vignette("adapters")`, where it belongs to the job of writing an operator.
 
-## Status and evidence are separate questions
+## Getting hold of one
 
-Every row carries a status and, separately, the kind of argument behind it.
+Each verb puts its certificate where its own return value has room. A solve
+returns the solution a matrix solve would return and carries the certificate in
+an attribute; the spectral verbs return a result object with a field; `verify()`
+returns the certificate itself. `certificate()` reads it off any of them.
 
 ```{r first}
 n <- 200
@@ -44,9 +47,23 @@ lap <- function(X) 2 * X - rbind(X[-1, , drop = FALSE], 0) - rbind(0, X[-n, , dr
 L <- linop(lap, adjoint = lap, dim = c(n, n), properties = c(hermitian = TRUE))
 b <- as.numeric(L %*% sin(seq_len(n) * pi / (n + 1)))
 
-cert <- attr(solve(L, b, method = "minres", tol = 1e-10), "certificate")
+cert <- certificate(solve(L, b, method = "minres", tol = 1e-10))
 cert
 ```
+
+A certificate belongs to a result rather than to an operator. An operator on its
+own has nothing to certify: the one claim it can make alone is that it satisfies
+the contract, and that is `verify()`, which returns a certificate of its own.
+
+The attribute on a solve survives arithmetic and is dropped by indexing,
+`as.numeric()`, `c()` and the reductions. So the cost of `solve()` returning a
+plain matrix is not that the certificate is easily lost; it is that `2 * x` still
+carries one describing `x`.
+
+## Status and evidence are separate questions
+
+Every row of that table carries a status and, separately, the kind of argument
+behind it.
 
 The status column answers whether the check passed. `pass`, `fail`,
 `not_checked`, and `qualified`, which means it passed for a reason weaker than
@@ -221,9 +238,9 @@ fwd[, c("status", "source", "guarantee")]
 cat(fwd$detail)
 ```
 
-`source` is `theorem` and `guarantee` is `deterministic_bound`, the only place
-either appears. The bound is about *some* eigenvalue of `A`; which one is the
-`target identity` question and stays `not_checked`.
+`source` is `theorem` and `guarantee` is `deterministic_bound`, the only row of
+this shape where either appears. The bound is about *some* eigenvalue of `A`;
+which one is the `target identity` question and stays `not_checked`.
 
 ## Evidence can carry a dependency
 
@@ -269,9 +286,13 @@ which no computation touched:
 H <- linop_jacobi(diagonal = 1)
 dim(H)
 
-fit <- eigs(finite_section(H, n = 50), k = 1, which = "largest_algebraic")
-fit$certificate
+fit <- eigs(H, k = 1, which = "largest_algebraic")
+certificate(fit)
 ```
+
+The width was not given either. `eigs()` on an operator with no matrix truncates
+it, and the header records which widths it went through and why it stopped;
+`vignette("sequence-spaces")` covers how that width is chosen.
 
 `residual` and `backward error` are gone, because a truncated eigenvalue answers
 no equation with data in it. What replaces them is a split, and the split is the

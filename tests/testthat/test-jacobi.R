@@ -36,7 +36,6 @@ test_that("a constructor states construction, not a declaration", {
 test_that("nothing numeric runs on it, and every refusal names the way out", {
   H <- linop_jacobi(diagonal = 1)
   expect_error(as.matrix(H), "finite_section\\(\\)")
-  expect_error(eigs(H, k = 1), "eigs\\(\\) needs an operator with finite")
   expect_error(svds(H, k = 1), "svds\\(\\) needs an operator with finite")
   expect_error(verify(H), "verify\\(\\) needs an operator with finite")
   expect_error(solve(H, matrix(1, 3, 1)), "solve\\(\\) needs an operator with finite")
@@ -44,6 +43,9 @@ test_that("nothing numeric runs on it, and every refusal names the way out", {
   ## and reaching the handler past the gate gets the same sentence
   expect_error(linop:::jacobi_apply(H, matrix(1, 3, 1), "N"),
                "no block to act on")
+  ## eigs() is the one verb that is not refused, because the node type registers
+  ## a way to make a matrix; test-sequence-eigs.R is that route
+  expect_s3_class(eigs(H, k = 1, which = "largest_algebraic"), "linop_eigen")
 })
 
 test_that("the essential spectrum is read off the limiting coefficients", {

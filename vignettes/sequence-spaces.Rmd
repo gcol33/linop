@@ -136,9 +136,12 @@ c(computed = fit$values, exact = sqrt(5), error = abs(fit$values - sqrt(5)))
 and the certificate bounded it without knowing it:
 
 ```{r bound}
-v <- fit$certificate$values
+v <- certificate(fit)$values
 c(bound = v$bound, true_error = abs(fit$values - sqrt(5)))
 ```
+
+`certificate()` is the reader. Every verb in the package returns one somewhere in
+its result, and this reaches it wherever that is.
 
 That bound is two terms in quadrature and a floor. The truncation term is two
 entries of the computed eigenvector and nothing else, and it falls at the closed-
@@ -173,6 +176,73 @@ sharp <- eigs(finite_section(linop_jacobi(diagonal = 4), n = 40), k = 1,
 ch <- sharp$certificate$checks
 cat(ch$detail[ch$check == "truncation bound"])
 ```
+
+## Letting it choose the width
+
+`n = 20` above was a guess. `eigs()` on the operator itself does not need one:
+
+```{r direct}
+chosen <- eigs(H, k = 1, which = "largest_algebraic")
+chosen
+```
+
+No width is available before the solve: the tail falls at
+`decay_rate(H, lambda)`, and `lambda` is what the solve produces. So the width is
+measured rather than derived, and one measurement is enough. Outside the window
+the eigenvector is exactly geometric, so the truncation term at one width gives it
+at every other,
+
+`eta(n') = eta(n) rho^(n' - n)`,
+
+and the width that brings it to a target is a division:
+
+`n' = n + log(target / eta(n)) / log(rho)`
+
+The widths it went through are on the result, and there are two of them: one to
+measure and one to confirm.
+
+```{r widths}
+chosen$widths
+```
+
+That holds at every rate. A potential nearer the band edge decays more slowly and
+wants a wider section, and the number of widths stays the same:
+
+```{r rates}
+t(vapply(c(0.2, 0.3, 0.5, 1, 2), function(v) {
+  Hv <- linop_jacobi(diagonal = v)
+  f <- eigs(Hv, k = 1, which = "largest_algebraic")
+  c(v = v, rho = decay_rate(Hv, f$values), n = f$n, widths = length(f$widths))
+}, numeric(4)))
+```
+
+The last row took one, because the first section was already wide enough at
+`v = 2`. The rows above it are what the closed form buys: from a first width of
+41 a doubling scheme reaches 82 and then 164, and `v = 0.3` wants 150.
+
+What stopped the search is on the certificate, where every other dispatch in the
+package is recorded:
+
+```{r stopped}
+certificate(chosen)
+```
+
+Three things stop it. The tail can reach the target, which is the line above. It
+can stop falling with `n`, which is the plateau: past the level at which the
+finite eigensolve stores the tail at all, `eta` measures the eigenvector's own
+error and no width improves it. And `n_max` is a budget, reported as the width it
+would have taken:
+
+```{r capped}
+capped <- eigs(linop_jacobi(diagonal = 0.3), k = 1, which = "largest_algebraic",
+               section = list(n_max = 60))
+capped$certificate$dispatch$reason
+ch <- certificate(capped)$checks
+ch[ch$check %in% c("finite residual", "truncation bound"), c("check", "status")]
+```
+
+The eigensolve was fine and the section was short, and the two rows say so
+separately, because they answer to different knobs.
 
 ## The subspace is the knob to watch
 
@@ -225,6 +295,16 @@ free$certificate
 This is the case the exact essential spectrum exists for. A value that has not
 cleared the band is a discretisation of continuous spectrum, and the certificate
 refuses rather than issuing a number that would read like an eigenvalue.
+
+The width search meets the same wall. With nothing outside the band there is no
+rate to predict with, so it doubles until its budget and reports that:
+
+```{r free-search}
+hunt <- eigs(linop_jacobi(diagonal = 0), k = 1, which = "largest_algebraic",
+             section = list(n_max = 200))
+hunt$widths
+hunt$certificate$dispatch$reason
+```
 
 ## Where to next
 

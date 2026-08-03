@@ -83,6 +83,69 @@ build_certificate <- function(checks, subject, probes = NULL, values = NULL,
 
 cert_status <- function(cert, check) cert$checks$status[cert$checks$check == check]
 
+## ---------------------------------------------------------- the accessor ----
+
+#' Read the certificate off a result
+#'
+#' Every verb in this package that computes something returns a certificate with
+#' it, and each puts it where its own return value has room. A solve carries it
+#' in an attribute, so the result stays the matrix a matrix solve returns; the
+#' spectral verbs carry it in a field of their result; [verify()] returns one
+#' directly. This reads it off any of them.
+#'
+#' A certificate belongs to a result and not to an operator. An operator on its
+#' own has nothing to certify: the claims a certificate makes are about a
+#' computation, and the one claim an operator can make alone is that it satisfies
+#' the contract, which is [verify()] and returns a certificate of its own.
+#'
+#' A solve's attribute survives arithmetic on the solution and is dropped by
+#' indexing, `as.numeric()`, `c()` and the reductions. So the cost of [solve()]
+#' returning what a matrix solve returns is not that the certificate is easily
+#' lost: it is that `2 * x` still carries a certificate describing `x`.
+#'
+#' @param x A result from [solve()], [eigs()], [svds()] or [verify()].
+#' @param ... Unused.
+#' @return An object of class `linop_certificate`.
+#' @examples
+#' A <- linop(diag(c(2, 3, 4)), properties = c(hermitian = TRUE,
+#'                                             positive_definite = TRUE))
+#' certificate(solve(A, c(2, 3, 4)))
+#' certificate(eigs(A, k = 1))
+#' certificate(verify(A))
+#' @export
+certificate <- function(x, ...) UseMethod("certificate")
+
+#' @export
+certificate.linop_certificate <- function(x, ...) x
+
+#' @export
+certificate.linop_eigen <- function(x, ...) x$certificate
+
+#' @export
+certificate.linop_svd <- function(x, ...) x$certificate
+
+#' @export
+certificate.linop <- function(x, ...) {
+  stopf(paste0("an operator carries no certificate; a certificate belongs to a result.\n",
+               "  verify(A) checks the operator against the contract and returns one.\n",
+               "  solve(), eigs() and svds() each return one alongside what they computed."))
+}
+
+#' @export
+certificate.default <- function(x, ...) {
+  cert <- attr(x, "certificate")
+  ## solve(details = TRUE) returns the whole solve rather than the solution, and
+  ## there the certificate is a field rather than an attribute.
+  if (is.null(cert) && is.list(x)) cert <- x[["certificate"]]
+  if (!inherits(cert, "linop_certificate")) {
+    stopf(paste0("no certificate here.\n",
+                 "  A solve carries one in an attribute, which survives arithmetic on the solution\n",
+                 "  but not indexing, as.numeric(), c() or a reduction. Read it off the result of\n",
+                 "  solve() itself, or call solve() with details = TRUE."))
+  }
+  cert
+}
+
 #' @export
 print.linop_certificate <- function(x, ...) {
   df <- x$checks

@@ -81,6 +81,14 @@ finite_section <- function(A, n) {
 
 ## ------------------------------------------------------- the certificate ----
 
+## Every row of the certificate below measures an absolute distance on the
+## spectrum, so the caller's relative tolerance is made absolute the way
+## eigen_certificate() makes it, against the size of the operator. Written once
+## because the width search targets the same number the certificate grades
+## against, and two spellings of it would let the search stop just short of what
+## the certificate wants.
+section_target <- function(P, tol) tol * jacobi_norm_bound(P)
+
 ## The fifth shape. Every earlier one certifies a computation against the operator
 ## the computation ran on; this one certifies a statement about an operator that
 ## has no matrix, from a computation on one that does.
@@ -132,10 +140,7 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
   band <- jacobi_band(P)
   b_inf <- abs(P$args$b_inf)
   flr <- floor_const * eps * hn
-  ## Everything below is an absolute distance on the spectrum, tested against a
-  ## tolerance made absolute the same way eigen_certificate() makes it: relative
-  ## to the size of the operator.
-  want <- tol * hn
+  want <- section_target(P, tol)
 
   ## Recomputed here rather than taken from the iteration, for the reason every
   ## certificate in the package recomputes: what a recurrence believes about
@@ -277,4 +282,129 @@ register_section_node <- function() {
   linop_register_node("section", section_apply, section_materialize,
                       function(op) 5 * op$dim[1L], overwrite = TRUE,
                       certify = section_certify)
+}
+
+## --------------------------------------------------- the width, chosen here --
+
+## eigs() on the operator itself. There is no matrix, so there is a truncation,
+## and the point of this is that the caller does not have to pick it.
+##
+## No width is available before the solve. The tail of an eigenvector falls at
+## rho = decay_rate(H, lambda), and lambda is what the solve produces; all that
+## is known in advance is that lambda lies outside the band and inside ||H||,
+## which puts rho anywhere in (0, 1). So the width is measured rather than
+## derived.
+##
+## One measurement is enough, because outside the window the eigenvector is
+## exactly geometric rather than asymptotically so. The certificate's truncation
+## term
+##
+##     eta(n) = |b_inf| sqrt(u_{-n}^2 + u_n^2) / ||u||
+##
+## therefore satisfies eta(n') = eta(n) rho^(n' - n), and the width that brings
+## it to a target is
+##
+##     n' = n + log(target / eta(n)) / log(rho),
+##
+## a division rather than a search. Where a doubling scheme spends log2 of the
+## overshoot in solves, this spends one solve to measure and one to confirm.
+## Each pair has its own rho and its own eta, so the width taken is the largest
+## of the k predictions.
+##
+## Three things stop it, and each is reported rather than retried. The tail can
+## stop falling with n, which is the plateau: past the level at which the finite
+## eigensolve stores the tail at all, eta measures the eigenvector's own error
+## and no width improves it. Nothing may separate from the essential spectrum, in
+## which case there is no rate to predict with and no eigenvalue to find, and the
+## width doubles until n_max rather than pretending to converge. And n_max itself
+## is a budget: a rho within 1e-4 of 1 is an eigenvalue that close to the band
+## edge, and the honest answer there is the width it would have taken.
+
+## How much free tail the first section leaves beyond the window, which is what
+## the first measurement is taken on: eta is read at the section's edge, and a
+## section that barely contains the window has no free region for the eigenvector
+## to have become geometric in, so the rate it is predicted with is read off a
+## vector that is not yet the right one. A width rather than a free tail would
+## mean something different for every window. On a 121-site well the two cost
+## three widths (62 -> 80 -> 96) against one (101); on a single site they differ
+## by one index.
+SECTION_N_START <- 40L
+
+## The widest. m = 2n + 1 is 20001 columns, which at the default subspace is a
+## basis of 6 MB, so this is a budget on patience rather than on memory: needing
+## more means rho > 0.9995, an eigenvalue within about 1e-7 of the band edge.
+SECTION_N_MAX <- 10000L
+
+## What a prediction aims at, as a fraction of the tolerance. eta is predicted
+## from a vector that is itself only accurate to its own residual, so aiming
+## exactly at the acceptance level would miss about half the time and spend a
+## whole extra solve doing it.
+SECTION_N_AIM <- 1 / 8
+
+section_eigs <- function(A, k, control, args) {
+  P <- jacobi_of(A, "eigs")
+  if (!is.null(args$v0)) {
+    stopf(paste0("eigs() on the operator itself does not take v0.\n",
+                 "  The width of the section is what this call chooses, so a starting vector has\n",
+                 "  no length to be yet. Truncate with finite_section(A, n) and pass v0 to\n",
+                 "  eigs() on that."))
+  }
+  bad <- setdiff(names(control), c("n_start", "n_max"))
+  if (length(bad)) {
+    stopf("section takes n_start and n_max; it does not take: %s",
+          paste(bad, collapse = ", "))
+  }
+  ctl <- utils::modifyList(
+    list(n_start = SECTION_N_START, n_max = SECTION_N_MAX), control)
+  n_start <- as.integer(ctl$n_start)
+  n_max <- as.integer(ctl$n_max)
+  if (is.na(n_start) || is.na(n_max) || n_start < 1L) {
+    stopf("n_start and n_max must be whole numbers, and n_start at least 1")
+  }
+  n <- P$args$radius + n_start
+  if (n_max < n) {
+    stopf(paste0("n_max = %d is below the first width %d.\n",
+                 "  The window reaches %d, and n_start = %d of free tail beyond it is what the\n",
+                 "  first measurement is taken on."),
+          n_max, n, P$args$radius, n_start)
+  }
+
+  want <- section_target(P, args$tol)
+  ## Half the tolerance rather than all of it, because the residual term is
+  ## added in quadrature with this one and answers to a different knob. A search
+  ## that stopped at exactly the tolerance would leave the truncation binding.
+  accept <- want / 2
+  widths <- integer(0)
+  prev <- Inf
+
+  repeat {
+    widths <- c(widths, n)
+    fit <- do.call(eigs, c(list(A = finite_section(P, n), k = k), args))
+    v <- fit$certificate$values
+    eta <- max(v$truncation)
+    if (eta <= accept) { why <- "the tail is below half the tolerance"; break }
+    if (n >= n_max) { why <- sprintf("n_max = %d", n_max); break }
+    if (eta >= prev) { why <- "widening stopped shrinking the tail"; break }
+    prev <- eta
+    rate <- is.finite(v$decay) & v$decay < 1 & v$truncation > 0
+    n <- if (any(rate)) {
+      max(n + 1L, as.integer(ceiling(max(
+        v$n + log(want * SECTION_N_AIM / v$truncation[rate]) / log(v$decay[rate])))))
+    } else {
+      2L * n
+    }
+    n <- min(n, n_max)
+  }
+
+  fit$method <- paste(fit$method, "on a finite section")
+  fit$n <- widths[length(widths)]
+  fit$widths <- widths
+  fit$certificate$values$widths <- widths
+  ## The search is a dispatcher choosing, so it is recorded where every other
+  ## dispatch in the package is recorded and printed the same way.
+  fit$certificate$dispatch <- list(
+    requested = args$method, chosen = fit$method,
+    reason = sprintf("operator on l^2(Z); width %s, stopped because %s",
+                     paste(widths, collapse = " -> "), why))
+  fit
 }

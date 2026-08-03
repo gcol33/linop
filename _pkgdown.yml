@@ -84,6 +84,12 @@ reference:
   desc: The conformance suite an adapter author runs before shipping.
   contents:
   - verify
+- title: Read a certificate
+  desc: >
+    Each verb puts its certificate where its own return value has room. This
+    reads it off any of them.
+  contents:
+  - certificate
 - title: Solve a system
   desc: >
     One verb over seven Krylov methods, choosing on declared capabilities and

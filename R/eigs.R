@@ -75,12 +75,18 @@ SIGMA_SELECT <- "LM"
 #'   `"auto"` resolves to it, recording the reason in the certificate.
 #' @param inner Arguments for the inner solve when `sigma` is given, such as
 #'   `method` or `tol`.
+#' @param section Arguments for the truncation, when `A` is an operator on a
+#'   sequence space and has no matrix: `n_start` for how much free tail the first
+#'   section leaves beyond the window, and `n_max` for the widest section the
+#'   search may reach. The width itself is not among them, because
+#'   `eigs(finite_section(A, n))` is already how a caller fixes it.
 #' @param floor_const `c` in the arithmetic floor of the certificate.
 #' @param norm_control Arguments for the `||A||` estimate.
 #' @return An object of class `linop_eigen`, with `values`, `vectors` and the
 #'   `certificate`. A run that exhausts its budget returns the best pairs it
 #'   reached and a `fail` certificate rather than an error, and it may hold fewer
-#'   than `k` of them: nothing is padded.
+#'   than `k` of them: nothing is padded. On a sequence space it also carries the
+#'   width `n` that was chosen and the `widths` that were tried.
 #' @examples
 #' n <- 40
 #' L <- linop(function(X) rbind(X[-1, , drop = FALSE], 0) +
@@ -88,12 +94,37 @@ SIGMA_SELECT <- "LM"
 #'            dim = c(n, n), properties = c(hermitian = TRUE))
 #' fit <- eigs(L, k = 3, which = "largest_algebraic")
 #' fit$values
+#'
+#' ## on an operator with no matrix, where the width is chosen rather than given
+#' H <- linop_jacobi(diagonal = 1)
+#' fit <- eigs(H, k = 1, which = "largest_algebraic")
+#' fit$n
+#' fit$values - sqrt(5)
 #' @export
 eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                  tol = 1e-10, maxit = NULL, ncv = NULL, v0 = NULL, seed = 1L,
-                 method = "auto", inner = list(),
+                 method = "auto", inner = list(), section = list(),
                  floor_const = SOLVE_FLOOR_CONST, norm_control = list()) {
   if (!is_linop(A)) stopf("eigs() expects a linop")
+  if (!is.list(section)) stopf("section must be a list")
+  ## An operator with no matrix is not refused where its node type knows how to
+  ## make one. Everything the caller supplied is forwarded unchanged, because the
+  ## width is the only thing they did not supply and so the only thing chosen
+  ## here.
+  if (!is_finite_dim(A)) {
+    run <- get_node(A$node)$spectrum
+    ## No route to a matrix: the ordinary refusal, naming this verb.
+    if (is.null(run)) require_finite_dim(A, "eigs")
+    return(run(A, k, section, list(
+      which = which, sigma = sigma, B = B, tol = tol, maxit = maxit, ncv = ncv,
+      v0 = v0, seed = seed, method = method, inner = inner,
+      floor_const = floor_const, norm_control = norm_control)))
+  }
+  if (length(section)) {
+    stopf(paste0("section applies to an operator on a sequence space, and this one is %s.\n",
+                 "  Its truncation is already fixed, so there is no width to choose."),
+          fmt_dim(A$dim))
+  }
   require_finite_dim(A, "eigs")
   n <- A$dim[1L]
   if (A$dim[1L] != A$dim[2L]) {

@@ -201,6 +201,12 @@ print_spectral_header <- function(x, label) {
 #' @export
 print.linop_eigen <- function(x, ...) {
   print_spectral_header(x, "eigenpairs")
+  ## The width is the one thing the caller did not choose, so a result that has
+  ## one says what it is without being asked for the certificate.
+  if (!is.null(x$n)) {
+    cat(sprintf("  section n = %d, from %d width%s\n", x$n, length(x$widths),
+                if (length(x$widths) == 1L) "" else "s"))
+  }
   cat("  values: ", paste(format(x$values, digits = 7), collapse = "  "), "\n", sep = "")
   cat(sprintf("  certificate: %s\n", x$certificate$overall))
   invisible(x)
