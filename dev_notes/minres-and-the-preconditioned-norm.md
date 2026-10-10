@@ -62,6 +62,49 @@ Restarting costs more here than in CG, because MINRES minimises over the Krylov 
 restart discards it. That is the reason the inner loop returns only when it believes the
 target is met, rather than on a fixed inner budget.
 
+### 2a. The converted target is not safe either, and the recurrence now carries `||r||_2`
+
+The outer loop did not make the conversion safe. A restarted round minimises `||r||_{M^-1}`,
+and a step that lowers it can raise `||r||_2`, since the two are tied only by
+`lambda_max(M)^(-1/2) ||r||_2 <= ||r||_{M^-1} <= lambda_min(M)^(-1/2) ||r||_2`. Near the
+target a converted round can end after one step with the euclidean residual higher than it
+started, and the outer loop's stagnation exit, which compares `||r||_2` between rounds, then
+ends a solve that was still converging. Which rounds do that depends on the last bits of the
+iterates. The 1e-12 test failed on CI at both spreads on some Ubuntu runners from 2026-07-30
+and passed on others at the same commit, and with OpenBLAS 0.3.26 forced to its Sandybridge
+kernel the spread-1e6 case reproduces: 7 restarts, stopped at 1.014e-12. The ratio `||r||_2 / ||r||_{M^-1}`
+moves from 3.47 at `b` to 779 at the answer on that fixture, so the converted target was
+about 224 times too loose by the end of the first round.
+
+`x_j = x_{j-1} + phi_j d_j` with `d_j = (v_j - delta_j d_{j-1} - eps_j d_{j-2}) / gamma_j`, so
+
+```
+A d_j = (A v_j - delta_j A d_{j-1} - eps_j A d_{j-2}) / gamma_j,     r_j = r_{j-1} - phi_j A d_j,
+```
+
+and `A v_j` is the step's own apply. The recurrence carries `r_j` for two blocks of storage
+and no apply, and the inner loop stops on `||r_j||_2`. Logged every 50 steps at spread 1e6,
+carried and true residual agree to three digits until both stop, at 1.27e-12 and 1.65e-12,
+from about step 1200, while `|phibar|` goes on falling to 5e-40 by step 3000. One round
+cannot reach 1e-12 there, and a restart from the recomputed residual is iterative
+refinement on the correction, which can. So the inner loop also returns once
+`|phibar| <= eps * beta_1`: the round's recurrence claims a reduction below machine
+precision relative to where the round started, which its arithmetic cannot deliver. That
+exit also covers `beta_{j+1} = 0`, where the rotation sets `phibar` to zero.
+
+| BLAS (OpenBLAS 0.3.26 kernel) | spread 1e3: iterations, restarts, residual / tol | spread 1e6 |
+|---|---|---|
+| reference | 218, 0, 0.52 | 1403, 1, 0.92 |
+| Haswell, Zen | 218, 0, 0.91 | 1357, 1, 0.96 |
+| Sandybridge | 218, 0, 0.39 | 1135, 0, 0.89 |
+| Nehalem | 231, 0, 0.96 | 1366, 1, 0.99 |
+| Prescott, Core2 | 214, 0, 0.82 | 1185, 1, 0.995 |
+
+Every cell converges. The table above it is the same fixture under the converted target.
+The carried residual costs four block operations a step: 1.30x per iteration at
+`n = 1e5` on a stencil operator, where vector work is most of a step, and 1.04x at
+`n = 1e6`.
+
 ## 3. The obvious symmetry test is a test of orthogonality, and it fails on hermitian operators
 
 CG contradicts a false `positive_definite` on a sign: `p^H A p <= 0` cannot happen for a

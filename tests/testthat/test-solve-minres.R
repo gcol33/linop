@@ -651,7 +651,8 @@ test_that("a preconditioned solve meets the euclidean tolerance it was asked for
   ## The currency question. MINRES minimises ||r||_{M^-1} and the caller asked in
   ## ||r||_2; the two differ by the conditioning of M, so a solver that reported
   ## its own recurrence scalar would claim a tolerance it had not reached. The
-  ## outer loop converts the target going in and measures b - A x coming out.
+  ## inner loop stops on the euclidean residual it carries, and the outer loop
+  ## measures b - A x coming out.
   n <- 60
   A <- linop(spd_prescribed(n, c(seq(-9, -1, length.out = 25),
                                  seq(1, 9, length.out = 35)), seed = 4),
