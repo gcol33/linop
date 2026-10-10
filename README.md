@@ -16,6 +16,23 @@ behaves like a matrix. `%*%`, `t()`, `crossprod()`, `+` and `*` all work, and
 every one of them builds an expression, so nothing is formed until you ask for a
 result.
 
+## Installation
+
+```r
+install.packages("pak")
+pak::pak("gcol33/linop")
+```
+
+Installing `linop` installs one package. There are no `Imports` and no compiled
+code, so there is no toolchain to have working first. `Matrix` sits in `Suggests`
+and is used for sparse leaves and `as_sparse()`.
+
+R 4.4.0 or newer. The floor is set by `crossprod()` and `tcrossprod()`, which
+became S3 generic in R 4.4.0, and are what let one `matrixOps` method cover all
+three matrix products.
+
+## Quick start
+
 ```r
 library(linop)
 
@@ -190,21 +207,6 @@ linop.my_format <- function(x, ...) {
 ```
 
 Then run `verify()` on an instance and read the certificate.
-
-## Installation
-
-```r
-install.packages("pak")
-pak::pak("gcol33/linop")
-```
-
-Installing `linop` installs one package. There are no `Imports` and no compiled
-code, so there is no toolchain to have working first. `Matrix` sits in `Suggests`
-and is used for sparse leaves and `as_sparse()`.
-
-R 4.4.0 or newer. The floor is set by `crossprod()` and `tcrossprod()`, which
-became S3 generic in R 4.4.0, and are what let one `matrixOps` method cover all
-three matrix products.
 
 ## Documentation
 
