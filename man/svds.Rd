@@ -30,17 +30,25 @@ because a singular value is non-negative.}
 \item{tol}{Convergence tolerance on the backward error of the augmented
 eigenpair.}
 
-\item{maxit}{Total bidiagonalisation steps across all restarts.}
+\item{maxit}{Total applies of the operator, in either mode, across all
+restarts.}
 
-\item{ncv}{Subspace size per restart. Storage is `ncv` vectors of each length.}
+\item{ncv}{Subspace size per restart. Storage is `ncv` vectors of each
+length. `NULL` takes the engine's default.}
 
-\item{v0}{Starting vector in the domain, or `NULL` for a seeded random one.}
+\item{v0}{Starting vector in the domain, or `NULL` for a seeded random one.
+`"golub-kahan"` only.}
 
 \item{seed}{Seed for the starting vector. The caller's random stream is
 restored afterwards.}
 
-\item{method}{`"auto"` or `"golub-kahan"`. There is one method in this version
-and `"auto"` resolves to it, recording the reason in the certificate.}
+\item{method}{`"auto"`, `"golub-kahan"` or `"primme"`. `"golub-kahan"` is the
+reference implementation in this package; `"primme"` is the PRIMME library,
+available when the `linop.primme` package is installed. `"auto"` takes
+PRIMME when it is available and Golub-Kahan otherwise, and the
+certificate's `dispatch` records every engine considered and why. The
+reported singular values are Rayleigh quotients `Re(u^H A v)` of the
+returned unit vectors, measured on `A`, whichever engine ran.}
 
 \item{floor_const}{`c` in the arithmetic floor of the certificate.}
 

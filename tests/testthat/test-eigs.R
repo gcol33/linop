@@ -266,7 +266,8 @@ test_that("eigs refuses what it is not defined for", {
   expect_error(eigs(herm, k = 0), "positive integer")
   expect_error(eigs(herm, k = 2, ncv = 2L), "must exceed k")
   expect_error(eigs(herm, k = 2, which = "biggest"), "does not take which")
-  expect_error(eigs(herm, k = 2, method = "arnoldi"), "'auto' or 'lanczos'")
+  expect_error(eigs(herm, k = 2, method = "arnoldi"),
+               "method is one of 'auto', 'lanczos', 'primme'")
   expect_error(eigs(herm, k = 2, v0 = rep(1, n + 1L)), "it has to be")
 })
 
@@ -285,4 +286,9 @@ test_that("the caller's random stream is not moved", {
   before <- .Random.seed
   eigs(laplacian_1d(20), k = 2, which = "largest_algebraic")
   expect_identical(.Random.seed, before)
+})
+
+test_that("an ordinary result prints no section line", {
+  out <- capture.output(print(eigs(laplacian_1d(20), k = 2)))
+  expect_false(any(grepl("section", out)))
 })

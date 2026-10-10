@@ -557,6 +557,10 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   ## survived, or a run that produced one pair and converged it would read as
   ## complete.
   requested <- requested %||% k
+  if (!k) {
+    return(eigen_certificate_empty(r, requested, iterations, maxit,
+                                   stop_reason, subject))
+  }
 
   ## The true residual, recomputed here and not taken from the iteration, for the
   ## reason the solve certificate recomputes b - A x: what a recurrence believes
@@ -674,5 +678,31 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
                     values = list(residual = rel, backward_error = bw,
                                   forward_bound = fwd_abs, orthogonality = orth,
                                   norm = nA, floor = bw_floor, converged = met),
+                    evidence = r$collect_evidence())
+}
+
+## A run that returned no pair at all: an engine that hands back only what it
+## converged, after a budget too small to converge anything. Nothing was
+## computed to measure, so every row about a pair is not_checked, and the
+## convergence row counts zero against the request and fails. Non-convergence
+## comes back as a certificate here as it does everywhere else.
+eigen_certificate_empty <- function(r, requested, iterations, maxit,
+                                    stop_reason, subject) {
+  none <- "no pair was returned, so there is nothing to measure"
+  for (row in c("residual", "orthogonality", "backward error")) {
+    r$add(row, "not_checked", none, source = "computation",
+          guarantee = "identity", confidence = NA_real_)
+  }
+  r$add("target identity", "not_checked", none, source = "computation",
+        guarantee = "identity", confidence = NA_real_)
+  cert_add_convergence(r, logical(0), requested, iterations, maxit,
+                       stop_reason, "the subspace had stopped improving")
+  r$add("forward error", "not_checked", none, source = "computation",
+        guarantee = "identity", confidence = NA_real_)
+  build_certificate(r$collect(), subject = subject,
+                    values = list(residual = numeric(0), backward_error = numeric(0),
+                                  forward_bound = numeric(0), orthogonality = NA_real_,
+                                  norm = NA_real_, floor = numeric(0),
+                                  converged = logical(0)),
                     evidence = r$collect_evidence())
 }

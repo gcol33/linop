@@ -42,6 +42,14 @@ First development release. The finite object model and the expression graph.
   eigenvalues nearest a shift. It needs no adjoint.
 * `svds()` returns singular triplets by Golub-Kahan-Lanczos with full
   reorthogonalisation, locking and thick restarts.
+* `eigs(method = "primme")` and `svds(method = "primme")` run the PRIMME
+  library when the `linop.primme` engine package is installed, and
+  `method = "auto"` takes it then, falling back to the reference otherwise.
+  PRIMME restarts implicitly, so its basis stays at a size of its own choosing
+  whatever the problem. The reported values are Rayleigh quotients measured on
+  `A` and the certificate is the same whichever engine ran; its `dispatch`
+  lists every engine considered and why each was taken or passed over.
+  `options(linop.backend_priority = c(primme = -1))` prefers the reference.
 * Every result carries a certificate: what residual was reached, what backward
   error it implies, and what argument establishes it. `target identity` is
   `not_checked`, because a residual does not say which eigenvalue was found.
@@ -107,6 +115,7 @@ First development release. The finite object model and the expression graph.
 ## Notes
 
 * No `Imports` and no compiled code. `Matrix` is suggested and is used for
-  sparse leaves and `as_sparse()`.
+  sparse leaves and `as_sparse()`. The PRIMME engine is compiled and lives in
+  the separate `linop.primme` package, so installing `linop` compiles nothing.
 * R 4.4.0 is the floor, set by `crossprod()` and `tcrossprod()` becoming S3
   generic.

@@ -189,7 +189,8 @@ test_that("svds refuses what it is not defined for", {
   expect_error(svds(A, k = n + 1L), "exceeds")
   expect_error(svds(A, k = 2, which = "largest_algebraic"), "does not take which")
   expect_error(svds(A, k = 2, ncv = 2L), "must exceed k")
-  expect_error(svds(A, k = 2, method = "lanczos"), "'auto' or 'golub-kahan'")
+  expect_error(svds(A, k = 2, method = "lanczos"),
+               "method is one of 'auto', 'golub-kahan', 'primme'")
 })
 
 test_that("svds is not eigs on the Gram operator", {
