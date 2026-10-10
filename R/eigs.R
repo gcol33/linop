@@ -11,7 +11,7 @@
 ## requirement, and that is a decision rather than an omission. Every other
 ## dispatcher in the package that applies one has somewhere to fall back to: auto
 ## refuses CG and takes MINRES, refuses MINRES and takes GMRES. Here there is one
-## method and no non-hermitian fallback until Arnoldi arrives with the backend, so
+## method and no non-hermitian fallback until Arnoldi is written, so
 ## a minimum would not select between methods, it would only refuse to run. The
 ## declaration is carried into the certificate instead: the forward-error row
 ## records it in depends_on, so a bound resting on a bare user_declaration fails
@@ -65,14 +65,25 @@ SIGMA_SELECT <- "LM"
 #' @param B Reserved for the generalized problem `A x = lambda B x`, which is not
 #'   in this version.
 #' @param tol Convergence tolerance on the backward error
-#'   `||A x - mu x|| / (||A|| ||x||)`.
-#' @param maxit Total Lanczos steps across all restarts.
-#' @param ncv Subspace size per restart. Storage is `ncv` vectors.
+#'   `||A x - mu x|| / (||A|| ||x||)`. `"primme"` also holds each pair to the
+#'   relative residual `||A x - mu x|| / (|mu| ||x||)`, the certificate's
+#'   `residual` row, wherever `|mu|` is above the arithmetic floor.
+#' @param maxit Budget of applies across all restarts, of the operator the
+#'   iteration runs on: `A`, or under `sigma` the inner solve.
+#' @param ncv Subspace size per restart. Storage is `ncv` vectors. `NULL`
+#'   takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"`, and
+#'   PRIMME's own basis size for `"primme"`.
 #' @param v0 Starting vector, or `NULL` for a seeded random one.
 #' @param seed Seed for the starting vector. The caller's random stream is
 #'   restored afterwards.
-#' @param method `"auto"` or `"lanczos"`. There is one method in this version and
-#'   `"auto"` resolves to it, recording the reason in the certificate.
+#' @param method `"auto"`, `"lanczos"` or `"primme"`. `"lanczos"` is the
+#'   reference implementation in this package. `"primme"` is the PRIMME library,
+#'   available when the `linop.primme` package is installed, which restarts
+#'   implicitly and so keeps a basis of fixed small size. `"auto"` takes PRIMME
+#'   when it is available and Lanczos otherwise; the certificate's `dispatch`
+#'   records every engine considered and why. Whichever runs, the reported
+#'   values are Rayleigh quotients measured on `A` and the certificate is the
+#'   same.
 #' @param inner Arguments for the inner solve when `sigma` is given, such as
 #'   `method` or `tol`.
 #' @param section Arguments for the truncation, when `A` is an operator on a
@@ -136,15 +147,12 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
     stopf(paste0("eigs() does not take B in this version.\n",
                  "  A x = lambda B x is Lanczos in the B inner product, which is a different\n",
                  "  recurrence rather than a flag on this one: every inner product changes and a\n",
-                 "  solve against B enters each step. It arrives with the backend of section 3."))
+                 "  solve against B enters each step."))
   }
   require_capability(A, "hermitian", "eigs")
-  if (!is_scalar_string(method) || !method %in% c("auto", "lanczos")) {
-    stopf("method is 'auto' or 'lanczos'; Arnoldi for a non-hermitian operator arrives with the backend")
-  }
   which_code <- normalise_which(which, EIGEN_WHICH, "eigs")
-  s <- eigen_setup(A, k, ncv, maxit, "eigs", n)
-  k <- s$k; ncv <- s$ncv; maxit <- s$maxit
+  s <- eigen_setup(A, k, maxit, "eigs", n)
+  k <- s$k; maxit <- s$maxit
 
   ## The operator the recurrence runs on, which is A itself unless a shift makes
   ## it the solve. Selection happens on that operator's spectrum; measurement
@@ -152,7 +160,6 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   if (is.null(sigma)) {
     Op <- A
     sel <- which_code
-    reason <- "hermitian operator, Lanczos with full reorthogonalisation"
   } else {
     if (!identical(which, "largest")) {
       stopf(paste0("sigma and which cannot both be given.\n",
@@ -162,10 +169,23 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
     }
     Op <- shift_invert_operator(A, sigma, inner)
     sel <- SIGMA_SELECT
-    reason <- sprintf("hermitian operator, Lanczos on (A - %g I)^-1", sigma)
   }
 
-  run <- lanczos_core(Op, A, k, sel, tol, maxit, ncv, v0, seed)
+  ## Which engine runs the recurrence. Every engine returns the same thing, the
+  ## pairs with their Rayleigh quotients and residuals measured on A, so nothing
+  ## below this line knows which one ran.
+  pick <- select_backend("eigs_hermitian", A,
+                         list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv,
+                              interior = sel %in% c("LM", "SM")),
+                         method, "eigs")
+  ncv <- eigen_ncv(ncv %||% pick$backend$default_ncv(A, k), k, n)
+  run <- pick$backend$run(Op, A, list(k = k, sel = sel, tol = tol, maxit = maxit,
+                                      ncv = ncv, v0 = v0, seed = seed,
+                                      floor_const = floor_const), pick$engine)
+  label <- if (is.null(sigma)) pick$backend$label
+           else sprintf("%s on (A - %g I)^-1", pick$backend$label, sigma)
+  chosen <- if (is.null(sigma)) pick$backend$name
+            else paste(pick$backend$name, "shift-invert")
 
   ## Which certificate the result carries is the node type's to say. A finite
   ## section answers a question about the operator underneath it, so its rows are
@@ -177,13 +197,12 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   cert <- (get_node(A$node)$certify %||% eigen_certify)(ctx)
 
   new_eigen_result(values = run$values, vectors = run$vectors,
-                   certificate = cert, k = k, which = which,
-                   method = if (is.null(sigma)) "lanczos" else "lanczos shift-invert",
+                   certificate = cert, k = k, which = which, method = chosen,
                    iterations = run$steps, maxit = maxit, rounds = run$rounds,
                    converged = cert$values$converged, residuals = run$residuals,
-                   dispatch = list(requested = method,
-                                   chosen = if (is.null(sigma)) "lanczos" else "lanczos shift-invert",
-                                   reason = reason))
+                   dispatch = backend_dispatch(method, pick,
+                                               paste("hermitian operator,", label)),
+                   engine = run$engine)
 }
 
 ## The default: the eigenpair certificate, on the operator the run measured

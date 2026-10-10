@@ -54,13 +54,21 @@
 #'   because a singular value is non-negative.
 #' @param tol Convergence tolerance on the backward error of the augmented
 #'   eigenpair.
-#' @param maxit Total bidiagonalisation steps across all restarts.
-#' @param ncv Subspace size per restart. Storage is `ncv` vectors of each length.
+#' @param maxit Total applies of the operator, in either mode, across all
+#'   restarts.
+#' @param ncv Subspace size per restart. Storage is `ncv` vectors of each
+#'   length. `NULL` takes the engine's default.
 #' @param v0 Starting vector in the domain, or `NULL` for a seeded random one.
+#'   `"golub-kahan"` only.
 #' @param seed Seed for the starting vector. The caller's random stream is
 #'   restored afterwards.
-#' @param method `"auto"` or `"golub-kahan"`. There is one method in this version
-#'   and `"auto"` resolves to it, recording the reason in the certificate.
+#' @param method `"auto"`, `"golub-kahan"` or `"primme"`. `"golub-kahan"` is the
+#'   reference implementation in this package; `"primme"` is the PRIMME library,
+#'   available when the `linop.primme` package is installed. `"auto"` takes
+#'   PRIMME when it is available and Golub-Kahan otherwise, and the
+#'   certificate's `dispatch` records every engine considered and why. The
+#'   reported singular values are Rayleigh quotients `Re(u^H A v)` of the
+#'   returned unit vectors, measured on `A`, whichever engine ran.
 #' @param floor_const `c` in the arithmetic floor of the certificate.
 #' @param norm_control Arguments for the `||A||` estimate.
 #' @return An object of class `linop_svd`, with `d`, `u`, `v` and the
@@ -84,14 +92,17 @@ svds <- function(A, k, which = "largest", tol = 1e-10, maxit = NULL,
                  "  supplying only a forward action has no singular triplets reachable here.\n",
                  "  Supply adjoint = to linop()."))
   }
-  if (!is_scalar_string(method) || !method %in% c("auto", "golub-kahan")) {
-    stopf("method is 'auto' or 'golub-kahan'")
-  }
   which_code <- normalise_which(which, SVD_WHICH, "svds")
-  s <- eigen_setup(A, k, ncv, maxit, "svds", min(m, n))
-  k <- s$k; ncv <- s$ncv; maxit <- s$maxit
+  s <- eigen_setup(A, k, maxit, "svds", min(m, n))
+  k <- s$k; maxit <- s$maxit
 
-  run <- gkl_core(A, k, which_code, tol, maxit, ncv, v0, seed)
+  pick <- select_backend("svds", A, list(k = k, which = which_code, v0 = !is.null(v0),
+                                    tol = tol, ncv = ncv),
+                         method, "svds")
+  ncv <- eigen_ncv(ncv %||% pick$backend$default_ncv(A, k), k, min(m, n))
+  run <- pick$backend$run(A, list(k = k, sel = which_code, tol = tol, maxit = maxit,
+                                 ncv = ncv, v0 = v0, seed = seed,
+                                 floor_const = floor_const), pick$engine)
 
   ## The augmented eigenproblem the certificate is read from. z is unit because u
   ## and v are, so no rescaling enters the residual.
@@ -116,11 +127,11 @@ svds <- function(A, k, which = "largest", tol = 1e-10, maxit = NULL,
                             stop_reason = run$stop_reason, subject = "svd")
 
   new_svd_result(d = run$d, u = run$u, v = run$v, certificate = cert,
-                 k = k, which = which, method = "golub-kahan",
+                 k = k, which = which, method = pick$backend$name,
                  iterations = run$steps, maxit = maxit, rounds = run$rounds,
                  converged = cert$values$converged, residuals = run$residuals,
-                 dispatch = list(requested = method, chosen = "golub-kahan",
-                                 reason = "Golub-Kahan-Lanczos with full reorthogonalisation"))
+                 dispatch = backend_dispatch(method, pick, pick$backend$label),
+                 engine = run$engine)
 }
 
 ## The hermitian operator whose eigenpairs are the singular triplets. Hermitian

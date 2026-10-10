@@ -6,8 +6,13 @@
 ## restarts implicitly: a round builds a subspace of at most `ncv` vectors, keeps
 ## all of them, extracts, locks whatever converged and starts the next round from
 ## what did not. That is O(ncv) vectors of storage and O(ncv^2 n) work in the
-## orthogonalisation, which is the price of not having an implicit restart, and it
-## is the gap `linop.primme` closes in Phase 3.
+## orthogonalisation, which is the price of not having an implicit restart.
+## method = "primme" restarts implicitly, which bounds its basis at a size of its
+## own choosing rather than removing the orthogonalisation: it still
+## orthogonalises every new vector against that basis, and recomputes the Ritz
+## vectors and residuals every iteration rather than at a restart.
+## dev_notes/primme-and-the-basis-that-is-bounded-not-removed.md has the
+## measurements.
 ##
 ## What is not reference-grade about them is the certificate, which is the same
 ## object every solver in the package returns and rests on the same measurements.
@@ -133,9 +138,10 @@ default_ncv <- function(A, k) {
 }
 
 ## The preamble both verbs share: the operator is a linop of the right shape, the
-## number of pairs asked for fits inside it, and the subspace is wide enough to
-## hold them and the budget is positive.
-eigen_setup <- function(A, k, ncv, maxit, verb, dim_limit) {
+## number of pairs asked for fits inside it, and the budget is positive. The
+## subspace is checked separately, once the engine is known, because its default
+## is the engine's.
+eigen_setup <- function(A, k, maxit, verb, dim_limit) {
   if (!is_linop(A)) stopf("%s() expects a linop", verb)
   require_finite_dim(A, verb)
   k <- as.integer(k)
@@ -143,7 +149,16 @@ eigen_setup <- function(A, k, ncv, maxit, verb, dim_limit) {
   if (k > dim_limit) {
     stopf("k = %d exceeds the %d pairs this operator has", k, dim_limit)
   }
-  ncv <- as.integer(ncv %||% default_ncv(A, k))
+  maxit <- as.integer(maxit %||% max(300L, 20L * k))
+  if (is.na(maxit) || maxit < 1L) stopf("maxit must be a positive integer")
+  list(k = k, maxit = maxit)
+}
+
+## The subspace a round may occupy: the caller's, or the engine's default, which
+## for an engine that sizes its own basis is NULL and passes through unchecked.
+eigen_ncv <- function(ncv, k, dim_limit) {
+  if (is.null(ncv)) return(NULL)
+  ncv <- as.integer(ncv)
   if (is.na(ncv) || ncv < k) {
     stopf("ncv = %d cannot hold %d pairs", ncv, k)
   }
@@ -152,39 +167,40 @@ eigen_setup <- function(A, k, ncv, maxit, verb, dim_limit) {
   ## since the k-1 already locked take k-1 of them. Asking for the whole spectrum
   ## is the one case where that is not a mistake: there one round spans the space.
   if (ncv <= k && k < dim_limit) {
-    stopf(paste0("ncv must exceed k; a subspace of exactly %d leaves the last pair no\n",
+    stopf(paste0("ncv must exceed k; a subspace of exactly %d leaves the last pair no
+",
                  "  direction to converge in once the other %d are locked"), k, k - 1L)
   }
-  maxit <- as.integer(maxit %||% max(300L, 20L * k))
-  if (is.na(maxit) || maxit < 1L) stopf("maxit must be a positive integer")
-  list(k = k, ncv = ncv, maxit = maxit)
+  ncv
 }
 
 ## --------------------------------------------------------------- the results
 
+## engine is what an external engine reported about its own run (its counters
+## and the parameters it settled on), or NULL for the reference.
 new_eigen_result <- function(values, vectors, certificate, k, which, method,
                              iterations, maxit, rounds, converged, residuals,
-                             dispatch = NULL) {
+                             dispatch = NULL, engine = NULL) {
   certificate$dispatch <- dispatch
   structure(list(values = values, vectors = vectors, certificate = certificate,
                  k = k, which = which, method = method,
                  iterations = iterations, maxit = maxit,
                  restarts = max(0L, rounds - 1L),
                  nconv = sum(converged), converged = converged,
-                 residuals = residuals),
+                 residuals = residuals, engine = engine),
             class = "linop_eigen")
 }
 
 new_svd_result <- function(d, u, v, certificate, k, which, method,
                            iterations, maxit, rounds, converged, residuals,
-                           dispatch = NULL) {
+                           dispatch = NULL, engine = NULL) {
   certificate$dispatch <- dispatch
   structure(list(d = d, u = u, v = v, certificate = certificate,
                  k = k, which = which, method = method,
                  iterations = iterations, maxit = maxit,
                  restarts = max(0L, rounds - 1L),
                  nconv = sum(converged), converged = converged,
-                 residuals = residuals),
+                 residuals = residuals, engine = engine),
             class = "linop_svd")
 }
 

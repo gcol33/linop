@@ -39,19 +39,30 @@ package's own solvers. `which` does not apply and passing both is an error.}
 in this version.}
 
 \item{tol}{Convergence tolerance on the backward error
-`||A x - mu x|| / (||A|| ||x||)`.}
+`||A x - mu x|| / (||A|| ||x||)`. `"primme"` also holds each pair to the
+relative residual `||A x - mu x|| / (|mu| ||x||)`, the certificate's
+`residual` row, wherever `|mu|` is above the arithmetic floor.}
 
-\item{maxit}{Total Lanczos steps across all restarts.}
+\item{maxit}{Budget of applies across all restarts, of the operator the
+iteration runs on: `A`, or under `sigma` the inner solve.}
 
-\item{ncv}{Subspace size per restart. Storage is `ncv` vectors.}
+\item{ncv}{Subspace size per restart. Storage is `ncv` vectors. `NULL`
+takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"`, and
+PRIMME's own basis size for `"primme"`.}
 
 \item{v0}{Starting vector, or `NULL` for a seeded random one.}
 
 \item{seed}{Seed for the starting vector. The caller's random stream is
 restored afterwards.}
 
-\item{method}{`"auto"` or `"lanczos"`. There is one method in this version and
-`"auto"` resolves to it, recording the reason in the certificate.}
+\item{method}{`"auto"`, `"lanczos"` or `"primme"`. `"lanczos"` is the
+reference implementation in this package. `"primme"` is the PRIMME library,
+available when the `linop.primme` package is installed, which restarts
+implicitly and so keeps a basis of fixed small size. `"auto"` takes PRIMME
+when it is available and Lanczos otherwise; the certificate's `dispatch`
+records every engine considered and why. Whichever runs, the reported
+values are Rayleigh quotients measured on `A` and the certificate is the
+same.}
 
 \item{inner}{Arguments for the inner solve when `sigma` is given, such as
 `method` or `tol`.}
