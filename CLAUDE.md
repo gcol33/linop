@@ -264,8 +264,9 @@ for the eigensolver alone**. Never state the second as the package's. Pure R can
 it: the one bitwise-identical route (orthogonalise against the whole preallocated basis,
 whose unused columns are zero) is measured at 0.98x, because the copy it removes and the
 extra BLAS it adds are the same quantity averaged over a round. What closes it is a GEMM
-with a leading dimension, and the loop it sits in is the one `linop.primme` deletes rather
-than compiles, so the finding argues for Phase 3 rather than for `src/`.
+with a leading dimension. **PRIMME does not delete that loop**, which the issue (#1) and
+the note assumed: it bounds the basis and keeps the orthogonalisation (section "The
+engines" below).
 
 ## Landscape — read before writing any comparative copy
 
@@ -596,9 +597,44 @@ holding what they share. The findings are in
   matrix-free method is the route to an operator with no matrix, not a faster route to a banded
   one. No cross-package comparison is in the harness, for the section 15 reasons in the note.
 
-For `linop.primme` (Phase 3), S0.3 established that PRIMME builds under Rtools45 and on
-macOS arm64, and that Windows R lacks `zheevx_`/`zhegvx_` so a shim over `zheevd_` is
-needed. The spike shim is a proof of concept with documented gaps, not shippable.
+## The engines
+
+`method = "primme"` is in, the first half of step 6.
+`dev_notes/primme-and-the-basis-that-is-bounded-not-removed.md` has the findings.
+
+- **`linop.primme` is an engine package, not an API.** Sibling directory
+  `~/Documents/dev/linop.primme`, private repo `gcol33/linop.primme`, PRIMME 3.2.3 vendored,
+  three exports only `linop` calls. CRAN's `PRIMME` was archived 2026-06-07, so it cannot be
+  suggested. Core stays at zero compiled code; `R/backends.R` names the package as data and
+  loads it on demand. It is not in `Suggests` until it is published to the r-universe.
+- **The LAPACK gap needs one routine, not two.** `-DUSE_XHEEV -DUSE_XHEGV` route PRIMME to
+  `zheev`/`zhegv`; R ships everything but `zhegv`, supplied for `itype = 1` (the only one
+  PRIMME requests) in `src/lapack_ext.c` under a private name. The S0.3 shim is retired.
+- **`R/backends.R` is section 3, internal.** `register_backend()`, `select_backend()`, the
+  candidates table in `certificate$dispatch`, `options(linop.backend_priority =)`.
+  `supports()` returns a reason, never `FALSE`. A new engine is a registry entry and a
+  `run()` returning what `lanczos_core()` returns.
+- **What crosses from an engine is vectors.** Values are Rayleigh quotients measured on `A`
+  in the adapter, so the certificate, its `depends_on` chain included, is untouched by the
+  swap. The engine's convergence test is the certificate's two rows with their floor, not
+  PRIMME's backward-error-only one.
+- **PRIMME's default preset is not reproducible** (it switches methods on timings). The
+  engine uses GD+k, bitwise reproducible. **The block is `k`**: the only configuration that
+  returned every copy of a repeated eigenvalue every time; the reference misses copies from
+  five-fold up at order 30. Costs 2.2x on the well fixture.
+- **It bounds memory and does not buy time** at the sizes measured with R's reference BLAS:
+  712 MB against 1175 to 3529 MB peak at n = 1e6, 1.27x to 3.3x faster per apply, 0.48x
+  to an answer as shipped. Do not quote a speedup for it.
+- **Agreement with the reference holds at every step tried** (1 to 40, 4.7e-16) under
+  PRIMME's Arnoldi preset, like BiCGSTAB, because both keep a full basis.
+- **Every suite but `test-backends.R` runs on the reference** through
+  `tests/testthat/helper-backend.R`, which sets `c(primme = -Inf)`, so results do not depend
+  on what is installed. `test-backends.R` names engines and skips without the package.
+- **After `load_all()` or `roxygenise()` in the engine, delete its objects before
+  installing.** pkgbuild compiles with `-UNDEBUG`, and a reused object put PRIMME's
+  `assert()`s into an installed DLL, turning an operator error into an abort.
+- **Open:** #2 (neither engine's stopping rule tests the residual row under every
+  condition), macOS and Linux builds of the engine, Gate 3.
 
 ## What comes next, and in what order
 
@@ -750,7 +786,7 @@ how it becomes computable, so `eigs()` carries no sequence-space vocabulary. `sv
 Remaining work order:
 
 5. Arnoldi.
-6. `method = "rspectra"` and `method = "primme"` as gated optional engines.
+6. `method = "rspectra"` as a gated optional engine. `method = "primme"` is done.
 
 Neither adds an export: both are `method =` values. `linop_jacobi()` rather than `linop()`
 because `linop()` is a generic dispatching on its first argument and an operator given by

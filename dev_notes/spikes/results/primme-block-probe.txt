@@ -1,0 +1,62 @@
+copies of a k-fold top eigenvalue returned, over ten seeds
+  n =  30, multiplicity 2
+    primme block 1  2 2 2 2 2 2 2 2 2 2
+    primme block k  2 2 2 2 2 2 2 2 2 2
+    lanczos         2 2 2 2 2 2 2 2 2 2
+  n =  30, multiplicity 3
+    primme block 1  3 3 3 3 3 3 3 3 3 3
+    primme block k  3 3 3 3 3 3 3 3 3 3
+    lanczos         3 3 3 3 3 3 3 3 3 3
+  n =  30, multiplicity 5
+    primme block 1  5 5 5 5 5 5 5 5 5 5
+    primme block k  5 5 5 5 5 5 5 5 5 5
+    lanczos         4 4 4 4 4 4 4 4 4 4
+  n =  30, multiplicity 8
+    primme block 1  6 7 6 7 6 6 6 6 6 6
+    primme block k  8 8 8 8 8 8 8 8 8 8
+    lanczos         3 4 4 5 4 4 5 4 3 4
+  n =  60, multiplicity 2
+    primme block 1  2 2 2 2 2 2 2 2 2 2
+    primme block k  2 2 2 2 2 2 2 2 2 2
+    lanczos         2 2 2 2 2 2 2 2 2 2
+  n =  60, multiplicity 3
+    primme block 1  3 3 3 3 3 3 3 3 3 3
+    primme block k  3 3 3 3 3 3 3 3 3 3
+    lanczos         3 3 3 3 3 3 3 3 3 3
+  n =  60, multiplicity 5
+    primme block 1  5 5 5 5 5 5 5 5 5 5
+    primme block k  5 5 5 5 5 5 5 5 5 5
+    lanczos         5 5 5 5 5 5 5 5 5 5
+  n =  60, multiplicity 8
+    primme block 1  7 7 7 7 7 7 7 7 7 7
+    primme block k  8 8 8 8 8 8 8 8 8 8
+    lanczos         6 6 6 6 6 6 6 6 6 6
+  n = 200, multiplicity 2
+    primme block 1  2 2 2 2 2 2 2 2 2 2
+    primme block k  2 2 2 2 2 2 2 2 2 2
+    lanczos         2 2 2 2 2 2 2 2 2 2
+  n = 200, multiplicity 3
+    primme block 1  3 3 3 3 3 3 3 3 3 3
+    primme block k  3 3 3 3 3 3 3 3 3 3
+    lanczos         3 3 3 3 3 3 3 3 3 3
+  n = 200, multiplicity 5
+    primme block 1  5 5 5 5 5 5 5 5 5 5
+    primme block k  5 5 5 5 5 5 5 5 5 5
+    lanczos         5 5 5 5 5 5 5 5 5 5
+  n = 200, multiplicity 8
+    primme block 1  8 8 8 8 8 8 8 8 8 8
+    primme block k  8 8 8 8 8 8 8 8 8 8
+    lanczos         8 8 8 8 8 8 8 8 8 8
+
+well, n = 1e5, k = 4 smallest algebraic, tol 1e-10
+  block 1:  115 applies, 0.78 s, 4 converged, basis 15
+  block 2:  187 applies, 2.28 s, 4 converged, basis 15
+  block 4:  156 applies, 2.95 s, 4 converged, basis 20
+
+smallest ncv PRIMME runs with, block = k (and every larger one up to 4k + 4 runs)
+  eigs LA  k = 1..8: 3 5 7 9 11 13 15 17
+  eigs SA  k = 1..8: 3 5 7 9 11 13 15 17
+  eigs LM  k = 1..8: 4 5 7 9 11 13 15 17
+  eigs SM  k = 1..8: 4 5 7 9 11 13 15 17
+  svds LM  k = 1..6: 3 5 7 9 11 13
+  svds SM  k = 1..6: 3 5 7 9 11 13
