@@ -27,8 +27,9 @@ svds(
 accepted for the same two. The algebraic forms are not separate names here
 because a singular value is non-negative.}
 
-\item{tol}{Convergence tolerance on the backward error of the augmented
-eigenpair.}
+\item{tol}{Convergence tolerance on the backward error and the relative
+residual of the augmented eigenpair, each plus the arithmetic floor: the
+certificate's `backward error` and `residual` rows.}
 
 \item{maxit}{Total applies of the operator, in either mode, across all
 restarts.}

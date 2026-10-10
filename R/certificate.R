@@ -503,6 +503,46 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
                     evidence = r$collect_evidence())
 }
 
+## The two bounds the eigenpair certificate holds a pair to, and the rule every
+## eigenvalue engine stops on, so that a run which stops has met what its
+## certificate then reads. rn is ||A x - theta x||, scale_x is ||x||, nA the
+## ||A|| the bounds are taken against.
+##
+## fl(A x - theta x) differs from the exact difference by at most a small
+## multiple of eps * (||A|| ||x|| + |theta| ||x||): Higham's bound again, with
+## theta x in the place b held. Both readings divide it by their own
+## denominator. The backward error divides the residual by ||A|| ||x||, and the
+## residual reads the eigenvalue equation relatively against the term it has to
+## cancel, |theta| ||x||. Where |theta| has itself fallen to the level of
+## eps ||A|| that ratio stops being a measure of the solve, in the way
+## ||b - A x|| stops being one for a b outside the range of A, and it is waived.
+##
+## A zero operator has every eigenvalue at zero and no scale to measure against;
+## an absolute test is the only one left, and nA is taken as 1.
+##
+## Both bounds are monotone in nA. Written as bounds on rn they are
+## tol ||A|| + f and tol |theta| + f with f = c eps (||A|| + |theta|) ||x||, both
+## growing with nA, and a smaller nA waives the residual for fewer pairs. A
+## stopping rule that holds a pair to them against a lower bound on ||A|| has
+## therefore met them against any larger estimate the certificate later uses.
+## @noRd
+eigen_pair_bounds <- function(rn, theta, nA, scale_x, tol, floor_const) {
+  eps <- .Machine$double.eps
+  if (!is.finite(nA) || nA <= 0) nA <- 1
+  floor_abs <- floor_const * eps * (nA + abs(theta)) * scale_x
+  backward <- rn / (nA * scale_x)
+  backward_floor <- floor_abs / (nA * scale_x)
+  meaningful <- abs(theta) > floor_const * eps * nA
+  residual <- ifelse(meaningful, rn / (abs(theta) * scale_x), NA_real_)
+  residual_floor <- ifelse(meaningful, floor_abs / (abs(theta) * scale_x), NA_real_)
+  backward_met <- backward <= tol + backward_floor
+  residual_met <- !meaningful | residual <= tol + residual_floor
+  list(norm = nA, backward = backward, backward_floor = backward_floor,
+       backward_met = backward_met, meaningful = meaningful,
+       residual = residual, residual_floor = residual_floor,
+       residual_met = residual_met, converged = backward_met & residual_met)
+}
+
 ## ------------------------------------------------------ the eigen certificate
 
 ## Section 6's table and 6.1. This is the third shape rather than a flag on the
@@ -576,29 +616,11 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         else max(norm_estimate$value, norm_lower_bound)
   norm_guarantee <- if (norm_is_exact) "identity" else "estimate"
   norm_conf <- if (norm_is_exact) 1 else NA_real_
-  ## A zero operator has every eigenvalue at zero and no scale to measure
-  ## against; an absolute test is the only one left.
-  if (!is.finite(nA) || nA <= 0) nA <- 1
-
-  ## ------------------------------------------------------------ floors ------
-  ## fl(A x - theta x) differs from the exact difference by at most a small
-  ## multiple of eps * (||A|| ||x|| + |theta| ||x||): Higham's bound again, with
-  ## theta x in the place b held. Both readings below divide it by their own
-  ## denominator.
-  floor_abs <- floor_const * eps * (nA + abs(theta)) * scale_x
-  bw_floor <- floor_abs / (nA * scale_x)
-
-  bw <- rn / (nA * scale_x)
-  met <- bw <= tol + bw_floor
-
-  ## The eigenvalue equation read relatively against the term it has to cancel.
-  ## Where |theta| has itself fallen to the level of eps ||A|| that ratio stops
-  ## being a measure of the solve, in the way ||b - A x|| stops being one for a b
-  ## outside the range of A, and it is reported the same way.
-  meaningful <- abs(theta) > floor_const * eps * nA
-  rel <- ifelse(meaningful, rn / (abs(theta) * scale_x), NA_real_)
-  rel_floor <- ifelse(meaningful, floor_abs / (abs(theta) * scale_x), NA_real_)
-  met_r <- !meaningful | rel <= tol + rel_floor
+  b <- eigen_pair_bounds(rn, theta, nA, scale_x, tol, floor_const)
+  nA <- b$norm
+  bw <- b$backward; bw_floor <- b$backward_floor; met <- b$backward_met
+  meaningful <- b$meaningful
+  rel <- b$residual; rel_floor <- b$residual_floor; met_r <- b$residual_met
 
   ## ------------------------------------------------------------- floor row --
   r$add("arithmetic floor", "pass",
@@ -653,7 +675,7 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         source = "computation", guarantee = "identity", confidence = NA_real_)
 
   ## ------------------------------------------------------- convergence row --
-  cert_add_convergence(r, met, requested, iterations, maxit, stop_reason,
+  cert_add_convergence(r, b$converged, requested, iterations, maxit, stop_reason,
                        "the subspace had stopped improving")
 
   ## ----------------------------------------------------- forward error row --
@@ -677,7 +699,7 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   build_certificate(r$collect(), subject = subject,
                     values = list(residual = rel, backward_error = bw,
                                   forward_bound = fwd_abs, orthogonality = orth,
-                                  norm = nA, floor = bw_floor, converged = met),
+                                  norm = nA, floor = bw_floor, converged = b$converged),
                     evidence = r$collect_evidence())
 }
 

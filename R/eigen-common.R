@@ -131,6 +131,19 @@ eigen_random_vector <- function(n, dtype, seed, round) {
 ## subspace by the ordinary rule. dev_notes/spikes/section-ncv-probe.R.
 SECTION_NCV_MIN <- 40L
 
+## Each column of X measured on A: its Rayleigh quotient x^H A x / (x^H x), the
+## norm of its residual A x - mu x relative to ||x||, and the larger of two
+## lower bounds on ||A|| read off the same applies, ||A x|| / ||x|| and |mu|,
+## which is a Rayleigh quotient and so lies inside the spectrum.
+eigen_measure <- function(A, X) {
+  AX <- linop_apply(A, X, "N")
+  xn <- col_norms(X)
+  scale_x <- ifelse(xn > 0, xn, 1)
+  mu <- col_dot(X, AX) / scale_x^2
+  rr <- col_norms(AX - scale_cols(X, mu)) / scale_x
+  list(mu = mu, rr = rr, anorm_lb = max(col_norms(AX) / scale_x, abs(mu)))
+}
+
 default_ncv <- function(A, k) {
   base <- max(2L * k + 1L, k + 20L)
   if (A$node == "section") base <- max(base, SECTION_NCV_MIN)

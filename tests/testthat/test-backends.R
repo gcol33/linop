@@ -89,7 +89,7 @@ test_that("an engine speaking another contract version is rejected, not attempte
     fit <- with_default_priority(eigs(A, k = 2))
     cand <- fit$certificate$dispatch$candidates
     expect_equal(cand$reason[cand$backend == "primme-old"],
-                 "linop.primme speaks contract 1.0; this linop speaks 0.9")
+                 "linop.primme speaks contract 1.1; this linop speaks 0.9")
   })
 })
 
@@ -218,6 +218,9 @@ test_that("singular triplets through primme, real and complex", {
       expect_equal(fit$nconv, 3L)
       expect_lt(max(abs(fit$d - tru)), 1e-9)
       expect_lte(triplet_backward(A, fit$d, fit$u, fit$v, max(sigma)), 1e-9)
+      ## the smallest are below ||A|| by up to 50x, where a test on the backward
+      ## error alone leaves the residual row failing
+      expect_true(cert_status(fit$certificate, "residual") %in% c("pass", "qualified"))
       expect_equal(is.complex(fit$u), dt == "complex")
     }
   }

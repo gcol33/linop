@@ -64,10 +64,11 @@ SIGMA_SELECT <- "LM"
 #'   package's own solvers. `which` does not apply and passing both is an error.
 #' @param B Reserved for the generalized problem `A x = lambda B x`, which is not
 #'   in this version.
-#' @param tol Convergence tolerance on the backward error
-#'   `||A x - mu x|| / (||A|| ||x||)`. `"primme"` also holds each pair to the
-#'   relative residual `||A x - mu x|| / (|mu| ||x||)`, the certificate's
-#'   `residual` row, wherever `|mu|` is above the arithmetic floor.
+#' @param tol Convergence tolerance. Every method holds each pair, measured on
+#'   `A`, to the backward error `||A x - mu x|| / (||A|| ||x||)` and to the
+#'   relative residual `||A x - mu x|| / (|mu| ||x||)` wherever `|mu|` is above
+#'   the arithmetic floor, each plus that floor: the certificate's
+#'   `backward error` and `residual` rows.
 #' @param maxit Budget of applies across all restarts, of the operator the
 #'   iteration runs on: `A`, or under `sigma` the inner solve.
 #' @param ncv Subspace size per restart. Storage is `ncv` vectors. `NULL`
@@ -283,7 +284,7 @@ shift_invert_operator <- function(A, sigma, inner) {
 ## Where a request fits in one round there is no restart to differ over and the
 ## two agree to the last digit, which is the control that confines the difference
 ## to this block; dev_notes/spikes/restart-comparison.R runs both.
-lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed) {
+lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
 
@@ -358,18 +359,16 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed) {
     ## Measured on A, in every case. Under a shift the recurrence has been
     ## working on a different operator entirely, and this is where that stops
     ## mattering.
-    AX <- linop_apply(A, Xr, "N")
-    xn <- col_norms(Xr)
-    scale_x <- ifelse(xn > 0, xn, 1)
-    mu <- col_dot(Xr, AX) / scale_x^2
-    rr <- col_norms(AX - scale_cols(Xr, mu)) / scale_x
+    meas <- eigen_measure(A, Xr)
+    mu <- meas$mu
+    rr <- meas$rr
+    anorm_lb <- max(anorm_lb, meas$anorm_lb)
 
-    ## Two lower bounds on ||A||, both read off applies this round was making
-    ## anyway: ||A x|| / ||x|| for every x, and |x^H A x| / ||x||^2, which is a
-    ## Rayleigh quotient and so lies inside the spectrum.
-    anorm_lb <- max(anorm_lb, max(col_norms(AX) / scale_x), max(abs(mu)))
-
-    conv <- rr <= tol * anorm_lb
+    ## A pair locks when it meets both rows of the certificate it will be read
+    ## by, the backward error and the residual, each with the arithmetic floor.
+    ## The backward error alone lets a pair with |mu| well below ||A|| lock and
+    ## then fail the residual row.
+    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const)$converged
     if (any(conv)) {
       Qv <- cbind(Qv, Xr[, conv, drop = FALSE])
       lock_theta <- c(lock_theta, theta[conv])

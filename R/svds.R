@@ -52,8 +52,9 @@
 #' @param which `"largest"` or `"smallest"`. RSpectra's `"LM"` and `"SM"` are
 #'   accepted for the same two. The algebraic forms are not separate names here
 #'   because a singular value is non-negative.
-#' @param tol Convergence tolerance on the backward error of the augmented
-#'   eigenpair.
+#' @param tol Convergence tolerance on the backward error and the relative
+#'   residual of the augmented eigenpair, each plus the arithmetic floor: the
+#'   certificate's `backward error` and `residual` rows.
 #' @param maxit Total applies of the operator, in either mode, across all
 #'   restarts.
 #' @param ncv Subspace size per restart. Storage is `ncv` vectors of each
@@ -104,27 +105,10 @@ svds <- function(A, k, which = "largest", tol = 1e-10, maxit = NULL,
                                  ncv = ncv, v0 = v0, seed = seed,
                                  floor_const = floor_const), pick$engine)
 
-  ## The augmented eigenproblem the certificate is read from. z is unit because u
-  ## and v are, so no rescaling enters the residual.
-  H <- augmented_operator(A)
-  Z <- rbind(run$u, run$v) / sqrt(2)
-
-  ## ||H||_2 = ||A||_2 exactly: the spectrum of H is the singular values of A with
-  ## both signs, plus zeros. A structural rule over an estimated child, so the
-  ## estimate underneath stays visible at the top (section 5.3).
-  inner <- do.call(norm2, c(list(A = A), norm_control))
-  norm_est <- new_norm_estimate(
-    inner$value, ev_construction(depends_on = list(inner$evidence)), inner$method,
-    sprintf("the augmented operator has the singular values of A with both signs; [%s]",
-            inner$detail))
-
-  cert <- eigen_certificate(H, run$d, Z, tol = tol, norm_estimate = norm_est,
-                            iterations = run$steps, maxit = maxit,
-                            floor_const = floor_const,
-                            norm_lower_bound = run$anorm_lb,
-                            hermitian_evidence = cape(H, "hermitian"),
-                            requested = k,
-                            stop_reason = run$stop_reason, subject = "svd")
+  cert <- svd_certificate(A, run$d, run$u, run$v, tol = tol, iterations = run$steps,
+                          maxit = maxit, floor_const = floor_const,
+                          norm_control = norm_control, norm_lower_bound = run$anorm_lb,
+                          requested = k, stop_reason = run$stop_reason)
 
   new_svd_result(d = run$d, u = run$u, v = run$v, certificate = cert,
                  k = k, which = which, method = pick$backend$name,
@@ -151,12 +135,39 @@ augmented_operator <- function(A) {
             list(apply = ap, adjoint = ap))
 }
 
+## The certificate of a set of triplets: the eigen certificate of the augmented
+## eigenproblem they are read from.
+svd_certificate <- function(A, d, u, v, tol, iterations, maxit, floor_const,
+                            norm_control, norm_lower_bound, requested, stop_reason) {
+  ## The augmented eigenproblem the certificate is read from. z is unit because u
+  ## and v are, so no rescaling enters the residual.
+  H <- augmented_operator(A)
+  Z <- rbind(u, v) / sqrt(2)
+
+  ## ||H||_2 = ||A||_2 exactly: the spectrum of H is the singular values of A with
+  ## both signs, plus zeros. A structural rule over an estimated child, so the
+  ## estimate underneath stays visible at the top (section 5.3).
+  inner <- do.call(norm2, c(list(A = A), norm_control))
+  norm_est <- new_norm_estimate(
+    inner$value, ev_construction(depends_on = list(inner$evidence)), inner$method,
+    sprintf("the augmented operator has the singular values of A with both signs; [%s]",
+            inner$detail))
+
+  eigen_certificate(H, d, Z, tol = tol, norm_estimate = norm_est,
+                    iterations = iterations, maxit = maxit,
+                    floor_const = floor_const,
+                    norm_lower_bound = norm_lower_bound,
+                    hermitian_evidence = cape(H, "hermitian"),
+                    requested = requested,
+                    stop_reason = stop_reason, subject = "svd")
+}
+
 ## The outer loop, the same shape as lanczos_core(): build, extract, measure,
 ## lock what converged, restart thickly from what did not. Two bases instead of
 ## one and two orthogonalisation sets, because a left singular vector and a right
 ## one live in different spaces and a triplet converges in both at once or not at
 ## all.
-gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed) {
+gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
   m <- A$dim[1L]; n <- A$dim[2L]
   eps <- .Machine$double.eps
 
@@ -231,7 +242,8 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed) {
     vn <- col_norms(Vr)
     anorm_lb <- max(anorm_lb, max(col_norms(AV) / ifelse(vn > 0, vn, 1)), max(sigma))
 
-    conv <- rr <= tol * anorm_lb
+    ## The augmented pair's two certificate rows, as lanczos_core() locks on.
+    conv <- eigen_pair_bounds(rr, sigma, anorm_lb, 1, tol, floor_const)$converged
     if (any(conv)) {
       Ul <- cbind(Ul, Ur[, conv, drop = FALSE])
       Vl <- cbind(Vl, Vr[, conv, drop = FALSE])
