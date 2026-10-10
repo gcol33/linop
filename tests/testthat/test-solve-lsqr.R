@@ -402,24 +402,26 @@ test_that("over 20 seeds the certificate never understates what it reports", {
 })
 
 test_that("the arithmetic floor is load-bearing on the least-squares line too", {
-  ## S0.6 for the residual, and the same statement for the optimality ratio. The
-  ## tolerance is set from what the solve actually delivered rather than guessed,
-  ## because the window the floor covers is one c eps wide and a fixed tolerance
-  ## either sits inside it or does not depending on the fixture. Halving the
-  ## achieved value puts the request strictly below what the arithmetic can
-  ## reach, which is the regime the floor exists for, and both runs are then the
-  ## same iterates certified twice.
+  ## S0.6 for the residual, and the same statement for the optimality ratio.
+  ## tol = 0 asks for an exact minimiser, which no floating-point iteration
+  ## delivers: every iterate's computed A^H r carries rounding, so the request is
+  ## below anything the run reaches and both runs are the same iterates certified
+  ## twice. A positive request near eps is not below it. Such a run stops on its
+  ## own tests at an iterate of its own, whose backward error is a fresh draw from
+  ## the rounding, and that draw lands on either side of a fraction of another
+  ## run's value depending on the BLAS. The window the floor covers is then
+  ## (0, c eps + floor_abs / ||r||], and the first expectation is that the run
+  ## lands inside it.
   f <- lsq_prescribed(40, 12, seq(1, 4, length.out = 12), seed = 28)
   A <- linop(f$A)
   set.seed(29)
   b <- matrix(stats::rnorm(40), 40, 1)
 
-  achieved <- lsqr(A, b, tol = 0, maxit = 200L)$certificate$values$backward_error
-  expect_lt(achieved, 2 * linop:::SOLVE_FLOOR_CONST * .Machine$double.eps)
+  with_floor <- lsqr(A, b, tol = 0, maxit = 200L)
+  without <- lsqr(A, b, tol = 0, maxit = 200L, floor_const = 0)
 
-  with_floor <- lsqr(A, b, tol = achieved / 2, maxit = 200L)
-  without <- lsqr(A, b, tol = achieved / 2, maxit = 200L, floor_const = 0)
-
+  expect_lt(with_floor$certificate$values$backward_error,
+            linop:::SOLVE_FLOOR_CONST * .Machine$double.eps)
   expect_identical(with_floor$x, without$x)
   expect_equal(cert_status(with_floor$certificate, "backward error"), "qualified")
   expect_equal(cert_status(with_floor$certificate, "convergence"), "pass")

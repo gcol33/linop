@@ -140,10 +140,22 @@ test_that("||A|| for the augmented operator is inherited structurally, not re-es
 })
 
 test_that("the arithmetic floor is load-bearing, on byte-identical iterates", {
+  ## tol = 1e-17 is below any residual a computed triplet reaches, so nothing
+  ## locks and both runs end where the subspace stops improving, on the same
+  ## iterates. Where that is belongs to the BLAS rather than to the floor: the
+  ## worst backward error is 3.5 eps under the reference BLAS and 15 eps under
+  ## OpenBLAS 0.3.26, whose last rounds move the second triplet from 3.2 eps to
+  ## 15 eps, against c eps (||A|| + sigma) / ||A||, which is 7.5 eps there at the
+  ## default c = 4. The statement here is that the floor alone moves the
+  ## verdict, so c is read off the run: twice the value at which the floor just
+  ## reaches the worst triplet.
   f <- lsq_prescribed(16, 8, seq(6, 1, length.out = 8), seed = 5L)
   A <- linop(f$A)
-  with_floor <- svds(A, k = 2, tol = 1e-17, maxit = 40L)
   without <- svds(A, k = 2, tol = 1e-17, maxit = 40L, floor_const = 0)
+  v <- without$certificate$values
+  c_reach <- max(v$backward_error * v$norm / (v$norm + without$d)) /
+    .Machine$double.eps
+  with_floor <- svds(A, k = 2, tol = 1e-17, maxit = 40L, floor_const = 2 * c_reach)
 
   expect_identical(with_floor$d, without$d)
   expect_identical(with_floor$u, without$u)
