@@ -225,12 +225,14 @@ test_that("columns run in lockstep are the iterates of per-column minres", {
   set.seed(11)
   B <- matrix(stats::rnorm(n * 4), n, 4)
 
-  block <- minres(A, B, tol = 1e-11)
-  for (j in seq_len(4)) {
-    one <- minres(A, B[, j, drop = FALSE], tol = 1e-11)
-    expect_identical(block$x[, j], one$x[, 1L],
-                     info = sprintf("column %d diverged from its own solve", j))
-  }
+  with_columnwise_products({
+    block <- minres(A, B, tol = 1e-11)
+    for (j in seq_len(4)) {
+      one <- minres(A, B[, j, drop = FALSE], tol = 1e-11)
+      expect_identical(block$x[, j], one$x[, 1L],
+                       info = sprintf("column %d diverged from its own solve", j))
+    }
+  })
 })
 
 ## ------------------------------------ agreement with a reference, Gate 2 --

@@ -19,6 +19,21 @@ shift_op <- function(n, dtype = "double") {
         dim = c(n, n), dtype = dtype)
 }
 
+## Evaluates `expr` with R's internal matrix product. R hands a single column to
+## dgemv and a block to dgemm, and an optimised BLAS (OpenBLAS, MKL) computes the
+## two with different kernels, so for a stored matrix (M %*% X)[, j] and
+## M %*% X[, j] differ in the last bits. The lockstep identities are statements
+## about the solvers, whose own arithmetic is column by column; on a dense fixture
+## under such a BLAS they would be statements about the BLAS. The internal
+## product forms every entry as its own dot product whatever the width of the
+## block, for %*% and crossprod alike, so a stored matrix applies to a block
+## exactly as it applies to each of its columns.
+with_columnwise_products <- function(expr) {
+  old <- options(matprod = "internal")
+  on.exit(options(old), add = TRUE)
+  expr
+}
+
 ## ------------------------------------------------- closed-form ground truth --
 ## Section 10. Each fixture below has its spectrum, or its inverse, in closed
 ## form, so a solver is checked against truth rather than against itself.

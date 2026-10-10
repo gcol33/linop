@@ -271,12 +271,14 @@ test_that("columns run in lockstep are the iterates of per-column lsqr", {
   set.seed(21)
   B <- matrix(stats::rnorm(50 * 4), 50, 4)
 
-  block <- lsqr(A, B, tol = 1e-11)
-  for (j in seq_len(4)) {
-    one <- lsqr(A, B[, j, drop = FALSE], tol = 1e-11)
-    expect_identical(block$x[, j], one$x[, 1L],
-                     info = sprintf("column %d diverged from its own solve", j))
-  }
+  with_columnwise_products({
+    block <- lsqr(A, B, tol = 1e-11)
+    for (j in seq_len(4)) {
+      one <- lsqr(A, B[, j, drop = FALSE], tol = 1e-11)
+      expect_identical(block$x[, j], one$x[, 1L],
+                       info = sprintf("column %d diverged from its own solve", j))
+    }
+  })
 })
 
 test_that("a block whose columns converge at different rates still runs in lockstep", {
@@ -288,11 +290,13 @@ test_that("a block whose columns converge at different rates still runs in locks
   B <- cbind(f$A %*% matrix(stats::rnorm(12), 12, 1),
              matrix(stats::rnorm(40), 40, 1))
 
-  block <- lsqr(A, B, tol = 1e-11)
-  for (j in 1:2) {
-    one <- lsqr(A, B[, j, drop = FALSE], tol = 1e-11)
-    expect_identical(block$x[, j], one$x[, 1L], info = sprintf("column %d", j))
-  }
+  with_columnwise_products({
+    block <- lsqr(A, B, tol = 1e-11)
+    for (j in 1:2) {
+      one <- lsqr(A, B[, j, drop = FALSE], tol = 1e-11)
+      expect_identical(block$x[, j], one$x[, 1L], info = sprintf("column %d", j))
+    }
+  })
 })
 
 ## --------------------------------------------------------------- certificate
