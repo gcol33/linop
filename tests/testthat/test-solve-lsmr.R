@@ -460,20 +460,20 @@ test_that("over 20 seeds the certificate never understates what it reports", {
 })
 
 test_that("the arithmetic floor is load-bearing on the least-squares line too", {
-  ## The tolerance is set from what the solve delivered rather than guessed,
-  ## because the window the floor covers is one c eps wide and a fixed tolerance
-  ## either sits inside it or does not depending on the fixture.
+  ## tol = 0, for the reason the LSQR suite gives: it is the one request below
+  ## everything the run reaches, so both runs are the same iterates, where a
+  ## positive request near eps ends the run at an iterate of its own whose
+  ## backward error lands on either side of it depending on the BLAS.
   f <- lsq_prescribed(40, 12, seq(1, 4, length.out = 12), seed = 28)
   A <- linop(f$A)
   set.seed(29)
   b <- matrix(stats::rnorm(40), 40, 1)
 
-  achieved <- lsmr(A, b, tol = 0, maxit = 200L)$certificate$values$backward_error
-  expect_lt(achieved, 2 * linop:::SOLVE_FLOOR_CONST * .Machine$double.eps)
+  with_floor <- lsmr(A, b, tol = 0, maxit = 200L)
+  without <- lsmr(A, b, tol = 0, maxit = 200L, floor_const = 0)
 
-  with_floor <- lsmr(A, b, tol = achieved / 2, maxit = 200L)
-  without <- lsmr(A, b, tol = achieved / 2, maxit = 200L, floor_const = 0)
-
+  expect_lt(with_floor$certificate$values$backward_error,
+            linop:::SOLVE_FLOOR_CONST * .Machine$double.eps)
   expect_identical(with_floor$x, without$x)
   expect_equal(cert_status(with_floor$certificate, "backward error"), "qualified")
   expect_equal(cert_status(with_floor$certificate, "convergence"), "pass")
