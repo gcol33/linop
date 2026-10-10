@@ -97,7 +97,7 @@ The plateau branch is real and it is rare. Sweeping `tol` on `v = 1`:
 | 1e-14 | 68 | 41 -> 68 | 3.73e-15 | target | pass |
 | 1e-15 | 73 | 41 -> 73 | 2.50e-16 | target | fail |
 | 1e-16 | 78 | 41 -> 78 | 1.23e-16 | target | fail |
-| 1e-17 | 114 | 41 -> 83 -> 93 -> 100 -> 107 -> 114 | 1.79e-16 | plateau | fail |
+| 1e-17 | 114 | 41 -> 83 -> 93 -> 100 -> 107 -> 114 | 1.33e-16 | plateau | fail |
 | 1e-18 | 97 | 41 -> 88 -> 97 | 7.43e-17 | plateau | fail |
 
 At 1e-15 and 1e-16 the search still meets its own target: the truncation term can
@@ -110,6 +110,12 @@ The 1e-17 row is where the closed form stops paying: near the plateau the ratio
 law no longer holds, so each prediction asks for a small increment and six widths
 go by before `eta` fails to improve. It is bounded and it is reported, and it is
 the regime where the answer is already at the arithmetic floor.
+
+The `eta` of that row was 1.79e-16 when first measured. Since #2 the eigensolve's
+stopping rule takes the arithmetic floor, so at a `tol` below it the last
+section's pair locks at the floor in 80 applies instead of 140, and its tail reads
+1.33e-16 at the same width; `floor_const = 0` gives back 1.79e-16. Every other
+row is unchanged.
 
 **Correction to my own first draft.** At the plateau the `truncation bound` row
 reads `qualified`, not `fail`. At `tol = 1e-18` an `eta` of 7.4e-17 is inside the

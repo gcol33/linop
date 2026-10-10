@@ -1,0 +1,27 @@
+"case","verb","method","iterations","nconv","overall","residual","backward","worst_residual","worst_backward"
+"lap80 k3 SA","eigs","lanczos",119,3,"fail","fail","pass",7.70379926181263e-10,1.91087394387513e-12
+"lap80 k3 SA","eigs","primme",301,3,"fail","fail","pass",1.46918070795955e-10,5.13800901399841e-13
+"lap60 k3 sigma=1","eigs","lanczos",23,3,"qualified","pass","pass",4.6389926911608e-15,1.05345883643727e-15
+"lap60 k3 sigma=1","eigs","primme",40,3,"fail","fail","pass",2.15928675016832e-10,4.90347767027313e-11
+"lap60 k3 sigma=2","eigs","lanczos",23,3,"qualified","pass","pass",3.37355142925385e-14,1.86803469843772e-14
+"lap60 k3 sigma=2","eigs","primme",42,3,"qualified","pass","pass",1.47781501949934e-11,7.79241135169094e-12
+"lap60 k3 SA","eigs","lanczos",95,3,"fail","fail","pass",7.49881118389781e-10,2.04310003988693e-12
+"lap60 k3 SA","eigs","primme",223,3,"fail","fail","pass",1.08615118197532e-10,5.16043690740709e-13
+"lap60 k3 LA","eigs","lanczos",94,3,"qualified","pass","pass",4.44421914933434e-11,4.44421914933434e-11
+"lap60 k3 LA","eigs","primme",183,3,"qualified","pass","pass",7.23834399492567e-11,7.20000532197045e-11
+"lap60 k4 SA ncv24","eigs","lanczos",96,4,"qualified","pass","pass",4.65423718316129e-11,5.05886723072438e-13
+"lap60 k4 SA ncv24","eigs","primme",223,4,"fail","fail","pass",3.1508742904588e-10,6.9736359967428e-13
+"lap60 k4 LA ncv24","eigs","lanczos",94,4,"qualified","pass","pass",4.21164709029155e-11,4.20327254436024e-11
+"lap60 k4 LA ncv24","eigs","primme",185,4,"qualified","pass","pass",6.81409712296903e-11,6.74653006151502e-11
+"shifted lap40 k2 LM","eigs","lanczos",76,2,"qualified","pass","pass",1.60026805946093e-11,1.60026805946093e-11
+"shifted lap40 k2 LM","eigs","primme",69,2,"qualified","pass","pass",6.41436035668041e-11,6.4143603566804e-11
+"spd40 gap k3 LA","eigs","lanczos",23,3,"qualified","pass","pass",9.7009163477438e-16,9.7009163477438e-16
+"spd40 gap k3 LA","eigs","primme",20,3,"qualified","pass","pass",6.68916090570517e-12,5.9491332838224e-12
+"spd40 k3 LA ncv12","eigs","lanczos",18,3,"qualified","pass","pass",8.3793199643533e-16,3.29586585264563e-16
+"spd40 k3 LA ncv12","eigs","primme",27,3,"qualified","pass","pass",4.26952511297038e-11,1.67934654443501e-11
+"lap400 k6 LA","eigs","lanczos",247,0,"fail","fail","fail",0.00153172446206695,0.00152973272864879
+"lap400 k6 LA","eigs","primme",300,0,"fail","fail","fail",0.00406301706350904,0.00405854039202966
+"diff81 k3 smallest","svds","golub-kahan",300,2,"fail","fail","fail",10752308733288.7,0.332626139822613
+"diff81 k3 smallest","svds","primme",300,0,"fail","not_checked","not_checked",NA,-Inf
+"diff81 k3 largest","svds","golub-kahan",258,3,"qualified","pass","pass",1.3288289071072e-11,1.3280792828072e-11
+"diff81 k3 largest","svds","primme",300,0,"fail","not_checked","not_checked",NA,-Inf

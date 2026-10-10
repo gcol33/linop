@@ -14,7 +14,7 @@
 devtools::load_all(".", quiet = TRUE)
 source("tests/testthat/helper-linop.R")
 
-simple_restart_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed) {
+simple_restart_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
   Qv <- NULL
@@ -54,14 +54,12 @@ simple_restart_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed) {
     theta <- ee$values[take]
     Xr <- run$V %*% ee$vectors[, take, drop = FALSE]
 
-    AX <- linop:::linop_apply(A, Xr, "N")
-    xn <- linop:::col_norms(Xr)
-    scale_x <- ifelse(xn > 0, xn, 1)
-    mu <- linop:::col_dot(Xr, AX) / scale_x^2
-    rr <- linop:::col_norms(AX - linop:::scale_cols(Xr, mu)) / scale_x
-    anorm_lb <- max(anorm_lb, max(linop:::col_norms(AX) / scale_x), max(abs(mu)))
+    meas <- linop:::eigen_measure(A, Xr)
+    mu <- meas$mu
+    rr <- meas$rr
+    anorm_lb <- max(anorm_lb, meas$anorm_lb)
 
-    conv <- rr <= tol * anorm_lb
+    conv <- linop:::eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const)$converged
     if (any(conv)) {
       Qv <- cbind(Qv, Xr[, conv, drop = FALSE])
       lock_theta <- c(lock_theta, theta[conv])

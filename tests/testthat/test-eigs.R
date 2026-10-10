@@ -8,10 +8,11 @@
 
 ## max ||A x - lambda x|| / (||A|| ||x||), recomputed from the operator rather
 ## than read off the certificate, against a ||A|| the fixture knows in closed
-## form. That is the quantity tol is expressed in: the run stops on
-## ||r|| <= tol * anorm_lb with anorm_lb a lower bound on ||A||, so the relative
-## backward error is at most tol and comparing an absolute residual against tol
-## would be off by a factor of ||A||.
+## form. That is one of the quantities tol is expressed in: a pair locks when
+## ||r|| <= tol * anorm_lb plus the floor, with anorm_lb a lower bound on ||A||,
+## and when ||r|| <= tol * |lambda| plus the floor, so the relative backward
+## error is at most tol and comparing an absolute residual against tol would be
+## off by a factor of ||A||.
 pair_backward <- function(A, values, vectors, anorm) {
   R <- linop_apply(A, vectors, "N") - vectors * rep(values, each = nrow(vectors))
   max(sqrt(colSums(Mod(R)^2)) / sqrt(colSums(Mod(vectors)^2))) / anorm
@@ -222,20 +223,74 @@ test_that("the forward bound records the declaration it rests on", {
     ev_declared, requirement(sources = c("theorem", "user_declaration"))))
 })
 
-test_that("the arithmetic floor is load-bearing, on byte-identical iterates", {
-  ## A tolerance below what the arithmetic can deliver. The iteration never sees
-  ## floor_const, so both runs produce the same pairs and only the certificate
-  ## differs, which is the whole claim.
+test_that("the arithmetic floor is load-bearing in the certificate, on the same pairs", {
+  ## A tolerance below what the arithmetic can deliver. The pairs one run
+  ## returned are certified twice, with the floor and without it, so only the
+  ## certificate differs, which is the whole claim.
+  M <- spd_prescribed(20, seq(10, 1, length.out = 20), seed = 4L)
+  A <- as_spd_linop(M)
+  fit <- eigs(A, k = 2, which = "largest_algebraic", tol = 1e-17, maxit = 60L)
+  without <- linop:::eigen_certificate(A, fit$values, fit$vectors, tol = 1e-17,
+                                       norm_estimate = norm2(A),
+                                       iterations = fit$iterations, maxit = 60L,
+                                       floor_const = 0)
+
+  expect_equal(cert_status(fit$certificate, "backward error"), "qualified")
+  expect_equal(cert_status(without, "backward error"), "fail")
+})
+
+test_that("the stopping rule reads the floor the certificate reads", {
+  ## The same request with and without the floor. With it, the pairs lock once
+  ## they reach the arithmetic floor and the run stops converged; without it no
+  ## pair can lock and the run spends its whole budget.
   M <- spd_prescribed(20, seq(10, 1, length.out = 20), seed = 4L)
   A <- as_spd_linop(M)
   with_floor <- eigs(A, k = 2, which = "largest_algebraic", tol = 1e-17, maxit = 60L)
   without <- eigs(A, k = 2, which = "largest_algebraic", tol = 1e-17, maxit = 60L,
                   floor_const = 0)
 
-  expect_identical(with_floor$values, without$values)
-  expect_identical(with_floor$vectors, without$vectors)
-  expect_equal(cert_status(with_floor$certificate, "backward error"), "qualified")
-  expect_equal(cert_status(without$certificate, "backward error"), "fail")
+  expect_equal(with_floor$nconv, 2L)
+  expect_lt(with_floor$iterations, 60L)
+  expect_equal(cert_status(with_floor$certificate, "convergence"), "pass")
+  expect_equal(without$nconv, 0L)
+  expect_equal(without$iterations, 60L)
+  expect_equal(cert_status(without$certificate, "convergence"), "fail")
+})
+
+test_that("every closed-form fixture certifies its residual row, on every engine", {
+  ## The residual row reads ||A x - mu x|| / (|mu| ||x||), which a stopping
+  ## rule on the backward error alone does not bound where |mu| is well below
+  ## ||A||. laplacian_1d(80)'s smallest values are near 1.5e-3 against
+  ## ||A|| near 4, and under a shift the engine's own residual is one on
+  ## (A - sigma I)^-1.
+  engines <- c("lanczos", if (requireNamespace("linop.primme", quietly = TRUE)) "primme")
+  for (m in engines) {
+    cases <- list(
+      list(laplacian_1d(80), list(k = 3, which = "smallest_algebraic", maxit = 600L)),
+      list(laplacian_1d(60), list(k = 3, which = "smallest_algebraic")),
+      list(laplacian_1d(60), list(k = 3, which = "largest_algebraic")),
+      list(laplacian_1d(60), list(k = 3, sigma = 1)),
+      list(laplacian_1d(60), list(k = 3, sigma = 2)),
+      list(laplacian_1d(60), list(k = 4, which = "smallest_algebraic", ncv = 24L,
+                                  maxit = 300L)),
+      list(shifted_laplacian_1d(40, 2), list(k = 2, which = "largest")),
+      list(as_spd_linop(spd_prescribed(40, c(100, 99.5, 40, 10,
+                                              seq(1, 0.1, length.out = 36)), seed = 7L)),
+           list(k = 3, which = "largest_algebraic")),
+      list(linop(hpd_prescribed(30, c(50, 20, 8, seq(2, 0.5, length.out = 27)), seed = 3L),
+                 properties = c(hermitian = TRUE, positive_definite = TRUE)),
+           list(k = 3, which = "largest_algebraic"))
+    )
+    for (i in seq_along(cases)) {
+      fit <- do.call(eigs, c(list(cases[[i]][[1]]), cases[[i]][[2]], list(method = m)))
+      lab <- sprintf("%s, case %d", m, i)
+      expect_true(cert_status(fit$certificate, "residual") %in% c("pass", "qualified"),
+                  label = lab)
+      expect_true(cert_status(fit$certificate, "backward error") %in% c("pass", "qualified"),
+                  label = lab)
+      expect_equal(fit$nconv, cases[[i]][[2]]$k, label = lab)
+    }
+  }
 })
 
 test_that("a budget too small comes back as a fail certificate, not an error", {

@@ -38,10 +38,11 @@ package's own solvers. `which` does not apply and passing both is an error.}
 \item{B}{Reserved for the generalized problem `A x = lambda B x`, which is not
 in this version.}
 
-\item{tol}{Convergence tolerance on the backward error
-`||A x - mu x|| / (||A|| ||x||)`. `"primme"` also holds each pair to the
-relative residual `||A x - mu x|| / (|mu| ||x||)`, the certificate's
-`residual` row, wherever `|mu|` is above the arithmetic floor.}
+\item{tol}{Convergence tolerance. Every method holds each pair, measured on
+`A`, to the backward error `||A x - mu x|| / (||A|| ||x||)` and to the
+relative residual `||A x - mu x|| / (|mu| ||x||)` wherever `|mu|` is above
+the arithmetic floor, each plus that floor: the certificate's
+`backward error` and `residual` rows.}
 
 \item{maxit}{Budget of applies across all restarts, of the operator the
 iteration runs on: `A`, or under `sigma` the inner solve.}

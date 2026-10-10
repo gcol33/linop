@@ -139,29 +139,30 @@ test_that("||A|| for the augmented operator is inherited structurally, not re-es
   expect_equal(row$guarantee[row$check == "arithmetic floor"], "identity")
 })
 
-test_that("the arithmetic floor is load-bearing, on byte-identical iterates", {
-  ## tol = 1e-17 is below any residual a computed triplet reaches, so nothing
-  ## locks and both runs end where the subspace stops improving, on the same
-  ## iterates. Where that is belongs to the BLAS rather than to the floor: the
-  ## worst backward error is 3.5 eps under the reference BLAS and 15 eps under
-  ## OpenBLAS 0.3.26, whose last rounds move the second triplet from 3.2 eps to
-  ## 15 eps, against c eps (||A|| + sigma) / ||A||, which is 7.5 eps there at the
-  ## default c = 4. The statement here is that the floor alone moves the
-  ## verdict, so c is read off the run: twice the value at which the floor just
-  ## reaches the worst triplet.
+test_that("the arithmetic floor is load-bearing in the certificate, on the same triplets", {
+  ## tol = 1e-17 is below any residual a computed triplet reaches. The triplets
+  ## one run returned are certified twice, with the floor and without it, so only
+  ## the certificate differs. Where the run ends belongs to the BLAS rather than
+  ## to the floor: the worst backward error is 3.5 eps under the reference BLAS
+  ## and 15 eps under OpenBLAS 0.3.26, against c eps (||A|| + sigma) / ||A||,
+  ## which is 7.5 eps there at the default c = 4. The statement here is that the
+  ## floor alone moves the verdict, so c is read off the run: twice the value at
+  ## which the floor just reaches the worst triplet.
   f <- lsq_prescribed(16, 8, seq(6, 1, length.out = 8), seed = 5L)
   A <- linop(f$A)
-  without <- svds(A, k = 2, tol = 1e-17, maxit = 40L, floor_const = 0)
-  v <- without$certificate$values
-  c_reach <- max(v$backward_error * v$norm / (v$norm + without$d)) /
+  fit <- svds(A, k = 2, tol = 1e-17, maxit = 40L, floor_const = 0)
+  v <- fit$certificate$values
+  c_reach <- max(v$backward_error * v$norm / (v$norm + fit$d)) /
     .Machine$double.eps
-  with_floor <- svds(A, k = 2, tol = 1e-17, maxit = 40L, floor_const = 2 * c_reach)
+  with_floor <- linop:::svd_certificate(A, fit$d, fit$u, fit$v, tol = 1e-17,
+                                        iterations = fit$iterations, maxit = 40L,
+                                        floor_const = 2 * c_reach,
+                                        norm_control = list(),
+                                        norm_lower_bound = 0, requested = 2L,
+                                        stop_reason = NULL)
 
-  expect_identical(with_floor$d, without$d)
-  expect_identical(with_floor$u, without$u)
-  expect_identical(with_floor$v, without$v)
-  expect_equal(cert_status(with_floor$certificate, "backward error"), "qualified")
-  expect_equal(cert_status(without$certificate, "backward error"), "fail")
+  expect_equal(cert_status(with_floor, "backward error"), "qualified")
+  expect_equal(cert_status(fit$certificate, "backward error"), "fail")
 })
 
 test_that("a budget too small comes back as a fail certificate, not an error", {

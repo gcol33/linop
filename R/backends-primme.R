@@ -12,6 +12,16 @@
 ## Re(u^H A v) for unit u and v. The residuals, and from them convergence, are
 ## measured on A by the certificate; PRIMME's own residual norms are not used.
 ##
+## An eigenvalue run stops on the rule lanczos_core() locks on, the two rows of
+## the eigenpair certificate with its floor, through the engine's convergence
+## test. Iterating on A, PRIMME's value and residual norm are already the pair's
+## on A, and ||A|| is bounded below by the larger of PRIMME's estimate and every
+## |value| seen. Under a shift they belong to (A - sigma I)^-1, whose residual
+## bounds the one on A only by ||A - sigma I|| times it, so the test applies A
+## to the vector and measures there, bounding ||A|| below as the reference does.
+## A check PRIMME makes without a vector cannot be measured on A and does not
+## converge the pair.
+##
 ## An eigenvalue run starts from the vector the reference would, so the two
 ## differ in the method and not in where they began.
 ##
@@ -74,28 +84,40 @@ primme_eigs_run <- function(Op, A, ctl, engine) {
   n <- Op$dim[1L]
   sel <- ctl$sel
   v <- eigen_start_vector(n, Op$dtype, ctl$v0, ctl$seed)
+  on_A <- identical(Op, A)
+  lb <- 0
+  convtest <- function(value, x, rnorm, anorm) {
+    if (on_A) {
+      lb <<- max(lb, anorm, abs(value))
+      return(eigen_pair_bounds(rnorm, value, lb, 1, ctl$tol, ctl$floor_const)$converged)
+    }
+    if (is.null(x)) return(FALSE)
+    meas <- eigen_measure(A, matrix(x, ncol = 1L))
+    lb <<- max(lb, meas$anorm_lb)
+    eigen_pair_bounds(meas$rr, meas$mu, lb, 1, ctl$tol, ctl$floor_const)$converged
+  }
   out <- engine$fn("primme_eigsh")(
     function(X) linop_apply(Op, X, "N"), n, ctl$k, which = sel, tol = ctl$tol,
     maxit = ctl$maxit, ncv = ctl$ncv, block = ctl$k, v0 = v,
-    complex = Op$dtype == "complex", seed = ctl$seed, floor = ctl$floor_const)
+    complex = Op$dtype == "complex", seed = ctl$seed, floor = ctl$floor_const,
+    convtest = convtest)
   if (!out$info %in% c(0L, PRIMME_EIGS_BUDGET)) primme_failure(out$info, "eigs")
 
   keep <- filled_columns(out$vectors)
   X <- out$vectors[, keep, drop = FALSE]
   theta <- out$values[keep]
 
-  ## The same two lower bounds on ||A|| the reference reads, and PRIMME's
-  ## largest |Ritz value| when the engine iterated on A itself. Under a shift it
-  ## iterated on the inverse, whose values bound nothing about A.
-  anorm_lb <- if (identical(Op, A)) out$stats$estimateLargestSVal else 0
+  ## The same two lower bounds on ||A|| the reference reads, the ones the
+  ## convergence test collected, and PRIMME's largest |Ritz value| when the
+  ## engine iterated on A itself. Under a shift it iterated on the inverse,
+  ## whose values bound nothing about A.
+  anorm_lb <- if (on_A) max(out$stats$estimateLargestSVal, lb) else lb
   mu <- rr <- numeric(0)
   if (length(keep)) {
-    AX <- linop_apply(A, X, "N")
-    xn <- col_norms(X)
-    scale_x <- ifelse(xn > 0, xn, 1)
-    mu <- col_dot(X, AX) / scale_x^2
-    rr <- col_norms(AX - scale_cols(X, mu)) / scale_x
-    anorm_lb <- max(anorm_lb, col_norms(AX) / scale_x, abs(mu))
+    meas <- eigen_measure(A, X)
+    mu <- meas$mu
+    rr <- meas$rr
+    anorm_lb <- max(anorm_lb, meas$anorm_lb)
   }
 
   ord <- ritz_order(theta, sel)
@@ -106,30 +128,56 @@ primme_eigs_run <- function(Op, A, ctl, engine) {
        engine = list(stats = out$stats, params = out$params, info = out$info))
 }
 
+## Each pair of columns of U and V, normalised, measured on A as a triplet: its
+## value Re(u^H A v), the residual of the augmented pair [u; v] / sqrt(2), which
+## combines ||A v - d u|| and ||A^H u - d v|| in the norm that vector is unit in,
+## and the lower bound on ||A|| the applies give, max ||A v|| and |d|.
+svd_measure <- function(A, U, V) {
+  U <- scale_cols(U, 1 / col_norms(U))
+  V <- scale_cols(V, 1 / col_norms(V))
+  AV <- linop_apply(A, V, "N")
+  AtU <- linop_apply(A, U, "C")
+  d <- col_dot(U, AV)
+  ru <- col_norms(AV - scale_cols(U, d))
+  rv <- col_norms(AtU - scale_cols(V, d))
+  list(U = U, V = V, d = d, rr = sqrt(ru^2 + rv^2) / sqrt(2),
+       anorm_lb = max(col_norms(AV), abs(d)))
+}
+
+## A singular value run stops on the same rule, the two rows of the eigenpair
+## certificate of the augmented pair, through the engine's convergence test.
+## PRIMME passes both vectors on the augmented problem and one on the normal
+## equations of its first stage, where the other side is the operator applied
+## to the one given; the triplet is measured on A either way.
 primme_svds_run <- function(A, ctl, engine) {
   m <- A$dim[1L]; n <- A$dim[2L]
   sel <- ctl$sel
+  lb <- 0
+  convtest <- function(value, u, v, rnorm, anorm) {
+    if (is.null(u) && is.null(v)) return(FALSE)
+    if (is.null(u)) u <- linop_apply(A, matrix(v, ncol = 1L), "N")
+    if (is.null(v)) v <- linop_apply(A, matrix(u, ncol = 1L), "C")
+    if (col_norms(as.matrix(u)) == 0 || col_norms(as.matrix(v)) == 0) return(FALSE)
+    meas <- svd_measure(A, matrix(u, ncol = 1L), matrix(v, ncol = 1L))
+    lb <<- max(lb, meas$anorm_lb)
+    eigen_pair_bounds(meas$rr, meas$d, lb, 1, ctl$tol, ctl$floor_const)$converged
+  }
   out <- engine$fn("primme_svds")(
     function(X, trans) linop_apply(A, X, if (trans) "C" else "N"),
     m, n, ctl$k, which = sel, tol = ctl$tol, maxit = ctl$maxit, ncv = ctl$ncv,
-    block = ctl$k, complex = A$dtype == "complex", seed = ctl$seed)
+    block = ctl$k, complex = A$dtype == "complex", seed = ctl$seed,
+    convtest = convtest)
   if (!out$info %in% c(0L, PRIMME_SVDS_BUDGET)) primme_failure(out$info, "svds")
 
   keep <- intersect(filled_columns(out$u), filled_columns(out$v))
   U <- out$u[, keep, drop = FALSE]
   V <- out$v[, keep, drop = FALSE]
   d <- rr <- numeric(0)
-  anorm_lb <- 0
+  anorm_lb <- lb
   if (length(keep)) {
-    U <- scale_cols(U, 1 / col_norms(U))
-    V <- scale_cols(V, 1 / col_norms(V))
-    AV <- linop_apply(A, V, "N")
-    AtU <- linop_apply(A, U, "C")
-    d <- col_dot(U, AV)
-    ru <- col_norms(AV - scale_cols(U, d))
-    rv <- col_norms(AtU - scale_cols(V, d))
-    rr <- sqrt(ru^2 + rv^2) / sqrt(2)
-    anorm_lb <- max(col_norms(AV), abs(d))
+    meas <- svd_measure(A, U, V)
+    U <- meas$U; V <- meas$V; d <- meas$d; rr <- meas$rr
+    anorm_lb <- max(anorm_lb, meas$anorm_lb)
   }
 
   ord <- ritz_order(d, sel)

@@ -616,8 +616,12 @@ holding what they share. The findings are in
   `run()` returning what `lanczos_core()` returns.
 - **What crosses from an engine is vectors.** Values are Rayleigh quotients measured on `A`
   in the adapter, so the certificate, its `depends_on` chain included, is untouched by the
-  swap. The engine's convergence test is the certificate's two rows with their floor, not
-  PRIMME's backward-error-only one.
+  swap. **Every eigenvalue engine stops on the certificate's rule**: `eigen_pair_bounds()` in
+  `R/certificate.R`, the backward error and the residual rows with their floor, read by the
+  certificate and by `lanczos_core()`, `gkl_core()` and both PRIMME adapters (as an R
+  `convtest`, measured on `A` under a shift). PRIMME's shortcut that accepts a residual at
+  most the largest already accepted is compiled out (`-DLP_CONVTEST_DECIDES`), the one change
+  to its sources. A converged run's certificate passes the residual row (#2).
 - **PRIMME's default preset is not reproducible** (it switches methods on timings). The
   engine uses GD+k, bitwise reproducible. **The block is `k`**: the only configuration that
   returned every copy of a repeated eigenvalue every time; the reference misses copies from
@@ -633,8 +637,7 @@ holding what they share. The findings are in
 - **After `load_all()` or `roxygenise()` in the engine, delete its objects before
   installing.** pkgbuild compiles with `-UNDEBUG`, and a reused object put PRIMME's
   `assert()`s into an installed DLL, turning an operator error into an abort.
-- **Open:** #2 (neither engine's stopping rule tests the residual row under every
-  condition), macOS and Linux builds of the engine, Gate 3.
+- **Open:** macOS and Linux builds of the engine, Gate 3.
 
 ## What comes next, and in what order
 

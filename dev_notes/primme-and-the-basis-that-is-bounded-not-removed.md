@@ -103,11 +103,71 @@ a pair stopping exactly there fails the certificate's residual row whenever
 `c eps (||A|| + |value|)`; without the floor the relative row is unreachable for
 a small eigenvalue and the run exhausts its budget.
 
-Under `sigma` the replacement test runs on the inverse, which bounds the residual
-on `A` by `tol ||A - sigma I||` rather than by `tol |mu|` (1.13e-10 against
-1e-10 measured). And the reference has the mirror problem: it locks on the
-backward error alone and fails the residual row on `laplacian_1d(80)`'s small end
-(7.7e-10). Both are #2; fixing the reference moves measured baselines.
+### The stopping rules test what the certificate tests (#2)
+
+Three gaps remained, each a converged run whose certificate failed the residual
+row while every value was right:
+
+- the reference locked on the backward error alone, `rr <= tol * anorm_lb`:
+  `laplacian_1d(80)`, `k = 3`, smallest, residual row 7.7e-10 against 1e-10;
+- under `sigma` the engine's test ran on `(A - sigma I)^-1`, which bounds the
+  residual on `A` by `tol ||A - sigma I||` rather than `tol |mu|`:
+  `laplacian_1d(60)`, `k = 3`, `sigma = 1`, 2.2e-10 at the default basis;
+- unshifted, PRIMME itself flags a pair converged without calling the test when
+  its residual norm is at most `stats.maxConvTol`, the largest one already
+  accepted. That shortcut is sound for one absolute threshold and wrong for a
+  threshold relative to each value: on `laplacian_1d(60)`'s three smallest the
+  third pair was accepted at 2.0e-12 and the first then returned at 2.9e-13,
+  1.09e-10 relative, never tested.
+
+One rule now decides everywhere. `eigen_pair_bounds()` in `R/certificate.R` is
+the certificate's two rows with their floor; the certificate reads it, and
+`lanczos_core()`, `gkl_core()` and both PRIMME adapters stop on it. The PRIMME
+adapters pass it to the engine as an R `convtest` (contract 1.1): iterating on
+`A` it reads PRIMME's value and residual norm, which are the pair's on `A`;
+under a shift it applies `A` to the vector and measures there; for a singular
+triplet it measures `(u, v)` on `A`, completing the side PRIMME's normal-equations
+stage does not pass with `A v` or `A^H u`. The shortcut is compiled out of
+`convergence.c` with `-DLP_CONVTEST_DECIDES`, the one change to PRIMME's sources.
+The certificate's `convergence` row and `nconv` count pairs meeting both rows,
+the same set the rule stops on. The rule takes the floor, so `floor_const` now
+reaches the iteration, and the test that asserted byte-identical iterates with
+and without it was split into a certificate-only test on one run's pairs and a
+test that the stopping rule reads the floor.
+
+`dev_notes/spikes/eigs-stopping-rule-probe.R`, before and after in
+`results/eigs-stopping-rule-{before,after}.csv`:
+
+| request | engine | before | after |
+|---|---|---|---|
+| `laplacian_1d(80)`, 3 smallest | reference | 119 applies, residual 7.7e-10, fail | 131, 4.4e-12, qualified |
+| `laplacian_1d(60)`, 3 smallest | reference | 95, 7.5e-10, fail | 107, 2.0e-12, qualified |
+| `laplacian_1d(60)`, 3 smallest | PRIMME | 223, 1.09e-10, fail | 224, 8.3e-11, qualified |
+| `laplacian_1d(60)`, 4 smallest, `ncv = 24` | PRIMME | 223, 3.2e-10, fail | 227, 8.3e-11, qualified |
+| `laplacian_1d(60)`, `sigma = 1` | PRIMME | 40, 2.2e-10, fail | 42, 1.1e-11, qualified |
+| `lsq_prescribed(30 x 20)`, 3 smallest, real | PRIMME `svds` | 159, 2.8e-09, fail | 189, 9.6e-11, qualified |
+| `lsq_prescribed(30 x 20)`, 3 smallest, complex | PRIMME `svds` | 183, 1.6e-09, fail | 209, 5.0e-11, qualified |
+
+The two `svds` rows come from `test-backends.R`'s fixture; their "before" is
+PRIMME's own singular value test with the shortcut already compiled out. Every
+other request in the probe kept its count. `laplacian_1d(80)`'s smallest
+through PRIMME at the default basis of 15 exhausts its 300 applies before and
+after; the `convergence` row now says so (2 of 3) where it read 3 of 3 beside a
+failing residual row, and `svds(diff_1d(81), k = 3, which = "smallest")` through
+the reference, also out of budget at 300, counts 1 converged where it counted 2.
+
+The baselines the notes quote were re-measured, and only one moved:
+`restart-comparison.R` (96 and 94 applies, 6 rounds), `eigs-ncv-probe.R`, the
+spectral rows of the benchmark harness, `section-ncv-probe.R`, the section width
+search (62 -> 80 -> 96 and every row of the `tol` sweep's widths), and
+`primme-agreement`, `-block`, `-variants` and the `well` and n = 1e5 `budget`
+cells of `primme-restart-probe.R` reproduce their counts exactly. The n = 1e6
+`budget` cells were not re-run; nothing converges there under either rule, and
+the rule acts only through which pairs it accepts. The one move is the `tol` sweep
+of the section note at `tol = 1e-17`, below the arithmetic: with the floor the
+final section's pair locks at the floor in 80 applies instead of running 140,
+and the tail reads 1.33e-16 instead of 1.79e-16 at the same width; with
+`floor_const = 0` the old 1.79e-16 comes back.
 
 A budget that converges nothing in `svds()` returns no triplet: PRIMME's singular
 value solver packs only converged triplets. The adapter used to read `k` columns
@@ -248,11 +308,11 @@ was said to bound, section 6.
 | CLAUDE.md | PRIMME's default method | Not reproducible run to run; the engine uses GD+k |
 | `print.linop_eigen` | printed "section n = <nconv>" on every non-section result (`x$n` partial-matched `nconv`) | fixed, `39e5763` |
 | `SECTION_NCV_MIN` | a property of finite sections | a property of the reference's eigensolve: PRIMME at a basis of 21 meets the eigensolve target the reference misses by 9.8e-3 |
+| section 4, the engine's `convTestFun` | replacing it with the certificate's rule makes PRIMME stop on that rule | PRIMME skips the test for a residual at most the largest one already accepted; the shortcut is compiled out (#2) |
 
 ## 10. Not done
 
 - macOS arm64 and Linux builds of `linop.primme`. S0.3 built PRIMME on macOS,
   not this package; Gate 3 needs all three.
 - `Suggests: linop.primme` with `Additional_repositories`, at publication.
-- #2, the stopping rules against the residual row.
 - Preconditioning and `B` through PRIMME. The registry entry declares neither.

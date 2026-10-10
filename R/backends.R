@@ -20,7 +20,7 @@
 ## reports the contract version this file was written against. A mismatch is a
 ## rejection with a reason, not an attempt.
 
-BACKEND_CONTRACT <- "1.0"
+BACKEND_CONTRACT <- "1.1"
 
 .backends <- new.env(parent = emptyenv())
 
@@ -149,7 +149,7 @@ register_backend("lanczos", "eigs_hermitian", priority = 0,
                  default_ncv = function(A, k) default_ncv(A, k),
                  run = function(Op, A, ctl, engine)
                    lanczos_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                                ctl$v0, ctl$seed))
+                                ctl$v0, ctl$seed, ctl$floor_const))
 
 register_backend("golub-kahan", "svds", priority = 0,
                  provides_label = "Golub-Kahan-Lanczos with full reorthogonalisation",
@@ -157,7 +157,7 @@ register_backend("golub-kahan", "svds", priority = 0,
                  default_ncv = function(A, k) default_ncv(A, k),
                  run = function(A, ctl, engine)
                    gkl_core(A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                            ctl$v0, ctl$seed))
+                            ctl$v0, ctl$seed, ctl$floor_const))
 
 register_backend("primme", "eigs_hermitian", priority = 100,
                  provides_label = "PRIMME with implicit restarting",
