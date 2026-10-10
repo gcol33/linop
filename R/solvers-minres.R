@@ -31,12 +31,27 @@
 ## Where this departs from CG. CG's preconditioned iterates coincide on all three
 ## sides and its recurrence residual is measured in the same norm the certificate
 ## reports, so nothing downstream depends on the preconditioner. MINRES minimises
-## ||r||_{M^-1}, which is not ||r||_2 unless M is the identity. The quantity the
-## recurrence tracks and the quantity the certificate reports are therefore
-## different quantities whenever a preconditioner is present, and the outer loop
-## is what reconciles them: the inner loop runs to a target converted into its own
-## currency by the ratio measured at the start of the round, and the decision to
-## stop is taken on a recomputed b - A x in the norm the certificate reports.
+## ||r||_{M^-1}, which is not ||r||_2 unless M is the identity, and the two are tied
+## only through the spectrum of M,
+##
+##     lambda_max(M)^(-1/2) ||r||_2 <= ||r||_{M^-1} <= lambda_min(M)^(-1/2) ||r||_2.
+##
+## The ratio between them moves anywhere in that interval as the iteration
+## proceeds, so a target in one norm is not a target in the other, and a step that
+## reduces ||r||_{M^-1} can increase ||r||_2. The recurrence therefore carries the
+## euclidean residual beside its own scalar. With x_j = x_{j-1} + phi_j d_j and
+## d_j = (v_j - delta_j d_{j-1} - eps_j d_{j-2}) / gamma_j,
+##
+##     A d_j = (A v_j - delta_j A d_{j-1} - eps_j A d_{j-2}) / gamma_j,
+##     r_j   = r_{j-1} - phi_j A d_j,
+##
+## and A v_j is the apply the step already makes, so ||r_j||_2 costs two blocks of
+## storage and no apply. The inner loop stops on it, which is the norm the caller
+## asked in, or once the round's own recurrence is exhausted (minres_recurrence()
+## says when). The updated r_j drifts from b - A x_j as CG's does, and the
+## decision to stop the solve is taken on a recomputed b - A x, as in CG; a
+## restart from that residual is what carries a solve past the accuracy one round
+## can reach.
 ##
 ## Several right-hand sides run in lockstep, as in CG. Each column carries its own
 ## Lanczos scalars, its own rotations and its own direction vectors, so the
@@ -112,7 +127,8 @@ minres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, maxit = NULL,
 
   repeat {
     ## The outer loop measures the true residual in the norm the certificate
-    ## reports; the inner loop trusts its own recurrence in the norm it minimises.
+    ## reports; the inner loop trusts the residual its recurrence carries, in the
+    ## same norm.
     R <- B - linop_apply(A, X, "N")
     rn <- col_norms(R)
     if (all(rn <= target)) break
@@ -154,9 +170,9 @@ minres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, maxit = NULL,
 ## its target or the budget runs out. Converged columns leave the active set, so
 ## the block narrows as the solve proceeds.
 ##
-## `rn` is the euclidean norm of R, measured by the caller. It is needed here only
-## to convert the caller's target into the M^-1 currency the recurrence works in;
-## without a preconditioner the conversion is the identity.
+## `rn` is the euclidean norm of R, measured by the caller, and selects the columns
+## that still have work to do. From there the columns stop on ||r_j||_2 carried
+## through the recurrence, the norm `target` is stated in.
 minres_recurrence <- function(A, X, R, rn, target, apply_precond, maxit, history,
                               symmetry_tol) {
   eps <- .Machine$double.eps
@@ -177,12 +193,9 @@ minres_recurrence <- function(A, X, R, rn, target, apply_precond, maxit, history
   P_old <- zero_block(V)
   D1 <- zero_block(U)
   D2 <- zero_block(U)
-
-  ## The recurrence minimises ||r||_{M^-1} and the caller asked in ||r||_2. The
-  ## ratio between the two is known exactly at the start of the round, for the
-  ## residual the round starts from, so the target is carried across by it and the
-  ## outer loop checks the result in the norm that was actually requested.
-  inner_target <- beta1 * (target[active] / rn[active])
+  ## A d_{j-1} and A d_{j-2}, which carry r_j in the euclidean norm.
+  AD1 <- zero_block(Ra)
+  AD2 <- zero_block(Ra)
 
   phibar <- beta1
   beta <- rep(0, length(active))
@@ -200,10 +213,11 @@ minres_recurrence <- function(A, X, R, rn, target, apply_precond, maxit, history
     V <<- V[, keep, drop = FALSE]; V_old <<- V_old[, keep, drop = FALSE]
     P_old <<- P_old[, keep, drop = FALSE]
     D1 <<- D1[, keep, drop = FALSE]; D2 <<- D2[, keep, drop = FALSE]
+    Ra <<- Ra[, keep, drop = FALSE]
+    AD1 <<- AD1[, keep, drop = FALSE]; AD2 <<- AD2[, keep, drop = FALSE]
     cs_p <<- cs_p[keep]; sn_p <<- sn_p[keep]
     cs_p2 <<- cs_p2[keep]; sn_p2 <<- sn_p2[keep]
-    phibar <<- phibar[keep]; beta <<- beta[keep]
-    inner_target <<- inner_target[keep]
+    phibar <<- phibar[keep]; beta <<- beta[keep]; beta1 <<- beta1[keep]
   }
 
   while (it < maxit && length(active)) {
@@ -249,12 +263,15 @@ minres_recurrence <- function(A, X, R, rn, target, apply_precond, maxit, history
 
     D <- scale_cols(V - scale_cols(D1, delta) - scale_cols(D2, eps_j), 1 / gsafe)
     Xa <- Xa + scale_cols(D, phi)
+    AD <- scale_cols(P - scale_cols(AD1, delta) - scale_cols(AD2, eps_j), 1 / gsafe)
+    Ra <- Ra - scale_cols(AD, phi)
 
     D2 <- D1; D1 <- D
+    AD2 <- AD1; AD1 <- AD
     U_old <- U; V_old <- V; P_old <- P
     ## beta_{j+1} = 0 leaves no direction to continue in, and the rotation above
-    ## has already set phibar to zero there, so the column is converged and the
-    ## zero vector it carries is never read again.
+    ## has already set phibar to zero there, so the column leaves on the test
+    ## below and the zero vector it carries is never read again.
     inv <- ifelse(beta_next > 0, 1 / beta_next, 0)
     U <- scale_cols(W, inv)
     V <- scale_cols(Znew, inv)
@@ -269,7 +286,15 @@ minres_recurrence <- function(A, X, R, rn, target, apply_precond, maxit, history
       hist[[length(hist) + 1L]] <- row
     }
 
-    done <- abs(phibar) <= inner_target | singular
+    ## A column leaves when the residual it carries meets the target, or when the
+    ## round has nothing left to give. |phibar| / beta_1 is the reduction of
+    ## ||r||_{M^-1} this round's recurrence claims, and below eps it claims more
+    ## than its arithmetic can deliver: the scalar goes on falling, to 1e-40 on
+    ## the spread-1e6 fixture of test-solve-minres.R, while the carried and the
+    ## true residual have both stopped. The outer loop then restarts the column
+    ## from the recomputed b - A x, which is iterative refinement on the
+    ## correction, and beta_{j+1} = 0 arrives here too, with phibar at zero.
+    done <- col_norms(Ra) <= target[active] | abs(phibar) <= eps * beta1 | singular
     if (any(done)) {
       X[, active[done]] <- Xa[, done, drop = FALSE]
       if (all(done)) { active <- active[FALSE]; break }
