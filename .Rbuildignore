@@ -10,3 +10,7 @@
 ^docs$
 ^CONTRIBUTING\.md$
 ^CODE_OF_CONDUCT\.md$
+^README\.Rmd$
+^sidecars$
+^\.run.*$
+^CITATION\.cff$
