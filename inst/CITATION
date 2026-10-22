@@ -1,0 +1,9 @@
+bibentry(
+  bibtype  = "Manual",
+  key      = "colling2026linop",
+  title    = paste0("linop: ", meta$Title),
+  author   = person("Gilles", "Colling", comment = c(ORCID = "0000-0003-3070-6066")),
+  year     = "2026",
+  note     = paste("R package version", meta$Version),
+  url      = "https://gillescolling.com/linop/"
+)
