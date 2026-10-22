@@ -277,10 +277,16 @@ singular value solver. Each result carries a certificate, read with
 `certificate()`, with the operator-norm estimate its arithmetic floor
 rests on.
 
-`eigs()` and `svds()` are labelled reference rather than production, and
-the label is about storage: a round holds its whole basis and
-orthogonalises against all of it, where a production eigensolver
-restarts implicitly. The certificate is the same object either way.
+`eigs()` and `svds()` have two engines. The reference engine in this
+package is a restarted Lanczos iteration with full reorthogonalisation,
+which holds its whole basis in each round. The
+[PRIMME](https://github.com/primme/primme) library restarts implicitly
+and keeps a basis of fixed small size; it is available when the
+companion package [linop.primme](https://github.com/gcol33/linop.primme)
+is installed, and the default `method = "auto"` then takes it. Whichever
+engine runs, the reported values are measured on the operator and the
+certificate is the same object, with a record of which engine ran and
+why.
 
 [Solving a
 system](https://gillescolling.com/linop/articles/solvers.html),
