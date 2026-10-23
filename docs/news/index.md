@@ -111,6 +111,23 @@ graph.
   2.5x for the reference engine and 1.7x for PRIMME. The small end of a
   spectrum spread over four decades needs up to 100 `n` and is left to
   `sigma` (`dev_notes/spikes/eigs-budget-sweep.R`).
+- The reference
+  [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) and
+  [`svds()`](https://gillescolling.com/linop/reference/svds.md) build
+  the projected matrix from the coefficients their reorthogonalisation
+  removes, `V^H A V` and `U^H A V` as measured, instead of the
+  tridiagonal and arrow form exact arithmetic gives after a thick
+  restart. The retained Ritz vectors are formed with a rounding error at
+  every restart, which the assumed form took as exact; at the small end
+  of a crowded spectrum that error decided convergence. The smallest
+  eigenvalues of the 1-D Laplacian of size 500 now converge for k = 1,
+  3, 5 and 10 (0, 2, 4 and 9 pairs did), the residual the run plateaus
+  at for size 1000 falls from 20.5 to 13.6 eps \|\|A\|\|, and runs that
+  converged before take the same number of applies.
+- The `enclosure` row of a finite section carries the arithmetic floor
+  at the Temple end as well as at the variational one. Both ends are
+  inequalities about the computed Rayleigh quotient, and at `n = 40` the
+  Temple half-width (2.8e-17) is below its rounding.
 - A reference run whose budget runs out in a round that locked a pair
   reports each pair once. The locked pair was also taken again from that
   round’s unconverged pairs, returning a duplicate in place of the next
