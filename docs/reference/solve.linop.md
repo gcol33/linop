@@ -1,0 +1,81 @@
+# Solve a linear system
+
+Solves \`a x = b\`. If the operator declares a capability that makes a
+direct solve available, that is used; otherwise one of the seven Krylov
+methods of the package runs. Either way the result records which
+happened, what residual was reached, and what argument establishes it.
+
+## Usage
+
+``` r
+# S3 method for class 'linop'
+solve(
+  a,
+  b,
+  method = "auto",
+  preconditioner = NULL,
+  tol = 1e-08,
+  maxit = NULL,
+  x0 = NULL,
+  details = FALSE,
+  control = list(),
+  ...
+)
+```
+
+## Arguments
+
+- a:
+
+  A \`linop\`.
+
+- b:
+
+  A vector or block of right-hand sides.
+
+- method:
+
+  \`"auto"\`, or one of \`"cg"\`, \`"minres"\`, \`"gmres"\`,
+  \`"fgmres"\`, \`"bicgstab"\`, \`"lsqr"\`, \`"lsmr"\`. Naming a method
+  is the caller asserting their own declaration and is not filtered by
+  evidence; \`"auto"\` is the package choosing, and applies each
+  method's declared evidence minimum.
+
+- preconditioner:
+
+  A \`preconditioner\`, or \`NULL\`.
+
+- tol:
+
+  Relative tolerance.
+
+- maxit:
+
+  Iteration budget. Defaults to the method's own default.
+
+- x0:
+
+  Starting iterate, or \`NULL\` for zero.
+
+- details:
+
+  Return the full solve object rather than the solution with the
+  certificate attached.
+
+- control:
+
+  A list of arguments for the chosen method, such as \`restart\` for
+  GMRES or \`conlim\` for the bidiagonal methods. A name the method does
+  not take is an error rather than being ignored.
+
+- ...:
+
+  Unused.
+
+## Value
+
+By default the solution, a vector for a vector \`b\` and a matrix
+otherwise, carrying the certificate in its \`"certificate"\` attribute.
+Arithmetic on the result drops that attribute, which is the documented
+cost of behaving like a matrix. With \`details = TRUE\`, the full
+object.

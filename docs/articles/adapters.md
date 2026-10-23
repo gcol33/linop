@@ -1,0 +1,445 @@
+# Writing an adapter
+
+If you have a class that represents a linear map, one method makes it
+work everywhere a `linop` works: in the algebra, in
+[`verify()`](https://gillescolling.com/linop/reference/verify.md), and
+in the solvers that arrive with the next phase. This vignette writes
+that method for a real operator, reads the certificate line by line, and
+then does the same job the other way, by registering a node type.
+
+## Installation
+
+``` r
+
+install.packages("pak")
+pak::pak("gcol33/linop")
+```
+
+Installing `linop` installs one package. There are no `Imports` and no
+compiled code, so there is no toolchain to have working first. `Matrix`
+sits in `Suggests` and is used for sparse leaves and
+[`as_sparse()`](https://gillescolling.com/linop/reference/as_sparse.md).
+
+R 4.4.0 or newer. The floor is set by
+[`crossprod()`](https://rdrr.io/r/base/crossprod.html) and
+[`tcrossprod()`](https://rdrr.io/r/base/crossprod.html), which became S3
+generic in R 4.4.0, and are what let one `matrixOps` method cover all
+three matrix products.
+
+## The example
+
+A circulant matrix is determined by its first column, and it is applied
+by pointwise multiplication in the Fourier domain. An n by n circulant
+costs `O(n log n)` per apply and `O(n)` to store, so it is exactly the
+sort of operator that should never be written out.
+
+``` r
+
+conv <- function(w, X) {
+  n <- length(w)
+  Y <- X
+  for (j in seq_len(ncol(X))) {
+    z <- fft(w * fft(X[, j]), inverse = TRUE) / n
+    Y[, j] <- if (is.complex(X)) z else Re(z)
+  }
+  Y
+}
+```
+
+`w` is the symbol, `fft(col1)`. Two details in that function are the
+whole contract in miniature. The loop is over the columns of a block,
+because an apply always receives a matrix. The last line preserves the
+input type: a real block gives a real result, a complex block keeps its
+imaginary part.
+
+## One method
+
+[`linop()`](https://gillescolling.com/linop/reference/linop.md) is a
+generic dispatching on its first argument. An adapter defines
+`linop.myclass()` and returns a `linop`.
+
+``` r
+
+circulant <- function(col1) structure(list(col1 = col1), class = "circulant")
+
+linop.circulant <- function(x, ...) {
+  n <- length(x$col1)
+  w <- fft(x$col1)
+  linop(
+    function(X) conv(w, X),
+    adjoint = function(X) conv(Conj(w), X),
+    dim = c(n, n),
+    cost = 15 * n * log2(n)
+  )
+}
+```
+
+In a package, that method is registered with
+`S3method(linop, circulant)` in `NAMESPACE`, which `roxygen2` writes
+from an `@export` tag on the method.
+
+That is the whole adapter. The object now behaves like a matrix:
+
+``` r
+
+C <- linop(circulant(c(1, 2, 3, 0, 0, 0)))
+C
+#> <linop> 6 x 6, double
+#>   real
+#> 
+#> fun[6 x 6]
+zapsmall(C %*% c(1, 0, 0, 0, 0, 0))
+#> [1] 1 2 3 0 0 0
+```
+
+and it composes:
+
+``` r
+
+N <- crossprod(C) + 0.1 * linop_eye(6)
+N
+#> <linop> 6 x 6, double
+#>   hermitian, symmetric, positive_semidefinite, real
+#> 
+#> sum
+#> |- product
+#> |  |- transpose
+#> |  |  `- fun[6 x 6]
+#> |  `- fun[6 x 6]
+#> `- scale by 0.1
+#>    `- I[6]
+cap(N, "hermitian")$value
+#> [1] TRUE
+```
+
+The `cost` argument is worth passing. Without it a callback leaf assumes
+the dense flop count, `2 * nrow * ncol`, which would make a fast
+operator look expensive to
+[`collapse()`](https://gillescolling.com/linop/reference/collapse.md)
+and to any future planner.
+
+``` r
+
+linop_cost(C)
+#> [1] 232.6466
+2 * 6 * 6      # what the default would have been
+#> [1] 72
+```
+
+## Reading the certificate
+
+``` r
+
+verify(C)
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> adjoint consistency            pass         computation      identity              1
+#> view identities                pass         computation      identity              1
+#> real transpose equals adjoint  pass         computation      identity              1
+#> linearity                      pass         computation      identity              1
+#> block consistency              pass         computation      identity              1
+#> shape and dtype                pass         computation      identity              1
+#> complex linearity              pass         computation      identity              1
+#> declared capabilities          not_checked  probe            heuristic             -
+#> purity                         pass         computation      identity              1
+#> gemm agreement                 pass         computation      identity              1
+#> materialisation agreement      pass         computation      identity              1
+#> ------------------------------------------------------------------------------------------
+#> overall                        qualified   no deterministic bound on: declared capabilities
+```
+
+Eleven checks, each reporting its own status, its source and the kind of
+guarantee it gives. This is one of four shapes the certificate takes,
+and the only one about the operator rather than about a computed result;
+[`vignette("certificates")`](https://gillescolling.com/linop/articles/certificates.md)
+covers the status and evidence columns, which are the same everywhere,
+and the other three shapes.
+
+**adjoint consistency** tests `<y, A x> = <A^H y, x>` over random probe
+pairs. This is the check that earns its keep. A missing or misplaced
+conjugation is the most common bug in a hand-written operator, it
+produces an object that looks right under every casual test, and it
+makes every Krylov method built on it converge to the wrong answer. Here
+is the same adapter with [`Conj()`](https://rdrr.io/r/base/complex.html)
+dropped:
+
+``` r
+
+w <- fft(c(1, 2, 3, 0, 0, 0))
+Bad <- linop(function(X) conv(w, X),
+             adjoint = function(X) conv(w, X),   # missing the conjugation
+             dim = c(6, 6))
+verify(Bad)
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> adjoint consistency            fail         computation      identity              1
+#> view identities                pass         computation      identity              1
+#> real transpose equals adjoint  pass         computation      identity              1
+#> linearity                      pass         computation      identity              1
+#> block consistency              pass         computation      identity              1
+#> shape and dtype                pass         computation      identity              1
+#> complex linearity              pass         computation      identity              1
+#> declared capabilities          not_checked  probe            heuristic             -
+#> purity                         pass         computation      identity              1
+#> gemm agreement                 pass         computation      identity              1
+#> materialisation agreement      pass         computation      identity              1
+#> ------------------------------------------------------------------------------------------
+#> overall                        fail   no deterministic bound on: declared capabilities
+#> 
+#> failures:
+#>   adjoint consistency: max relative gap 3.652e+00
+```
+
+**view identities** checks that `adjoint(t(A))`, `t(adjoint(A))` and
+`adjoint(Conj(A))` act as they must. **real transpose equals adjoint**
+appears only for a real operator, and asserts both that the two act
+alike and that they remain distinct nodes.
+
+**linearity** tests `A(a x1 + b x2) = a A x1 + b A x2` with complex
+coefficients when the operator is complex. It is also what catches an
+adaptive solve that has been wrapped as an operator.
+
+**block consistency** applies a block of several columns and compares
+each output column against applying that column alone. An operator that
+treats its input as a vector passes every scalar test and fails here.
+
+**shape and dtype** applies real and complex blocks and checks the
+result shape, and that a complex input produces a complex output.
+
+**complex linearity** tests `A(x + iy) = A(x) + i A(y)`. This is the
+check that `conv()` was written to satisfy, in the line that keeps a
+complex block complex. An apply that discards the imaginary part of its
+input passes every other check in the suite, because the apply path
+promotes the real result it returned to complex before handing it back,
+which is enough to satisfy `shape and dtype`.
+
+**declared capabilities** probes anything the operator claims about
+itself. Agreement is recorded as a probe beside the declaration; a
+contradiction fails the certificate. Nothing was declared above, so the
+line reads `not_checked`.
+
+**purity** applies the same block twice and requires identical output
+and an unmodified input.
+
+**gemm agreement** checks the two-tier apply. Authors implement tier
+one, `apply(op, X, mode)`; solvers only ever call tier two,
+`alpha * op(A) X + beta * Y`, which is synthesised from tier one. This
+line confirms the synthesis matches.
+
+**materialisation agreement** compares the dense form against applying
+the operator to the columns of an identity, when the operator is small
+enough to materialise at all.
+
+The overall verdict is `pass`, `qualified` or `fail`. `qualified` means
+every check that ran passed and at least one did not run, so the
+certificate above is qualified only because nothing was declared to
+probe.
+
+``` r
+
+cert <- verify(C)
+cert$overall
+#> [1] "qualified"
+cert$without_deterministic_bound
+#> [1] "declared capabilities"
+```
+
+The certificate is a list, so a package can test against it directly:
+
+``` r
+
+stopifnot(verify(C)$overall %in% c("pass", "qualified"))
+```
+
+## Declaring what you know
+
+If the adapter knows a property, it should say so, and then
+[`verify()`](https://gillescolling.com/linop/reference/verify.md) will
+probe it.
+
+``` r
+
+ws <- fft(c(2, -1, 0, 0, 0, -1))      # circularly symmetric kernel
+
+Sym <- linop(function(X) conv(ws, X),
+             adjoint = function(X) conv(Conj(ws), X),
+             dim = c(6, 6),
+             properties = c(symmetric = TRUE))
+verify(Sym)$probes
+#>   capability claimed gap    verdict
+#> 1  hermitian    TRUE   0 consistent
+#> 2  symmetric    TRUE   0 consistent
+```
+
+One declaration, two probe rows. A real symmetric operator is Hermitian
+by definition, so the closure applied at construction added the second
+claim and
+[`verify()`](https://gillescolling.com/linop/reference/verify.md) probed
+both.
+
+A declaration the operator does not honour is a failure rather than a
+warning:
+
+``` r
+
+wa <- fft(c(1, 2, 3, 0, 0, 0))        # the asymmetric kernel from above
+
+Liar <- linop(function(X) conv(wa, X),
+              adjoint = function(X) conv(Conj(wa), X),
+              dim = c(6, 6),
+              properties = c(symmetric = TRUE))
+verify(Liar)$probes
+#>   capability claimed      gap      verdict
+#> 1  hermitian    TRUE 9.141601 contradicted
+#> 2  symmetric    TRUE 9.173422 contradicted
+verify(Liar)$overall
+#> [1] "fail"
+```
+
+## The four modes
+
+The four modes are the BLAS convention: `N` is `A X`, `T` is `A^T X`,
+`C` is `A^H X`, `R` is `conj(A) X`. A callback leaf supplies `apply` and
+`adjoint`, and the package derives `T` and `R` from them by conjugation,
+so an adapter author implements two functions and gets four modes.
+
+That derivation is exact and it is not always the cheapest route. For a
+circulant operator the symbol of the transpose is the cyclic reversal of
+the symbol and the symbol of the adjoint is its conjugate, so each of
+the four is one multiply and the conjugation the derivation inserts is
+avoidable work. Where that matters the operator belongs in the package
+as a node type of its own, beside
+[`linop_eye()`](https://gillescolling.com/linop/reference/linop_eye.md)
+and
+[`linop_scaling()`](https://gillescolling.com/linop/reference/linop_scaling.md),
+rather than in a wrapper around a callback.
+
+Complex kernels are the case worth testing, because they exercise all
+four modes independently:
+
+``` r
+
+wz <- c(1 + 1i, 2, 0, 0, 3 - 1i, 0)
+Zc <- linop(function(X) conv(wz, X),
+            adjoint = function(X) conv(Conj(wz), X),
+            dim = c(6, 6))
+verify(Zc)$overall
+#> [1] "fail"
+```
+
+A materialisation trap worth knowing, found by running exactly this
+check on a node that built its own dense form: the first version used
+`diag(1, n)`, a real identity, and `conv()` faithfully preserved the
+input type by discarding the imaginary part of a complex operator’s own
+columns. Every other line of the certificate passed and
+`materialisation agreement` failed with a gap of 1.0. If you materialise
+by applying to an identity, build that identity in the operator’s own
+dtype.
+
+## Preconditioners carry a contract
+
+Two representations of a preconditioner are common, and mixing them is a
+recurring source of bugs: `M` approximating `A` and applied by solving
+`M z = r`, and `P` approximating `A^-1` and applied as `z = P r`. Only
+one direction exists internally, `apply_inverse`, and the two
+constructors say which one you have.
+
+``` r
+
+D <- linop_scaling(c(4, 9, 16))
+
+P1 <- as_preconditioner(D, solver = function(M, R) R / M$args$d)   # M ~ A
+P2 <- as_preconditioner_inverse(linop_scaling(1 / c(4, 9, 16)))    # P ~ A^-1
+P2
+#> <preconditioner>
+#>   side:              left
+#>   fixed:             TRUE
+#>   hermitian:         TRUE
+#>   positive_definite: TRUE
+#>   M^-H:              supplied
+```
+
+Both constructors read `hermitian` and `positive_definite` off the
+operator they were given, so a preconditioner built from a `linop`
+inherits what that operator knows.
+
+Methods declare what they require, and a preconditioner that does not
+meet the requirement is refused by name. A flexible preconditioner, one
+whose map changes between applications, breaks the short recurrence that
+conjugate gradients is built on:
+
+``` r
+
+flexible <- preconditioner(function(R) R, fixed = FALSE)
+flexible$fixed
+#> [1] FALSE
+```
+
+Passing that to CG raises an error naming `fixed` and pointing at
+`fgmres`, which is the method designed to accept it. The requirement
+table covers `cg`, `minres`, `gmres`, `fgmres`, `bicgstab`, `lsqr` and
+`lsmr`, and it is enforced at the point the preconditioner is accepted
+rather than at the point the iteration misbehaves.
+
+`side` is enforced on the same footing. FGMRES forms its update from the
+right-preconditioned basis, so it takes `side = "right"` and refuses the
+other two; the remaining methods admit more than one standard
+formulation and accept all three.
+
+## Solve objects are not operators
+
+One boundary is worth knowing before the solvers land. An object is an
+operator if and only if its action on `x` is determined without
+reference to `x`. Conjugate gradients chooses its polynomial by
+minimising over the Krylov space of the right-hand side, so an
+approximate solve is not a linear operator, and it is not a `linop`.
+
+Approximate solves are a separate class carrying a declared contract:
+whether the solve is exact, a fixed linear approximation, or variably
+inexact; whether it is fixed, input-dependent, or history-dependent;
+whether it is deterministic; whether an adjoint and an error bound are
+available. Consumers declare which contracts they accept, so an ordinary
+Arnoldi iteration cannot silently receive a history-dependent solve.
+
+[`verify()`](https://gillescolling.com/linop/reference/verify.md)
+dispatches on that class and tests the declared contract instead of
+assuming purity, and running the operator suite against one is an error
+that says why. The class is internal in this release;
+[`solve()`](https://rdrr.io/r/base/solve.html) is the public front door
+arriving with the next phase.
+
+## A checklist
+
+Before shipping an adapter:
+
+1.  [`verify()`](https://gillescolling.com/linop/reference/verify.md)
+    returns `pass` or `qualified`, on a real instance and, if the format
+    supports it, a complex one.
+
+2.  `qualified` is explained. Which check did not run, and why.
+
+3.  Declared capabilities are honoured, and `verify(x)$probes` says
+    `consistent`.
+
+4.  `cost` is passed, so the operator is not mistaken for a dense
+    matrix.
+
+5.  Blocks of width greater than one behave, which `block consistency`
+    covers.
+
+6.  The apply does not modify its input, which `purity` covers.
+
+## Where to next
+
+- [`vignette("capabilities")`](https://gillescolling.com/linop/articles/capabilities.md)
+  covers what to declare and what a solver will do with it.
+
+- [`vignette("expressions")`](https://gillescolling.com/linop/articles/expressions.md)
+  covers the cost model your `cost` function feeds.
+
+- [`vignette("certificates")`](https://gillescolling.com/linop/articles/certificates.md)
+  covers the three other shapes the certificate takes, the ones a solve
+  and a spectral computation return.
+
+- [`vignette("solvers")`](https://gillescolling.com/linop/articles/solvers.md)
+  covers the methods your adapter will be run through.

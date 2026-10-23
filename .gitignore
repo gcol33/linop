@@ -4,7 +4,6 @@
 .Ruserdata
 *.Rcheck/
 *.tar.gz
-docs/
 
 # The global ignore excludes dev_notes/ and *_plan.md. Both are governing
 # documents here and CLAUDE.md cites them, so re-include them; .Rbuildignore
