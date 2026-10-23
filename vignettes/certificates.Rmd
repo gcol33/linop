@@ -387,7 +387,7 @@ carry a dependency.
 - `vignette("solvers")` covers the methods that produce the first two shapes.
 
 - `vignette("spectral")` covers `eigs()` and `svds()`, including a result whose
-  values are exact and whose certificate reads `fail`.
+  values are exact and whose certificate reads `qualified`.
 - `vignette("capabilities")` covers evidence away from certificates, where the
   same three fields decide what a solver will accept.
 - `vignette("adapters")` covers `verify()`, the fourth shape.

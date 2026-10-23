@@ -32,7 +32,8 @@ residual of the augmented eigenpair, each plus the arithmetic floor: the
 certificate's `backward error` and `residual` rows.}
 
 \item{maxit}{Total applies of the operator, in either mode, across all
-restarts.}
+restarts. `NULL` takes `20 min(m, n)` for an `m x n` operator, the rule
+[eigs()] uses on the dimension the singular vectors are sought in.}
 
 \item{ncv}{Subspace size per restart. Storage is `ncv` vectors of each
 length. `NULL` takes the engine's default.}

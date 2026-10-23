@@ -56,7 +56,8 @@
 #'   residual of the augmented eigenpair, each plus the arithmetic floor: the
 #'   certificate's `backward error` and `residual` rows.
 #' @param maxit Total applies of the operator, in either mode, across all
-#'   restarts.
+#'   restarts. `NULL` takes `20 min(m, n)` for an `m x n` operator, the rule
+#'   [eigs()] uses on the dimension the singular vectors are sought in.
 #' @param ncv Subspace size per restart. Storage is `ncv` vectors of each
 #'   length. `NULL` takes the engine's default.
 #' @param v0 Starting vector in the domain, or `NULL` for a seeded random one.

@@ -325,6 +325,24 @@ test_that("a restarted run is not ended while its Ritz values still move", {
   expect_equal(cert_status(fit$certificate, "convergence"), "pass")
 })
 
+test_that("the default budget grows with the dimension and covers a crowded end", {
+  ## At a fixed default ncv the applies a crowded end of the spectrum needs grow
+  ## faster than n: 322 for the three largest at n = 200 and 1220 for the largest
+  ## at n = 500, both beyond a budget that does not scale with n.
+  for (case in list(list(n = 200, k = 3), list(n = 500, k = 1))) {
+    A <- laplacian_1d(case$n)
+    fit <- eigs(A, k = case$k, which = "largest_algebraic")
+    expect_equal(fit$maxit, 20L * case$n)
+    expect_equal(fit$nconv, case$k)
+    expect_gt(fit$iterations, 300L)
+    expect_equal(fit$values, rev(laplacian_1d_eigenvalues(case$n))[seq_len(case$k)],
+                 tolerance = 1e-12)
+    expect_equal(cert_status(fit$certificate, "convergence"), "pass")
+  }
+  ## a caller's budget is taken as given
+  expect_equal(eigs(laplacian_1d(50), k = 1, maxit = 77L)$maxit, 77L)
+})
+
 test_that("a budget that runs out in a round that locked returns each pair once", {
   ## The last round locks its leading pair and runs out of budget with the next
   ## one open. What is reported is the locked set followed by the open pairs, so

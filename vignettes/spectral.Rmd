@@ -88,16 +88,24 @@ ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
 ladder
 ```
 
-At `ncv = 20` the default budget of 300 applies runs out before the residuals
-reach the tolerance, and the run reports the pairs it has as unconverged. A larger
-budget recovers it:
-
-```{r ncv-budget}
-eigs(L, k = 3, which = "largest_algebraic", ncv = 20, maxit = 2000)$nconv
-```
-
 The top of the Laplacian's spectrum is tightly clustered, which is what makes a
 small subspace slow here. A well-separated spectrum needs far fewer applies.
+
+The budget `maxit` counts applies, and its default is `20 n`: twenty times what
+forming the operator column by column would cost. It grows with `n` because a
+crowded end of the spectrum gets more crowded as `n` grows, and at a fixed `ncv`
+the applies grow with it: the reference Lanczos takes 1.6 `n` for the three
+largest here and 6 `n` at `n = 2000`. At the defaults the run converges well inside it:
+
+```{r ncv-budget}
+dflt <- eigs(L, k = 3, which = "largest_algebraic")
+c(converged = dflt$nconv, applies = dflt$iterations, budget = dflt$maxit)
+```
+
+A run that stops improving ends before the budget does and says so, so a larger
+default costs time only on a run that is still converging. The far end of a
+spectrum spread over many decades is the case it does not cover; a shift near
+that end, `sigma`, is the tool there.
 
 ## What gets reported is the Rayleigh quotient
 
@@ -187,28 +195,30 @@ rbind(computed = small$d, closed_form = rev(svd(G)$d)[1:2])
 The request is not refused. What was reached is reported, and the certificate is
 where you find out whether it was enough.
 
-## A result that is right and certifies as `fail`
+## A result that is right and certifies as `qualified`
 
-This is worth meeting once, because it looks like a bug and is not:
+This is worth meeting once, because it looks like a hedge and is not:
 
-```{r fail-but-right}
+```{r qualified-but-right}
 smallest <- eigs(L, k = 3, which = "smallest_algebraic", ncv = 40)
 
 rbind(computed = smallest$values, closed_form = sort(truth)[1:3])
 smallest$certificate$overall
 ```
 
-Every value is right to the last printed digit and the certificate says `fail`.
-The reason is in which row failed:
+Every value is right to the last printed digit and the certificate says
+`qualified`. The reason is in which row is qualified:
 
-```{r fail-rows}
+```{r qualified-rows}
 smallest$certificate
 ```
 
-`backward error` passes at 1.4e-13 and `forward error`, which is a real bound
-here, passes at 5.2e-13. What failed is `residual`, which divides by `|theta|`,
-and the smallest eigenvalue of this operator is 2.4e-4. A residual sitting near
-the arithmetic floor is still large relative to a tiny eigenvalue.
+`backward error` and `forward error`, which is a real bound here, pass with room
+to spare. The row that does not is `residual`, which divides by `|theta|`, and
+the smallest eigenvalue of this operator is 2.4e-4. A residual near the
+arithmetic floor is still large relative to a tiny eigenvalue, so the pair meets
+the tolerance only once the floor is added to it, and `qualified` is the status
+that says so.
 
 `overall` is a summary of seven rows, and each row answers its own question. The
 rows are what to read. `vignette("certificates")` covers what each one measures.

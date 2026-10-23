@@ -70,7 +70,13 @@ SIGMA_SELECT <- "LM"
 #'   the arithmetic floor, each plus that floor: the certificate's
 #'   `backward error` and `residual` rows.
 #' @param maxit Budget of applies across all restarts, of the operator the
-#'   iteration runs on: `A`, or under `sigma` the inner solve.
+#'   iteration runs on: `A`, or under `sigma` the inner solve. `NULL` takes
+#'   `20 n` for an `n x n` operator, twenty times what forming it column by
+#'   column would cost. Hard ends of a spectrum need applies that grow with `n`
+#'   at a fixed `ncv` (seven times `n` for the largest eigenvalue of the 1-D
+#'   Laplacian at `n = 2000`), so the default grows with it. A run that stops
+#'   improving ends before the budget does, and a run that exhausts it returns a
+#'   `fail` certificate.
 #' @param ncv Subspace size per restart. Storage is `ncv` vectors. `NULL`
 #'   takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"`, and
 #'   PRIMME's own basis size for `"primme"`.
