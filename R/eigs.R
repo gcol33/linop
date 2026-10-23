@@ -285,8 +285,9 @@ shift_invert_operator <- function(A, sigma, inner) {
 ##
 ## Wu and Simon's thick restart keeps the wanted Ritz vectors themselves as the
 ## start of the next basis. They span an approximately invariant subspace already,
-## so the projected problem keeps them diagonal at the values they were extracted
-## with, and the arrow coupling below is all that ties them to the new directions.
+## so in exact arithmetic the projected problem keeps them diagonal at the values
+## they were extracted with and one arrow row ties them to the new directions;
+## lanczos_run() measures both rather than assuming them.
 ## Where a request fits in one round there is no restart to differ over and the
 ## two agree to the last digit, which is the control that confines the difference
 ## to this block; dev_notes/spikes/restart-comparison.R runs both.
@@ -328,8 +329,8 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     if (!is.null(keep)) {
       p <- min(ncol(keep$Y), m - 2L)
       keep <- if (p >= 1L) list(Y = keep$Y[, seq_len(p), drop = FALSE],
-                                theta = keep$theta[seq_len(p)],
-                                b = keep$b[seq_len(p)]) else NULL
+                                H = keep$H[seq_len(p), seq_len(p), drop = FALSE])
+              else NULL
     }
 
     ## The start of a round lives in the complement of what is locked. A start
@@ -354,7 +355,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     steps <- steps + run$applies
     if (run$applies == 0L) { stop_reason <- "the recurrence made no step"; break }
 
-    ## The projected problem, real and symmetric whatever the operator is.
+    ## The projected problem, hermitian, and real for a real operator.
     ee <- eigen(run$Tm, symmetric = TRUE)
     ord <- ritz_order(ee$values, sel)
     take <- ord[seq_len(min(want, run$size))]
@@ -399,12 +400,13 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
 
     ## The thick restart. Everything the round produced that was not locked is
     ## available to retain, in the order the request puts it; the wanted ones plus
-    ## about half the subspace, which is the usual setting. The coupling
-    ##
-    ##     y_i^H A v_next = beta_last * s_i[last]
-    ##
-    ## is exactly what ties each retained Ritz vector to the direction the run
-    ## ended on, and it is the only off-diagonal the retained block needs.
+    ## about half the subspace. That count is at the optimum of a fixed rule: on
+    ## laplacian_1d(2000), one largest at ncv = 21, keeping 1, 3, 5, 8, 10, 13, 16
+    ## or 19 costs 148561, 45957, 26037, 15634, 14255, 14517, 17606 or 34243
+    ## applies, and a per-round choice maximising (m - p) sqrt(gap ratio) costs
+    ## 32388. The retained block of the projected matrix is Z^H T Z, carried
+    ## rather than set to the Ritz values, and the next run measures its coupling
+    ## to the new directions instead of taking beta_last * s_i[last] for it.
     left_want <- want - sum(conv)
     avail <- setdiff(ord, take[conv])
     p <- min(length(avail), max(left_want + 3L, m %/% 2L), m - 2L)
@@ -414,10 +416,9 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
       keep <- NULL
       v <- eigen_random_vector(n, Op$dtype, seed, rounds)
     } else {
-      idx <- avail[seq_len(p)]
-      Sk <- ee$vectors[, idx, drop = FALSE]
-      keep <- list(Y = run$V %*% Sk, theta = ee$values[idx],
-                   b = run$beta_last * Sk[run$size, ])
+      Z <- ee$vectors[, avail[seq_len(p)], drop = FALSE]
+      H <- cross_adjoint(Z, run$Tm %*% Z)
+      keep <- list(Y = run$V %*% Z, H = (H + t(Conj(H))) / 2)
       v <- run$vnext
     }
   }
@@ -447,51 +448,40 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
        anorm_lb = anorm_lb, stop_reason = stop_reason)
 }
 
-## One run of the three-term recurrence, from a unit v orthogonal to the locked
-## set Q and to whatever is retained, filling a basis of at most m vectors and
-## spending at most max_applies of them on the operator.
+## One run of the recurrence, from a unit v orthogonal to the locked set Q and to
+## the retained block Y, filling a basis of at most m vectors and spending at most
+## max_applies of them on the operator. Each new direction A v_j is orthogonalised
+## against Q and then against the whole of V, and the coefficients that second
+## projection removes are kept as column j of the projected matrix,
 ##
-##     beta_j v_{j+1} = A v_j - alpha_j v_j - beta_{j-1} v_{j-1},
-##     alpha_j = <v_j, A v_j>,   beta_j = ||...||,
+##     T[1:j, j] = V[, 1:j]^H A v_j,
 ##
-## with every new direction orthogonalised against Q and against the whole of V
-## afterwards. In exact arithmetic that second step subtracts nothing; in floating
-## point it is the difference between a Lanczos basis and a set of vectors that
-## have quietly become dependent, and the projected problem cannot tell.
-##
-## The projected matrix is built here rather than reassembled afterwards, because
-## after a thick restart it is not tridiagonal. The retained block is diagonal,
-## carrying the Ritz values it was extracted with, and it couples to the rest only
-## through one row and column:
-##
-##     [ theta_1                b_1 ]
-##     [        ...             ... ]
-##     [            theta_p     b_p ]
-##     [ b_1    ...     b_p   alpha ]  ->  tridiagonal from here on
-##
-## which is why the first new step subtracts Y b rather than beta v_{j-1}. From
-## the second step the recurrence is the ordinary one again: the retained
-## directions have already been removed and full reorthogonalisation keeps them
-## removed.
-##
-## alpha is the real part of the inner product, which is the whole of it: a
-## Rayleigh quotient of a hermitian operator is real, so col_dot() rather than
-## col_cdot() is not an approximation here. The correction inside orth_against()
-## is a different matter and uses the complex product, because the coefficient
-## <v_i, w> for a general i has no reason to be real.
+## mirrored to keep it hermitian. In exact arithmetic that is Lanczos: the column
+## is (0, ..., beta_{j-1}, alpha_j), and after a thick restart the retained block
+## is diagonal with one arrow row coupling it to v_{p+1}. In floating point the
+## retained Ritz vectors are formed as V Z at every restart and carry a rounding
+## error each time, which an assumed arrow form treats as exact pairs; the
+## measured column is what they are. On the smallest end of laplacian_1d(n),
+## whose residual row needs a vector accurate to a few eps in the high-frequency
+## directions, the assumed form plateaus at a residual of 10.8 eps ||A|| at
+## n = 500 (170 restarts), 20.5 at 1000 and 30 at 2000, above the 8.4 the request
+## allows at n = 500, and the measured one at 7.2, 13.6 and 26. The plateau still
+## grows with the square root of the restart count, as independent roundings do,
+## from a lower start; an exact eigenvector evaluates to 0.5 eps ||A|| on the same
+## rows. The reorthogonalisation computes the coefficients either way, so keeping
+## them costs no apply.
 lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
   n <- nrow(v)
   eps <- .Machine$double.eps
   p <- if (is.null(keep)) 0L else ncol(keep$Y)
   cplx <- is.complex(v) || (!is.null(keep) && is.complex(keep$Y)) ||
           Op$dtype == "complex"
-  V <- matrix(if (cplx) complex(1) else 0, n, m)
-  Tm <- matrix(0, m, m)
+  zero <- if (cplx) complex(1) else 0
+  V <- matrix(zero, n, m)
+  Tm <- matrix(zero, m, m)
   if (p > 0L) {
     V[, seq_len(p)] <- keep$Y
-    Tm[cbind(seq_len(p), seq_len(p))] <- keep$theta
-    Tm[seq_len(p), p + 1L] <- keep$b
-    Tm[p + 1L, seq_len(p)] <- keep$b
+    Tm[seq_len(p), seq_len(p)] <- keep$H
   }
   V[, p + 1L] <- v
 
@@ -503,24 +493,30 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
   repeat {
     i <- i + 1L
     applies <- applies + 1L
-    vi <- V[, i, drop = FALSE]
-    W <- linop_apply(Op, vi, "N")
+    W <- linop_apply(Op, V[, i, drop = FALSE], "N")
     ## The size the direction had before anything was taken out of it, which is
     ## the scale the breakdown test is relative to. The same test GMRES makes,
     ## with the same constant, and for the same reason: what it guards is a
     ## division, and normalising by a norm at rounding level would put an
     ## overflowed vector into the basis.
     w0 <- col_norms(W)
-    a <- col_dot(vi, W)
-    Tm[i, i] <- a
-    W <- W - scale_cols(vi, a)
-    if (i == p + 1L) {
-      if (p > 0L) W <- W - keep$Y %*% matrix(keep$b, p, 1L)
-    } else {
-      W <- W - scale_cols(V[, i - 1L, drop = FALSE], Tm[i - 1L, i])
-    }
+    ## The three-term part is subtracted first, so that the projection against
+    ## the whole basis removes only what rounding and the retained block left;
+    ## what it removes is added back into the column.
+    a <- col_dot(V[, i, drop = FALSE], W)
+    W <- W - scale_cols(V[, i, drop = FALSE], a)
+    if (i > p + 1L) W <- W - scale_cols(V[, i - 1L, drop = FALSE], b)
     W <- orth_against(Q, W)
-    W <- orth_against(V[, seq_len(i), drop = FALSE], W)
+    h <- orth_project(V[, seq_len(i), drop = FALSE], W)
+    W <- h$W
+    h <- h$h[, 1L]
+    h[i] <- h[i] + a
+    if (i > p + 1L) h[i - 1L] <- h[i - 1L] + b
+    Tm[seq_len(i), i] <- h
+    Tm[i, seq_len(i)] <- Conj(h)
+    ## A Rayleigh quotient of a hermitian operator is real; the imaginary part of
+    ## the computed one is rounding.
+    Tm[i, i] <- Re(h[i])
 
     b <- col_norms(W)
     beta_last <- b
@@ -529,12 +525,11 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
     ## There is no direction left to restart from either, and vnext says so.
     if (b <= eps * w0) break
     if (i >= m || applies >= max_applies) { vnext <- W / b; break }
-    Tm[i, i + 1L] <- b
-    Tm[i + 1L, i] <- b
     V[, i + 1L] <- W / b
   }
 
-  list(V = V[, seq_len(i), drop = FALSE],
-       Tm = Tm[seq_len(i), seq_len(i), drop = FALSE],
+  Tm <- Tm[seq_len(i), seq_len(i), drop = FALSE]
+  if (!cplx) Tm <- Re(Tm)
+  list(V = V[, seq_len(i), drop = FALSE], Tm = Tm,
        size = i, applies = applies, vnext = vnext, beta_last = beta_last)
 }

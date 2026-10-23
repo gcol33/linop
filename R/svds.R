@@ -198,8 +198,8 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
       p <- min(ncol(keep$Yv), j - 2L)
       keep <- if (p >= 1L) list(Yu = keep$Yu[, seq_len(p), drop = FALSE],
                                 Yv = keep$Yv[, seq_len(p), drop = FALSE],
-                                sigma = keep$sigma[seq_len(p)],
-                                rho = keep$rho[seq_len(p)]) else NULL
+                                H = keep$H[seq_len(p), seq_len(p), drop = FALSE])
+              else NULL
     }
 
     v <- orth_against(Vl, v)
@@ -221,8 +221,7 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
     steps <- steps + run$applies
     if (run$size == 0L) { stop_reason <- "the recurrence made no step"; break }
 
-    ## The projected problem is real whatever A is, since alpha, beta and the
-    ## restart couplings are all norms. Only the two bases carry complex storage.
+    ## The projected problem, U^H A V as measured, real for a real operator.
     sv <- svd(run$Bm)
     ord <- ritz_order(sv$d, sel)
     take <- ord[seq_len(min(want, run$size))]
@@ -264,14 +263,15 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
       break
     }
 
-    ## The thick restart, in the augmented form: the retained triplets stay
-    ## diagonal in the projected matrix and couple to the direction the run ended
-    ## on through one column,
+    ## The thick restart, in the augmented form. In exact arithmetic the retained
+    ## triplets stay diagonal in the projected matrix and couple to the direction
+    ## the run ended on through one column,
     ##
     ##     u_i^H A v_next = beta_last * s_u,i[last],
     ##
     ## which follows from A^H U = V B^H + beta_last v_next e^H and v_next being
-    ## orthogonal to V. That is the broken arrow the next round starts from.
+    ## orthogonal to V. The retained block is carried as Z_u^H B Z_v and the
+    ## coupling is measured by the next run, for the reason lanczos_run() gives.
     left_want <- want - sum(conv)
     avail <- setdiff(ord, take[conv])
     p <- min(length(avail), max(left_want + 3L, j %/% 2L), j - 2L)
@@ -280,10 +280,10 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
       v <- eigen_random_vector(n, A$dtype, seed, rounds)
     } else {
       idx <- avail[seq_len(p)]
-      keep <- list(Yu = run$U %*% sv$u[, idx, drop = FALSE],
-                   Yv = run$V %*% sv$v[, idx, drop = FALSE],
-                   sigma = sv$d[idx],
-                   rho = run$beta_last * sv$u[run$size, idx])
+      Zu <- sv$u[, idx, drop = FALSE]
+      Zv <- sv$v[, idx, drop = FALSE]
+      keep <- list(Yu = run$U %*% Zu, Yv = run$V %*% Zv,
+                   H = cross_adjoint(Zu, run$Bm %*% Zv))
       v <- run$vnext
     }
   }
@@ -319,16 +319,22 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
 ## whole of V. Two applies per step, one in each mode, which is the same cost the
 ## least-squares methods pay for the same recurrence without the storage.
 ##
-## After a thick restart the projection is a broken arrow rather than a
-## bidiagonal: the retained triplets are diagonal, and the column that follows
-## them carries the couplings rho. From the step after that it is bidiagonal
-## again.
+## In exact arithmetic, after a thick restart, the projection is a broken arrow
+## rather than a bidiagonal: the retained triplets are diagonal, the column that
+## follows them carries the couplings rho, and from the step after that it is
+## bidiagonal again.
 ##
 ##     [ sigma_1               rho_1              ]
 ##     [        ...            ...                ]
 ##     [            sigma_p    rho_p              ]
 ##     [                       alpha   beta       ]
 ##     [                               alpha  ... ]
+##
+## What is stored is B = U^H A V as the orthogonalisations measure it: the
+## column above each new left vector from its projection against U, the row left
+## of each new right vector from its projection against V. That is the matrix
+## above to rounding, and the retained block as it is rather than as exact
+## arithmetic would have it.
 gkl_run <- function(A, v, Ul, Vl, j, max_applies, keep = NULL) {
   m <- A$dim[1L]; n <- A$dim[2L]
   eps <- .Machine$double.eps
@@ -338,22 +344,24 @@ gkl_run <- function(A, v, Ul, Vl, j, max_applies, keep = NULL) {
   zed <- if (cplx) complex(1) else 0
   U <- matrix(zed, m, j)
   V <- matrix(zed, n, j)
-  Bm <- matrix(0, j, j)
+  Bm <- matrix(zed, j, j)
   if (p > 0L) {
     U[, seq_len(p)] <- keep$Yu
     V[, seq_len(p)] <- keep$Yv
-    Bm[cbind(seq_len(p), seq_len(p))] <- keep$sigma
-    Bm[seq_len(p), p + 1L] <- keep$rho
+    Bm[seq_len(p), seq_len(p)] <- keep$H
   }
   V[, p + 1L] <- v
 
-  ## The left vector matching the new right one. Under a restart it has the
-  ## retained couplings removed from it, which is the arrow column above.
+  ## The left vector matching the new right one. Under a restart its projection
+  ## on the retained left vectors is the arrow column above.
   W <- linop_apply(A, V[, p + 1L, drop = FALSE], "N")
   w0 <- col_norms(W)
-  if (p > 0L) W <- W - keep$Yu %*% matrix(keep$rho, p, 1L)
   W <- orth_against(Ul, W)
-  if (p > 0L) W <- orth_against(U[, seq_len(p), drop = FALSE], W)
+  if (p > 0L) {
+    pr <- orth_project(U[, seq_len(p), drop = FALSE], W)
+    W <- pr$W
+    Bm[seq_len(p), p + 1L] <- pr$h[, 1L]
+  }
   a <- col_norms(W)
   if (a <= eps * w0) {
     return(list(U = U, V = V, Bm = Bm, size = 0L, applies = 1L,
@@ -373,9 +381,13 @@ gkl_run <- function(A, v, Ul, Vl, j, max_applies, keep = NULL) {
     Z <- linop_apply(A, U[, i, drop = FALSE], "C")
     applies <- applies + 1L
     z0 <- col_norms(Z)
-    Z <- Z - scale_cols(V[, i, drop = FALSE], Bm[i, i])
+    Z <- Z - scale_cols(V[, i, drop = FALSE], Conj(Bm[i, i]))
     Z <- orth_against(Vl, Z)
-    Z <- orth_against(V[, seq_len(i), drop = FALSE], Z)
+    pr <- orth_project(V[, seq_len(i), drop = FALSE], Z)
+    Z <- pr$W
+    g <- Conj(pr$h[, 1L])
+    g[i] <- g[i] + Bm[i, i]
+    Bm[i, seq_len(i)] <- g
     b <- col_norms(Z)
     beta_last <- b
     if (b <= eps * z0) break
@@ -389,7 +401,11 @@ gkl_run <- function(A, v, Ul, Vl, j, max_applies, keep = NULL) {
     w0 <- col_norms(W)
     W <- W - scale_cols(U[, i, drop = FALSE], b)
     W <- orth_against(Ul, W)
-    W <- orth_against(U[, seq_len(i), drop = FALSE], W)
+    pr <- orth_project(U[, seq_len(i), drop = FALSE], W)
+    W <- pr$W
+    h <- pr$h[, 1L]
+    h[i] <- h[i] + b
+    Bm[seq_len(i), i + 1L] <- h
     a <- col_norms(W)
     if (a <= eps * w0) break
     Bm[i + 1L, i + 1L] <- a
@@ -397,7 +413,9 @@ gkl_run <- function(A, v, Ul, Vl, j, max_applies, keep = NULL) {
     i <- i + 1L
   }
 
+  Bm <- Bm[seq_len(i), seq_len(i), drop = FALSE]
+  if (!cplx) Bm <- Re(Bm)
   list(U = U[, seq_len(i), drop = FALSE], V = V[, seq_len(i), drop = FALSE],
-       Bm = Bm[seq_len(i), seq_len(i), drop = FALSE],
+       Bm = Bm,
        size = i, applies = applies, vnext = vnext, beta_last = beta_last)
 }

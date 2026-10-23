@@ -141,9 +141,9 @@ test_that("Temple's bracket contains the truth and beats the linear bound", {
     fit <- top(sect(1, n))
     cv <- fit$certificate$values
     half <- cv$bound^2 / cv$gap
-    ## the variational end is exact in exact arithmetic and carries the floor in
-    ## this one, which is the S0.6 correction reaching a third row
-    expect_lte(sqrt(5), fit$values + half)
+    ## both ends are exact in exact arithmetic and carry the floor in this one,
+    ## which is the S0.6 correction reaching a third row
+    expect_lte(sqrt(5), fit$values + half + cv$floor)
     expect_gte(sqrt(5), fit$values - cv$floor)
     ## quadratic against linear: four orders at n = 20
     expect_lt(half, cv$bound)
