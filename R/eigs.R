@@ -299,8 +299,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
   rounds <- 0L
   anorm_lb <- 0
   stop_reason <- NULL
-  prev_best <- Inf
-  stalled <- 0L
+  progress <- NULL
 
   ## What comes back when the budget runs out before k pairs converge: the best
   ## pairs the last round produced, with their measured residuals, so a failed
@@ -375,24 +374,22 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
       lock_value <- c(lock_value, mu[conv])
       lock_res <- c(lock_res, rr[conv])
     }
-    best_theta <- theta; best_value <- mu; best_vec <- Xr; best_res <- rr
+    ## The pairs this round did not lock, which are what a run ending here adds
+    ## after the locked set; a locked pair is already in it.
+    open <- !conv
+    best_theta <- theta[open]; best_value <- mu[open]
+    best_vec <- Xr[, open, drop = FALSE]; best_res <- rr[open]
 
     if (sum(conv) + nl >= k) break
 
-    ## A round that locked nothing and did not improve on the previous one twice
-    ## running has nothing left to recover. Two rather than one, because a thick
-    ## restart can spend a round rebuilding the directions it dropped.
-    best <- min(rr)
-    if (!any(conv) && best >= prev_best) {
-      stalled <- stalled + 1L
-      if (stalled >= 2L) {
-        stop_reason <- "the subspace stopped improving"
-        break
-      }
-    } else {
-      stalled <- 0L
+    ## A round that locked nothing and moved no wanted pair, twice running, has
+    ## nothing left to recover. Two rather than one, because a thick restart can
+    ## spend a round rebuilding the directions it dropped.
+    progress <- restart_progress(progress, rr, mu, anorm_lb, floor_const, conv)
+    if (progress$stalled >= 2L) {
+      stop_reason <- "the subspace stopped improving"
+      break
     }
-    prev_best <- min(prev_best, best)
 
     ## The thick restart. Everything the round produced that was not locked is
     ## available to retain, in the order the request puts it; the wanted ones plus

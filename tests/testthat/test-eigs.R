@@ -308,6 +308,35 @@ test_that("a budget too small comes back as a fail certificate, not an error", {
   expect_match(detail, "of 4 requested pairs")
 })
 
+test_that("a restarted run is not ended while its Ritz values still move", {
+  ## At the default ncv the residual of a wanted pair rises and falls from one
+  ## thick restart to the next while its Ritz value climbs monotonically, so a
+  ## rule reading the smallest residual alone ends this run at 83 applies with
+  ## every pair at a backward error near 1e-3.
+  n <- 150
+  A <- laplacian_1d(n)
+  dense <- eigen(as.matrix(A %*% diag(n)), symmetric = TRUE)
+  fit <- eigs(A, k = 3, which = "largest_algebraic")
+  expect_equal(fit$nconv, 3L)
+  expect_lte(fit$iterations, fit$maxit)
+  expect_equal(fit$values, dense$values[1:3], tolerance = 1e-10)
+  expect_equal(fit$values, rev(laplacian_1d_eigenvalues(n))[1:3], tolerance = 1e-10)
+  expect_lte(pair_backward(A, fit$values, fit$vectors, max(dense$values)), 1e-10)
+  expect_equal(cert_status(fit$certificate, "convergence"), "pass")
+})
+
+test_that("a budget that runs out in a round that locked returns each pair once", {
+  ## The last round locks its leading pair and runs out of budget with the next
+  ## one open. What is reported is the locked set followed by the open pairs, so
+  ## the locked pair is not also taken from the round that produced it.
+  n <- 60
+  A <- laplacian_1d(n)
+  fit <- eigs(A, k = 4, which = "largest_algebraic", maxit = 80L)
+  expect_equal(crossprod(fit$vectors), diag(ncol(fit$vectors)), tolerance = 1e-8)
+  expect_equal(anyDuplicated(signif(fit$values, 10)), 0L)
+  expect_equal(cert_status(fit$certificate, "orthogonality"), "pass")
+})
+
 test_that("eigs refuses what it is not defined for", {
   n <- 10
   herm <- laplacian_1d(n)

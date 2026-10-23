@@ -120,15 +120,13 @@ eigen_random_vector <- function(n, dtype, seed, round) {
 ##
 ## A section's spectrum is a discretisation of a continuum together with whatever
 ## separated from it, so enlarging n densifies the cluster the wanted value has to
-## be told apart from rather than adding isolated eigenvalues. That makes a
-## subspace which is adequate at one size inadequate at the next: on the potential
-## v = 0.3 at the default 21, n = 40 reaches 4.2e-7 and n = 80 reaches 9.8e-3, the
-## wider section giving the worse answer, and more budget does not recover it.
-##
-## 40 was measured at k = 1 over n = 80 to 800 and over two potentials, and it does
-## not have to grow with n: the failure is a threshold rather than a trend. It is a
-## floor rather than a formula, so a request for many pairs still widens the
-## subspace by the ordinary rule. dev_notes/spikes/section-ncv-probe.R.
+## be told apart from rather than adding isolated eigenvalues, and a value close to
+## the band edge takes a restarted run many rounds to separate from it. Both 21
+## and 40 reach the value at every size measured; 40 gets there in fewer applies:
+## on the potential v = 0.1 at k = 1, 460 against 604 at n = 400 and 480 against
+## 626 at n = 800. The saving does not grow with n, so 40 is a floor rather than a
+## formula, and a request for many pairs still widens the subspace by the ordinary
+## rule. dev_notes/spikes/section-ncv-probe.R.
 SECTION_NCV_MIN <- 40L
 
 ## Each column of X measured on A: its Rayleigh quotient x^H A x / (x^H x), the
@@ -142,6 +140,37 @@ eigen_measure <- function(A, X) {
   mu <- col_dot(X, AX) / scale_x^2
   rr <- col_norms(AX - scale_cols(X, mu)) / scale_x
   list(mu = mu, rr = rr, anorm_lb = max(col_norms(AX) / scale_x, abs(mu)))
+}
+
+## Whether a restart round moved the wanted pairs, for the rule that ends a run
+## whose subspace has stopped improving. state is what the previous round left,
+## NULL before the first; rr and theta are this round's residuals and Ritz values
+## in the order the request ranks them, conv the pairs that locked.
+##
+## The smallest residual is not a measure of progress. A thick restart keeps the
+## wanted Ritz vectors, so by Courant-Fischer each extreme Ritz value moves
+## monotonically toward the eigenvalue it approximates, but the residual of a
+## given pair rises and falls from round to round while it does: on
+## laplacian_1d(200), three largest at the default ncv, the leading residual reads
+## 3.4e-3 then 5.3e-3 then 4.2e-3 while the leading Ritz value climbs by 1.9e-4
+## and 2.2e-4. A round counts as progress when any pair beats the best residual
+## its rank has held since the last lock, or any Ritz value moves by more than the
+## arithmetic floor of the certificate's rows. A subspace that has stopped
+## improving does neither: its Ritz values sit at rounding level and its residuals
+## jitter without beating their own best.
+##
+## A lock changes which pairs are wanted, so the ranks restart from the pairs that
+## did not lock.
+restart_progress <- function(state, rr, theta, nA, floor_const, conv) {
+  if (any(conv) || is.null(state) || length(rr) != length(state$rr)) {
+    return(list(rr = rr[!conv], theta = theta[!conv], stalled = 0L))
+  }
+  if (!is.finite(nA) || nA <= 0) nA <- 1
+  floor_abs <- floor_const * .Machine$double.eps * (nA + abs(theta))
+  moved <- abs(theta - state$theta) > floor_abs
+  improved <- rr < state$rr
+  list(rr = pmin(rr, state$rr), theta = theta,
+       stalled = if (any(moved | improved)) 0L else state$stalled + 1L)
 }
 
 default_ncv <- function(A, k) {
