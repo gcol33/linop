@@ -310,7 +310,7 @@ operator itself does not need one:</p>
 <code class="sourceCode R"><span><span class="va">chosen</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">H</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span><span class="op">)</span></span>
 <span><span class="va">chosen</span></span>
 <span><span class="co">#&gt; &lt;primme on a finite section&gt; 1 of 1 requested eigenpairs converged, which = 'largest_algebraic'</span></span>
-<span><span class="co">#&gt;   55 iterations of at most 300, 6 restarts</span></span>
+<span><span class="co">#&gt;   55 iterations of at most 1980, 6 restarts</span></span>
 <span><span class="co">#&gt;   section n = 49, from 2 widths</span></span>
 <span><span class="co">#&gt;   values: 2.236068</span></span>
 <span><span class="co">#&gt;   certificate: pass</span></span></code></pre></div>
@@ -448,7 +448,7 @@ tests the value against the essential spectrum:</p>
 <span><span class="co">#&gt; failures:</span></span>
 <span><span class="co">#&gt;   truncation bound: worst |b| sqrt(u_{-n}^2 + u_n^2) / ||u|| = 8.460e-03 against 2.000e-10 at n = 40; decay rate undefined inside the band</span></span>
 <span><span class="co">#&gt;   isolation: sigma_ess(H) = [-2, 2] by Weyl; the closest value clears it by -1.468e-03 against the error bound 8.460e-03; 1 of 1 values have not separated from the continuum</span></span>
-<span><span class="co">#&gt;   convergence: 0 of 1 requested pairs converged in 131 of at most 300 iterations; the eigensolve met its target and the section did not; the truncation term is 8.460e-03 at n = 40</span></span>
+<span><span class="co">#&gt;   convergence: 0 of 1 requested pairs converged in 131 of at most 1620 iterations; the eigensolve met its target and the section did not; the truncation term is 8.460e-03 at n = 40</span></span>
 <span><span class="co">#&gt;   forward error: min_j |q - lambda_j(H)| &lt;= 8.460e-03 = sqrt(1.890e-10^2 + 8.460e-03^2) + 1.776e-15, against 2.000e-10; the eigenvectors of H are not covered</span></span></code></pre></div>
 <p>This is the case the exact essential spectrum exists for. A value
 that has not cleared the band is a discretisation of continuous

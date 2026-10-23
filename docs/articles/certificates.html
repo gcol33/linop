@@ -386,20 +386,14 @@ the table gains rows:</p>
 <span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; arithmetic floor               pass         computation      estimate              -</span></span>
-<span><span class="co">#&gt; residual                       fail         computation      estimate              -</span></span>
+<span><span class="co">#&gt; residual                       pass         computation      identity              1</span></span>
 <span><span class="co">#&gt; orthogonality                  pass         computation      identity              1</span></span>
-<span><span class="co">#&gt; backward error                 fail         computation      estimate              -</span></span>
+<span><span class="co">#&gt; backward error                 pass         computation      estimate              -</span></span>
 <span><span class="co">#&gt; target identity                not_checked  computation      identity              -</span></span>
-<span><span class="co">#&gt; convergence                    fail         computation      identity              1</span></span>
-<span><span class="co">#&gt; forward error                  fail         theorem          deterministic_bound   1</span></span>
+<span><span class="co">#&gt; convergence                    pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; forward error                  pass         theorem          deterministic_bound   1</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
-<span><span class="co">#&gt; overall                        fail   no deterministic bound on: arithmetic floor, residual, backward error, target identity</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; failures:</span></span>
-<span><span class="co">#&gt;   residual: worst ||A x - theta x|| / (|theta| ||x||) = 1.875e-09 against tol 1.000e-10, floor 1.777e-15</span></span>
-<span><span class="co">#&gt;   backward error: worst ||A x - theta x|| / (||A|| ||x||) = 1.875e-09 against tol 1.000e-10</span></span>
-<span><span class="co">#&gt;   convergence: 0 of 3 requested pairs converged in 300 of at most 300 iterations; budget exhausted</span></span>
-<span><span class="co">#&gt;   forward error: min_j |theta - lambda_j(A)| &lt;= 7.498e-09, that is 1.875e-09 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap</span></span></code></pre></div>
+<span><span class="co">#&gt; overall                        qualified   no deterministic bound on: arithmetic floor, backward error, target identity</span></span></code></pre></div>
 <p><code>orthogonality</code> is new: the computed vectors should be
 orthonormal, and this measures whether they are.
 <code>target identity</code> is new and is always
@@ -448,9 +442,9 @@ Weyl’s inequality gives
 <span><span class="va">fwd</span> <span class="op">&lt;-</span> <span class="va">fwd</span><span class="op">[</span><span class="va">fwd</span><span class="op">$</span><span class="va">check</span> <span class="op">==</span> <span class="st">"forward error"</span>, <span class="op">]</span></span>
 <span><span class="va">fwd</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"status"</span>, <span class="st">"source"</span>, <span class="st">"guarantee"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;   status  source           guarantee</span></span>
-<span><span class="co">#&gt; 7   fail theorem deterministic_bound</span></span>
+<span><span class="co">#&gt; 7   pass theorem deterministic_bound</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">fwd</span><span class="op">$</span><span class="va">detail</span><span class="op">)</span></span>
-<span><span class="co">#&gt; min_j |theta - lambda_j(A)| &lt;= 7.498e-09, that is 1.875e-09 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap</span></span></code></pre></div>
+<span><span class="co">#&gt; min_j |theta - lambda_j(A)| &lt;= 3.969e-10, that is 9.924e-11 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap</span></span></code></pre></div>
 <p><code>source</code> is <code>theorem</code> and
 <code>guarantee</code> is <code>deterministic_bound</code>, the only row
 of this shape where either appears. The bound is about <em>some</em>
@@ -548,7 +542,7 @@ says which:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ch</span> <span class="op">&lt;-</span> <span class="va">narrow</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">checks</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">ch</span><span class="op">$</span><span class="va">detail</span><span class="op">[</span><span class="va">ch</span><span class="op">$</span><span class="va">check</span> <span class="op">==</span> <span class="st">"convergence"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; 0 of 1 requested pairs converged in 33 of at most 300 iterations; the eigensolve met its target and the section did not; the truncation term is 1.815e-03 at n = 12</span></span></code></pre></div>
+<span><span class="co">#&gt; 0 of 1 requested pairs converged in 33 of at most 500 iterations; the eigensolve met its target and the section did not; the truncation term is 1.815e-03 at n = 12</span></span></code></pre></div>
 <p><code>isolation</code> is the row with no counterpart anywhere else.
 The essential spectrum of this class is known exactly rather than
 estimated, so a value can be tested against it, and a value that has not
@@ -617,7 +611,7 @@ carry a dependency.</p>
 the first two shapes.</p></li>
 <li><p><code><a href="../articles/spectral.html">vignette("spectral")</a></code> covers <code><a href="../reference/eigs.html">eigs()</a></code> and
 <code><a href="../reference/svds.html">svds()</a></code>, including a result whose values are exact and whose
-certificate reads <code>fail</code>.</p></li>
+certificate reads <code>qualified</code>.</p></li>
 <li><p><code><a href="../articles/capabilities.html">vignette("capabilities")</a></code> covers evidence away from
 certificates, where the same three fields decide what a solver will
 accept.</p></li>

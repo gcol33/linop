@@ -135,10 +135,10 @@ fixture to check against:</p>
 <span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; &lt;primme&gt; 0 of 3 requested eigenpairs converged, which = 'largest_algebraic'</span></span>
-<span><span class="co">#&gt;   300 iterations of at most 300, 9 restarts</span></span>
+<span><span class="co">#&gt; &lt;primme&gt; 3 of 3 requested eigenpairs converged, which = 'largest_algebraic'</span></span>
+<span><span class="co">#&gt;   320 iterations of at most 4000, 9 restarts</span></span>
 <span><span class="co">#&gt;   values: 3.999756  3.999023  3.997802</span></span>
-<span><span class="co">#&gt;   certificate: fail</span></span></code></pre></div>
+<span><span class="co">#&gt;   certificate: qualified</span></span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">values</span>,</span>
 <span>      closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rev.html" class="external-link">rev</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">truth</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span></span>
@@ -184,19 +184,31 @@ tolerance:</p>
 <span><span class="op">}</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">ladder</span></span>
 <span><span class="co">#&gt;      ncv        error converged applies</span></span>
-<span><span class="co">#&gt; [1,]  20 2.040628e-09         0     302</span></span>
-<span><span class="co">#&gt; [2,]  30 4.101608e-12         0     300</span></span>
-<span><span class="co">#&gt; [3,]  40 2.620126e-14         0     301</span></span>
-<span><span class="co">#&gt; [4,]  60 1.332268e-15         0     300</span></span></code></pre></div>
-<p>At <code>ncv = 20</code> the default budget of 300 applies runs out
-before the residuals reach the tolerance, and the run reports the pairs
-it has as unconverged. A larger budget recovers it:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">20</span>, maxit <span class="op">=</span> <span class="fl">2000</span><span class="op">)</span><span class="op">$</span><span class="va">nconv</span></span>
-<span><span class="co">#&gt; [1] 3</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,]  20 8.881784e-16         3     541</span></span>
+<span><span class="co">#&gt; [2,]  30 4.440892e-16         3     400</span></span>
+<span><span class="co">#&gt; [3,]  40 4.440892e-16         3     350</span></span>
+<span><span class="co">#&gt; [4,]  60 1.332268e-15         3     320</span></span></code></pre></div>
 <p>The top of the Laplacian’s spectrum is tightly clustered, which is
 what makes a small subspace slow here. A well-separated spectrum needs
 far fewer applies.</p>
+<p>The budget <code>maxit</code> counts applies, and its default is
+<code>20 n</code>: twenty times what forming the operator column by
+column would cost. It grows with <code>n</code> because a crowded end of
+the spectrum gets more crowded as <code>n</code> grows, and at a fixed
+<code>ncv</code> the applies grow with it: the reference Lanczos takes
+1.6 <code>n</code> for the three largest here and 6 <code>n</code> at
+<code>n = 2000</code>. At the defaults the run converges well inside
+it:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dflt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>converged <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">nconv</span>, applies <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">iterations</span>, budget <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">maxit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; converged   applies    budget </span></span>
+<span><span class="co">#&gt;         3       677      4000</span></span></code></pre></div>
+<p>A run that stops improving ends before the budget does and says so,
+so a larger default costs time only on a run that is still converging.
+The far end of a spectrum spread over many decades is the case it does
+not cover; a shift near that end, <code>sigma</code>, is the tool
+there.</p>
 </div>
 <div class="section level2">
 <h2 id="what-gets-reported-is-the-rayleigh-quotient">What gets reported is the Rayleigh quotient<a class="anchor" aria-label="anchor" href="#what-gets-reported-is-the-rayleigh-quotient"></a>
@@ -298,9 +310,9 @@ operator:</p>
 certificate is where you find out whether it was enough.</p>
 </div>
 <div class="section level2">
-<h2 id="a-result-that-is-right-and-certifies-as-fail">A result that is right and certifies as <code>fail</code><a class="anchor" aria-label="anchor" href="#a-result-that-is-right-and-certifies-as-fail"></a>
+<h2 id="a-result-that-is-right-and-certifies-as-qualified">A result that is right and certifies as <code>qualified</code><a class="anchor" aria-label="anchor" href="#a-result-that-is-right-and-certifies-as-qualified"></a>
 </h2>
-<p>This is worth meeting once, because it looks like a bug and is
+<p>This is worth meeting once, because it looks like a hedge and is
 not:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
@@ -310,9 +322,10 @@ not:</p>
 <span><span class="co">#&gt; computed    0.0002442861 0.0009770848 0.002198217</span></span>
 <span><span class="co">#&gt; closed_form 0.0002442861 0.0009770848 0.002198217</span></span>
 <span><span class="va">smallest</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">overall</span></span>
-<span><span class="co">#&gt; [1] "fail"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "qualified"</span></span></code></pre></div>
 <p>Every value is right to the last printed digit and the certificate
-says <code>fail</code>. The reason is in which row failed:</p>
+says <code>qualified</code>. The reason is in which row is
+qualified:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span><span class="op">$</span><span class="va">certificate</span></span>
 <span><span class="co">#&gt; solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))</span></span>
@@ -320,26 +333,21 @@ says <code>fail</code>. The reason is in which row failed:</p>
 <span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; arithmetic floor               pass         computation      estimate              -</span></span>
-<span><span class="co">#&gt; residual                       fail         computation      estimate              -</span></span>
+<span><span class="co">#&gt; residual                       qualified    computation      estimate              -</span></span>
 <span><span class="co">#&gt; orthogonality                  pass         computation      identity              1</span></span>
-<span><span class="co">#&gt; backward error                 fail         computation      estimate              -</span></span>
+<span><span class="co">#&gt; backward error                 pass         computation      estimate              -</span></span>
 <span><span class="co">#&gt; target identity                not_checked  computation      identity              -</span></span>
-<span><span class="co">#&gt; convergence                    fail         computation      identity              1</span></span>
-<span><span class="co">#&gt; forward error                  fail         theorem          deterministic_bound   1</span></span>
+<span><span class="co">#&gt; convergence                    pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; forward error                  pass         theorem          deterministic_bound   1</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
-<span><span class="co">#&gt; overall                        fail   no deterministic bound on: arithmetic floor, residual, backward error, target identity</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; failures:</span></span>
-<span><span class="co">#&gt;   residual: worst ||A x - theta x|| / (|theta| ||x||) = 9.145e-05 against tol 1.000e-10, floor 1.450e-11</span></span>
-<span><span class="co">#&gt;   backward error: worst ||A x - theta x|| / (||A|| ||x||) = 2.241e-08 against tol 1.000e-10</span></span>
-<span><span class="co">#&gt;   convergence: 0 of 3 requested pairs converged in 301 of at most 300 iterations; budget exhausted</span></span>
-<span><span class="co">#&gt;   forward error: min_j |theta - lambda_j(A)| &lt;= 8.936e-08, that is 2.241e-08 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap</span></span></code></pre></div>
-<p><code>backward error</code> passes at 1.4e-13 and
-<code>forward error</code>, which is a real bound here, passes at
-5.2e-13. What failed is <code>residual</code>, which divides by
-<code>|theta|</code>, and the smallest eigenvalue of this operator is
-2.4e-4. A residual sitting near the arithmetic floor is still large
-relative to a tiny eigenvalue.</p>
+<span><span class="co">#&gt; overall                        qualified   no deterministic bound on: arithmetic floor, residual, backward error, target identity</span></span></code></pre></div>
+<p><code>backward error</code> and <code>forward error</code>, which is
+a real bound here, pass with room to spare. The row that does not is
+<code>residual</code>, which divides by <code>|theta|</code>, and the
+smallest eigenvalue of this operator is 2.4e-4. A residual near the
+arithmetic floor is still large relative to a tiny eigenvalue, so the
+pair meets the tolerance only once the floor is added to it, and
+<code>qualified</code> is the status that says so.</p>
 <p><code>overall</code> is a summary of seven rows, and each row answers
 its own question. The rows are what to read.
 <code><a href="../articles/certificates.html">vignette("certificates")</a></code> covers what each one measures.</p>
