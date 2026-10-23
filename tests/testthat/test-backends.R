@@ -206,6 +206,23 @@ test_that("shift-invert runs through primme on the same transformed operator", {
   expect_equal(cert_status(fit$certificate, "forward error"), "pass")
 })
 
+test_that("primme's smallest singular value near zero meets the residual row", {
+  ## sigma_min = 1.67e-8 against ||A|| = 2: the residual row's floor is set by
+  ## the lower bound on ||A||, which has to include PRIMME's own estimate for
+  ## the converged triplet to clear it.
+  skip_if_not_installed("linop.primme")
+  n <- 60
+  M <- diag(n)[c(2:n, 1), ] - diag(n)
+  M[1, 1] <- M[1, 1] + 1e-6
+  truth <- min(svd(M)$d)
+  fit <- svds(linop(M), k = 1, which = "smallest", method = "primme")
+  expect_equal(fit$nconv, 1L)
+  expect_lt(fit$iterations, 2000L)
+  expect_equal(fit$d, truth, tolerance = 1e-6)
+  expect_lte(sqrt(sum((M %*% fit$v - fit$d * fit$u)^2)), 1e-14)
+  expect_lte(sqrt(sum((crossprod(M, fit$u) - fit$d * fit$v)^2)), 1e-14)
+})
+
 test_that("singular triplets through primme, real and complex", {
   skip_if_not_installed("linop.primme")
   sigma <- c(20, 9, 5, seq(2, 0.4, length.out = 17))

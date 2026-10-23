@@ -159,7 +159,14 @@ primme_svds_run <- function(A, ctl, engine) {
     if (is.null(v)) v <- linop_apply(A, matrix(u, ncol = 1L), "C")
     if (col_norms(as.matrix(u)) == 0 || col_norms(as.matrix(v)) == 0) return(FALSE)
     meas <- svd_measure(A, matrix(u, ncol = 1L), matrix(v, ncol = 1L))
-    lb <<- max(lb, meas$anorm_lb)
+    ## PRIMME's anorm is its largest |Ritz value| of A seen so far, a lower bound
+    ## on ||A|| like the applies' own, and the eigenpair test takes it for the
+    ## same reason. Without it the bound is what the triplets measured lately
+    ## reached: on a 60 x 60 operator with smallest singular value 1.67e-8 and
+    ## ||A|| = 2 it stood at 1.24, a floor 0.62 of the true one, and the converged
+    ## triplet (residual 1.28e-15, 0.72 of the true floor) failed the residual
+    ## row on every call until the budget ran out.
+    lb <<- max(lb, meas$anorm_lb, if (is.finite(anorm)) anorm else 0)
     eigen_pair_bounds(meas$rr, meas$d, lb, 1, ctl$tol, ctl$floor_const)$converged
   }
   out <- engine$fn("primme_svds")(
