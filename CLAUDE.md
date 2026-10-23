@@ -737,15 +737,16 @@ re-derive:
   of `u~` against `H` *is* the one of `u` against `H_n`, exactly, so the variational
   principle puts the extreme eigenvalue beyond `q` — in exact arithmetic, which is why the
   reported end carries the floor.
-- **A finite section gets a wider default `ncv`, and the defect it fixes inverts with `n`.**
-  At `v = 0.3` the ordinary default of 21 reaches 4.2e-7 at `n = 40` and **9.8e-3 at
-  `n = 80`**, a wider section giving the worse answer, because enlarging `n` densifies the
-  discretised continuum rather than adding isolated eigenvalues. More budget does not
-  recover it. `SECTION_NCV_MIN = 40` was measured over `n = 80` to `800` and does not have
-  to grow with `n` — the failure is a threshold, not a trend — so it is a floor and not a
-  formula. `dev_notes/spikes/section-ncv-probe.R`. The archived note recorded this as open;
-  it is closed. The narrow run was never a silent wrong answer: residual 4.5e-2, `nconv` 0,
-  certificate `fail`.
+- **A finite section gets a wider default `ncv`, for fewer applies, not for accuracy.**
+  Enlarging `n` densifies the discretised continuum rather than adding isolated
+  eigenvalues, so a value near the band edge takes a restarted run more rounds to separate.
+  Both 21 and 40 reach the value at every size measured (`v = 0.3`, `n = 80`: 2.7e-12 for
+  both, 175 and 180 applies); at `v = 0.1` 40 needs 460 applies against 604 at `n = 400`
+  and 480 against 626 at `n = 800`. The saving does not grow with `n`, so
+  `SECTION_NCV_MIN = 40` is a floor and not a formula. `dev_notes/spikes/section-ncv-probe.R`.
+  The 9.8e-3 at `v = 0.3, n = 80, ncv = 21` once recorded here was the early "stalled" stop
+  fixed in `f7b9bb1`, not a property of the subspace; even then it was never a silent wrong
+  answer (`nconv` 0, certificate `fail`).
 
 **Step 4 is done: `eigs()` runs on the operator itself and chooses the width, and
 `certificate()` is the reader.** `dev_notes/the-width-that-is-a-division-and-the-certificate-that-is-read.md`

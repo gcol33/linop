@@ -260,11 +260,12 @@ block `k`, takes 2.1x as long. JDQMR, the other deterministic preset, takes
 So the 1.42x is not the floor of what the backend gives, and "deletes the loop
 the copy is in" was wrong. What PRIMME gives at these sizes is the bounded basis
 (memory), a basis size that does not have to be tuned (`ncv = 80` was needed by
-the reference on hard spectra, `SECTION_NCV_MIN` exists for the same reason, and
-on `finite_section(linop_jacobi(diagonal = 0.3), 80)` at a basis of 21 PRIMME's
-eigensolve meets its target, 2.7e-12 from the eigenvalue of the operator, where
-the reference's stalls at 9.8e-3; the certificate still fails both, correctly,
-on the truncation term at that width),
+the reference on hard spectra, and `SECTION_NCV_MIN` exists to save applies on
+sections; on `finite_section(linop_jacobi(diagonal = 0.3), 80)` at a basis of 21
+both engines reach 2.7e-12 from the eigenvalue of the operator, PRIMME in 147
+applies and the reference in 175, and the certificate fails both, correctly, on
+the truncation term at that width. The reference's 9.8e-3 recorded here earlier
+was its premature "stalled" stop, fixed in `f7b9bb1`),
 determinism under its GD+k preset, and the engine for what the reference cannot
 do yet (preconditioning, the generalized problem, interior targets without
 shift-invert). It is not a speedup on a cheap matrix-free operator with R's
@@ -307,7 +308,7 @@ was said to bound, section 6.
 | S0.3, plan 13.3 | Windows needs `zheevx`/`zhegvx` shimmed over `zheevd` | `USE_XHEEV`/`USE_XHEGV` route PRIMME to the simple drivers; only `zhegv` is missing, supplied for `itype = 1`, reference-exact by construction |
 | CLAUDE.md | PRIMME's default method | Not reproducible run to run; the engine uses GD+k |
 | `print.linop_eigen` | printed "section n = <nconv>" on every non-section result (`x$n` partial-matched `nconv`) | fixed, `39e5763` |
-| `SECTION_NCV_MIN` | a property of finite sections | a property of the reference's eigensolve: PRIMME at a basis of 21 meets the eigensolve target the reference misses by 9.8e-3 |
+| `SECTION_NCV_MIN` | a property of finite sections | neither: at a basis of 21 both engines reach the value (2.7e-12 at `v = 0.3, n = 80`); the reference's 9.8e-3 miss was its premature stalled stop, fixed in `f7b9bb1`. The floor of 40 saves applies (460 against 604 at `v = 0.1, n = 400`) |
 | section 4, the engine's `convTestFun` | replacing it with the certificate's rule makes PRIMME stop on that rule | PRIMME skips the test for a residual at most the largest one already accepted; the shortcut is compiled out (#2) |
 
 ## 10. Not done

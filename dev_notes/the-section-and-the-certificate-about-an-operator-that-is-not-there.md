@@ -105,36 +105,39 @@ variational principle puts the extreme eigenvalue beyond `q`. In exact arithmeti
 test caught it failing at the last bit, so the reported end carries the floor -- the
 S0.6 correction reaching a third row.
 
-### The default subspace was wrong for a section, and the failure inverts with n
+### The default subspace for a section, and what it buys
 
-Confirmed and quantified. At `v = 0.3`, whose eigenvalue sits 2.2e-2 outside the
-band, the ordinary default of `ncv = 21`:
+At `v = 0.3`, whose eigenvalue sits 2.2e-2 outside the band, the ordinary default
+of `ncv = 21` against 40, at a budget of 300 (re-measured after `f7b9bb1`):
 
-| n | err at ncv 21 | err at ncv 40 |
-|---|---|---|
-| 20 | 1.707e-04 | 1.707e-04 |
-| 40 | 4.241e-07 | 4.241e-07 |
-| 80 | **9.803e-03** | 2.724e-12 |
-| 140 | 4.441e-16 | 0 |
+| n | err at ncv 21 | applies | err at ncv 40 | applies |
+|---|---|---|---|---|
+| 20 | 1.707e-04 | 54 | 1.707e-04 | 60 |
+| 40 | 4.241e-07 | 109 | 4.241e-07 | 100 |
+| 80 | 2.724e-12 | 175 | 2.724e-12 | 180 |
+| 140 | 4.441e-16 | 153 | 0 | 160 |
 
-A **wider section giving the worse answer**, by four orders. The cause is that
-enlarging `n` densifies the discretised continuum the wanted value has to be told
-apart from rather than adding isolated eigenvalues, so a subspace adequate at one
-size is inadequate at the next. More budget does not recover it, which is what
-separates this from an ordinary shortage of iterations.
+The errors at `n = 20` and `40` are the truncation, identical at both widths. This
+table first recorded **9.803e-03** at `n = 80, ncv = 21`, a wider section giving the
+worse answer; that was the reference's premature "stalled" stop, which ended the
+run on a jittering residual while the Ritz value was still converging, and it is
+gone since `f7b9bb1`. A budget of 1e5 gives the same rows.
 
-`ncv = 40` was then measured over `n = 80` to `800` and two potentials, and **it does
-not have to grow with n**: the failure is a threshold rather than a trend. So
-`default_ncv()` applies a floor rather than a formula, and a request for many pairs
+What enlarging `n` does is densify the discretised continuum the wanted value has
+to be told apart from rather than add isolated eigenvalues, so a value near the
+band edge takes a restarted run more rounds to separate. At `v = 0.1` 40 needs 460
+applies against 21's 604 at `n = 400`, and 480 against 626 at `n = 800`, and **the
+saving does not grow with n**. So `default_ncv()` applies a floor rather than a
+formula, and a request for many pairs
 still widens the subspace by the ordinary rule. The floor was measured at `k = 1`; at
 `k = 3` on a well carrying three eigenvalues above the band, `ncv = 21` already
 converges all three, because those values are far from the edge. The binding case is
 proximity to the band, not the number of pairs.
 
-**The narrow run is wrong and says so.** Residual 4.5e-2, `nconv` 0, certificate
-`fail`. This was a bad default, never a silent wrong answer, and the certificate is
-why. The archived note recorded this as "a defect in this package, found from outside
-it, still open"; it is closed.
+**The 9.8e-3 run was wrong and said so.** Residual 4.5e-2, `nconv` 0, certificate
+`fail`: never a silent wrong answer, and the certificate is why. The archived note
+recorded it as "a defect in this package, found from outside it, still open"; it is
+closed, by the stopping rule rather than by the floor.
 
 ## What the truncation term stops measuring, and when
 
