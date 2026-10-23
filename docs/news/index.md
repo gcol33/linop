@@ -108,7 +108,7 @@ graph.
   of the 1-D Laplacian of size 200 take 322, the largest at size 2000
   takes 14255. The rule covers the worst converging run of a sweep over
   Laplacians, random and clustered spectra and difference operators by
-  2.5x for the reference engine and 1.7x for PRIMME. The small end of a
+  1.6x for the reference engine and 1.7x for PRIMME. The small end of a
   spectrum spread over four decades needs up to 100 `n` and is left to
   `sigma` (`dev_notes/spikes/eigs-budget-sweep.R`).
 - The reference
@@ -124,6 +124,15 @@ graph.
   3, 5 and 10 (0, 2, 4 and 9 pairs did), the residual the run plateaus
   at for size 1000 falls from 20.5 to 13.6 eps \|\|A\|\|, and runs that
   converged before take the same number of applies.
+- The reference
+  [`svds()`](https://gillescolling.com/linop/reference/svds.md)
+  bidiagonalises `A^H` when `A` is wider than tall. Started in a domain
+  larger than the codomain, the run picked up the start vector’s
+  component in `null(A)`, which is not a singular direction, and
+  returned it as a zero singular value with no left vector to match:
+  `svds(diff_1d(100), k = 1, which = "smallest")` stopped with
+  `d = 2.7e-17` and a `fail` certificate where the smallest singular
+  value is `3.1e-2`. A caller’s `v0` is still in the domain of `A`.
 - The `enclosure` row of a finite section carries the arithmetic floor
   at the Temple end as well as at the variational one. Both ends are
   inequalities about the computed Rayleigh quotient, and at `n = 40` the
