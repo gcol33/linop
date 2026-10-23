@@ -1,0 +1,110 @@
+# Singular values and vectors of an operator
+
+Golub-Kahan-Lanczos with full reorthogonalisation, run against the
+operator's action and its adjoint. The result records what converged,
+what residual each triplet reached, and what argument establishes the
+bound on the singular values.
+
+## Usage
+
+``` r
+svds(
+  A,
+  k,
+  which = "largest",
+  tol = 1e-10,
+  maxit = NULL,
+  ncv = NULL,
+  v0 = NULL,
+  seed = 1L,
+  method = "auto",
+  floor_const = SOLVE_FLOOR_CONST,
+  norm_control = list()
+)
+```
+
+## Arguments
+
+- A:
+
+  A \`linop\`. Both the forward action and the adjoint are needed.
+
+- k:
+
+  How many singular triplets.
+
+- which:
+
+  \`"largest"\` or \`"smallest"\`. RSpectra's \`"LM"\` and \`"SM"\` are
+  accepted for the same two. The algebraic forms are not separate names
+  here because a singular value is non-negative.
+
+- tol:
+
+  Convergence tolerance on the backward error and the relative residual
+  of the augmented eigenpair, each plus the arithmetic floor: the
+  certificate's \`backward error\` and \`residual\` rows.
+
+- maxit:
+
+  Total applies of the operator, in either mode, across all restarts.
+
+- ncv:
+
+  Subspace size per restart. Storage is \`ncv\` vectors of each length.
+  \`NULL\` takes the engine's default.
+
+- v0:
+
+  Starting vector in the domain, or \`NULL\` for a seeded random one.
+  \`"golub-kahan"\` only.
+
+- seed:
+
+  Seed for the starting vector. The caller's random stream is restored
+  afterwards.
+
+- method:
+
+  \`"auto"\`, \`"golub-kahan"\` or \`"primme"\`. \`"golub-kahan"\` is
+  the reference implementation in this package; \`"primme"\` is the
+  PRIMME library, available when the \`linop.primme\` package is
+  installed. \`"auto"\` takes PRIMME when it is available and
+  Golub-Kahan otherwise, and the certificate's \`dispatch\` records
+  every engine considered and why. The reported singular values are
+  Rayleigh quotients \`Re(u^H A v)\` of the returned unit vectors,
+  measured on \`A\`, whichever engine ran.
+
+- floor_const:
+
+  \`c\` in the arithmetic floor of the certificate.
+
+- norm_control:
+
+  Arguments for the \`\|\|A\|\|\` estimate.
+
+## Value
+
+An object of class \`linop_svd\`, with \`d\`, \`u\`, \`v\` and the
+\`certificate\`. A run that exhausts its budget returns the best
+triplets it reached and a \`fail\` certificate rather than an error, and
+it may hold fewer than \`k\` of them: nothing is padded.
+
+## Details
+
+The certificate is the certificate of the corresponding eigenpair of the
+hermitian augmented operator, so \`residual\`, \`backward error\` and
+\`forward error\` mean there exactly what they mean for \[eigs()\].
+
+\`which = "smallest"\` is accepted and is the hard end of the problem: a
+Krylov space reaches the largest singular values first, so the smallest
+need a subspace approaching the rank of the operator. The certificate
+reports what was reached rather than the request being refused.
+
+## Examples
+
+``` r
+A <- linop(rbind(diag(c(3, 2, 1)), 0))
+fit <- svds(A, k = 2)
+fit$d
+```
