@@ -324,4 +324,5 @@ hunt$certificate$dispatch$reason
 - `vignette("certificates")` covers the fifth certificate shape beside the other
   four.
 - `vignette("spectral")` covers `eigs()` and `svds()` on ordinary operators.
+
 - `vignette("expressions")` covers the algebra these operators compose under.

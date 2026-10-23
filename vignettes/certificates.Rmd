@@ -385,9 +385,11 @@ carry a dependency.
 ## Where to next
 
 - `vignette("solvers")` covers the methods that produce the first two shapes.
+
 - `vignette("spectral")` covers `eigs()` and `svds()`, including a result whose
   values are exact and whose certificate reads `fail`.
 - `vignette("capabilities")` covers evidence away from certificates, where the
   same three fields decide what a solver will accept.
 - `vignette("adapters")` covers `verify()`, the fourth shape.
+
 - `vignette("sequence-spaces")` covers the operators the fifth shape is about.

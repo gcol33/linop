@@ -315,6 +315,8 @@ All three return a certificate alongside the answer.
 - `vignette("solvers")` covers `solve()` and the seven Krylov methods behind it,
   with preconditioners.
 - `vignette("spectral")` covers `eigs()` and `svds()`.
+
 - `vignette("certificates")` covers what comes back attached to every answer.
+
 - `vignette("adapters")` covers writing `linop.myclass()`, registering a node
   type, and the preconditioner contract.
