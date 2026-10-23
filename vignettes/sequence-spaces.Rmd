@@ -264,28 +264,26 @@ separately, because they answer to different knobs.
 A section's spectrum is a discretisation of the essential spectrum together with
 whatever separated from it. Enlarging `n` densifies that cluster rather than
 adding isolated eigenvalues, so a value close to the band edge has to be told
-apart from an ever tighter crowd. `eigs()` widens its default subspace for a
-section because of it, and a narrower one fails in a way worth seeing:
+apart from an ever tighter crowd. A restarted run separates it in more rounds
+the smaller its subspace, and `eigs()` widens its default subspace for a section
+because of it:
 
 ```{r ncv}
-W <- finite_section(linop_jacobi(diagonal = 0.3), n = 80)
-narrow <- eigs(W, k = 1, which = "largest_algebraic", ncv = 21)
-wide   <- eigs(W, k = 1, which = "largest_algebraic")
+W <- finite_section(linop_jacobi(diagonal = 0.1), n = 400)
+narrow <- eigs(W, k = 1, which = "largest_algebraic", ncv = 21, maxit = 2000)
+wide   <- eigs(W, k = 1, which = "largest_algebraic", maxit = 2000)
 
-c(narrow = narrow$values, wide = wide$values, exact = sqrt(0.3^2 + 4))
+c(narrow = narrow$values, wide = wide$values, exact = sqrt(0.1^2 + 4))
 ```
 
-The narrow run is wrong in the second digit, and it reports that it is. The row
-to read is the eigensolve's own residual, which is eleven orders apart:
+Both runs reach the value. The wider subspace costs more storage and fewer applies
+of the operator:
 
 ```{r ncv-cert}
-c(narrow = narrow$certificate$values$residual,
-  wide   = wide$certificate$values$residual)
+c(narrow = narrow$iterations, wide = wide$iterations)
 ```
 
-More budget does not recover it and a wider section makes it worse, which is what
-separates this from an ordinary shortage of iterations. See
-`vignette("spectral")` for `ncv` on operators generally.
+See `vignette("spectral")` for `ncv` on operators generally.
 
 ## When there is nothing to find
 

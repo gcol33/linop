@@ -180,8 +180,7 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
   rounds <- 0L
   anorm_lb <- 0
   stop_reason <- NULL
-  prev_best <- Inf
-  stalled <- 0L
+  progress <- NULL
 
   best_d <- numeric(0); best_u <- NULL; best_v <- NULL; best_res <- numeric(0)
 
@@ -250,21 +249,19 @@ gkl_core <- function(A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
       lock_d <- c(lock_d, sigma[conv])
       lock_res <- c(lock_res, rr[conv])
     }
-    best_d <- sigma; best_u <- Ur; best_v <- Vr; best_res <- rr
+    ## The triplets this round did not lock, which are what a run ending here
+    ## adds after the locked set; a locked triplet is already in it.
+    open <- !conv
+    best_d <- sigma[open]; best_u <- Ur[, open, drop = FALSE]
+    best_v <- Vr[, open, drop = FALSE]; best_res <- rr[open]
 
     if (sum(conv) + nl >= k) break
 
-    best <- min(rr)
-    if (!any(conv) && best >= prev_best) {
-      stalled <- stalled + 1L
-      if (stalled >= 2L) {
-        stop_reason <- "the subspace stopped improving"
-        break
-      }
-    } else {
-      stalled <- 0L
+    progress <- restart_progress(progress, rr, sigma, anorm_lb, floor_const, conv)
+    if (progress$stalled >= 2L) {
+      stop_reason <- "the subspace stopped improving"
+      break
     }
-    prev_best <- min(prev_best, best)
 
     ## The thick restart, in the augmented form: the retained triplets stay
     ## diagonal in the projected matrix and couple to the direction the run ended

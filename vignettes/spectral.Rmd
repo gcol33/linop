@@ -73,26 +73,31 @@ any operator and is often the thing that was actually wanted.
 
 ## `ncv` is the knob that matters
 
-`ncv` is how many vectors a restart holds. It is the binding constraint on
-whether the method converges, more than the tolerance and more than the budget:
+`ncv` is how many vectors a restart holds. Each restart compresses the subspace
+to the vectors it keeps, so the smaller `ncv` is, the more applies the method
+spends reaching the tolerance:
 
 ```{r ncv-ladder}
 ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
   f <- eigs(L, k = 3, which = "largest_algebraic", ncv = nc)
   c(ncv = nc,
     error = max(abs(f$values - rev(sort(truth))[1:3])),
-    converged = f$nconv)
-}, numeric(3)))
+    converged = f$nconv,
+    applies = f$iterations)
+}, numeric(4)))
 ladder
 ```
 
-At `ncv = 20` the answer is wrong in the third digit and nothing converges. At
-`ncv = 60` every pair is right to the last one. Raising the iteration budget does
-not substitute: the subspace stops improving, the method reports that it stopped
-improving, and it returns what it has.
+At `ncv = 20` the default budget of 300 applies runs out before the residuals
+reach the tolerance, and the run reports the pairs it has as unconverged. A larger
+budget recovers it:
+
+```{r ncv-budget}
+eigs(L, k = 3, which = "largest_algebraic", ncv = 20, maxit = 2000)$nconv
+```
 
 The top of the Laplacian's spectrum is tightly clustered, which is what makes a
-small subspace insufficient here. A well-separated spectrum needs far less.
+small subspace slow here. A well-separated spectrum needs far fewer applies.
 
 ## What gets reported is the Rayleigh quotient
 

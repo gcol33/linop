@@ -181,6 +181,20 @@ test_that("a budget too small comes back as a fail certificate, not an error", {
   expect_match(detail, "of 4 requested pairs")
 })
 
+test_that("a budget that runs out in a round that locked returns each triplet once", {
+  ## The last round locks the two leading triplets with the budget spent and
+  ## the third still open. The result is the locked set followed by the open
+  ## triplet, which is the third singular value, not the first a second time.
+  n <- 150
+  A <- laplacian_1d(n)
+  d_dense <- svd(as.matrix(A %*% diag(n)), nu = 0, nv = 0)$d
+  fit <- svds(A, k = 3)
+  expect_equal(crossprod(fit$v), diag(ncol(fit$v)), tolerance = 1e-8)
+  expect_equal(crossprod(fit$u), diag(ncol(fit$u)), tolerance = 1e-8)
+  expect_equal(cert_status(fit$certificate, "orthogonality"), "pass")
+  expect_equal(fit$d, d_dense[seq_along(fit$d)], tolerance = 1e-8)
+})
+
 test_that("svds refuses what it is not defined for", {
   n <- 12
   A <- linop(rmat(16, n, seed = 1L))

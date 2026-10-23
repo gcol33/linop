@@ -61,6 +61,16 @@ First development release. The finite object model and the expression graph.
   hermitian declaration it rests on.
 * Non-convergence returns a `fail` certificate naming what stopped the run. A
   contradicted declaration is what throws.
+* The reference `eigs()` and `svds()` end a run as stalled only when a round
+  neither moves a wanted Ritz value beyond the arithmetic floor nor beats the
+  best residual a wanted pair has held. A residual rises and falls across thick
+  restarts while the Ritz value converges, and the smallest residual alone
+  ended runs early: `eigs()` on the 1-D Laplacian of size 150, three largest
+  at the defaults, stopped at 83 applies with an error of 6.6e-3 and now
+  converges in 237.
+* A reference run whose budget runs out in a round that locked a pair reports
+  each pair once. The locked pair was also taken again from that round's
+  unconverged pairs, returning a duplicate in place of the next one.
 
 ## Operators on a sequence space
 

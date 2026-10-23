@@ -239,22 +239,21 @@ test_that("the convergence row names the knob that is short", {
 })
 
 test_that("a section gets a wider default subspace than any other operator", {
-  ## Measured, not assumed: at v = 0.3 the ordinary default of 21 reaches 4.2e-7
-  ## at n = 40 and 9.8e-3 at n = 80, a wider section giving the worse answer,
-  ## because enlarging n densifies the cluster the value has to be told apart
-  ## from. dev_notes/spikes/section-ncv-probe.R.
+  ## Enlarging n densifies the cluster the value has to be told apart from, and
+  ## the wider subspace separates it in fewer applies. dev_notes/spikes/section-ncv-probe.R.
   expect_equal(linop:::default_ncv(sect(1, 8), 1L), 40L)
   expect_equal(linop:::default_ncv(linop(diag(50)), 1L), 21L)
   ## and it is a floor rather than a formula, so a large request still widens it
   expect_equal(linop:::default_ncv(sect(1, 200), 60L), 121L)
 
-  narrow <- top(sect(0.3, 80), ncv = 21L)
-  wide <- top(sect(0.3, 80))
-  expect_gt(abs(narrow$values - sqrt(0.09 + 4)), 1e-4)
-  expect_lt(abs(wide$values - sqrt(0.09 + 4)), 1e-10)
-  ## the narrow run is wrong and says so; it is never a silent wrong answer
-  expect_equal(narrow$nconv, 0L)
-  expect_equal(narrow$certificate$overall, "fail")
+  ## both reach the value near the band edge, and the wider one spends fewer
+  ## applies doing it
+  narrow <- top(sect(0.1, 400), ncv = 21L, maxit = 2000L)
+  wide <- top(sect(0.1, 400), maxit = 2000L)
+  expect_equal(c(narrow$nconv, wide$nconv), c(1L, 1L))
+  expect_lt(abs(narrow$values - sqrt(0.01 + 4)), 1e-10)
+  expect_lt(abs(wide$values - sqrt(0.01 + 4)), 1e-10)
+  expect_lt(wide$iterations, narrow$iterations)
 })
 
 test_that("a section is an ordinary operator everywhere else", {
