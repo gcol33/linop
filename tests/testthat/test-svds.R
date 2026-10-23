@@ -181,6 +181,18 @@ test_that("a budget too small comes back as a fail certificate, not an error", {
   expect_match(detail, "of 4 requested pairs")
 })
 
+test_that("the default budget grows with the smaller dimension", {
+  ## The largest singular value of the difference operator at n = 300 takes 1208
+  ## applies at the default ncv, beyond a budget that does not scale with n.
+  n <- 300
+  A <- diff_1d(n)
+  fit <- svds(A, k = 1)
+  expect_equal(fit$maxit, 20L * (n - 1L))
+  expect_equal(fit$nconv, 1L)
+  expect_gt(fit$iterations, 300L)
+  expect_equal(fit$d, max(diff_1d_singular_values(n)), tolerance = 1e-12)
+})
+
 test_that("a budget that runs out in a round that locked returns each triplet once", {
   ## The last round locks the two leading triplets with the budget spent and
   ## the third still open. The result is the locked set followed by the open

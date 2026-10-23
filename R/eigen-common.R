@@ -179,6 +179,24 @@ default_ncv <- function(A, k) {
   base
 }
 
+## The default budget, in applies per dimension of the space the recurrence runs
+## in: n for eigs(), min(m, n) for svds(). n applies is what forming the operator
+## column by column costs, so the default lets a restarted run spend twenty times
+## that before it reports what it has.
+##
+## The applies a run needs grow with the dimension, not with the subspace: the
+## default ncv is fixed in n while an end of the spectrum crowds as n grows. At
+## the default ncv, three largest of laplacian_1d(n) take 1.6n applies at n = 200
+## and 7.1n at n = 2000 (one largest, 14255 applies), the singular values of
+## diff_1d(1000) 7.9n, a random spectrum and a clustered top under 1.5n, so
+## twenty covers the reference by 2.5x; PRIMME at its own basis needs up to 11.8n
+## on the same fixtures, covered by 1.7x. It does not cover the small end of a
+## spectrum spread over four decades, 100n at n = 500, a shift-invert problem: sigma
+## near that end turns it into a well-separated one. A run that stops making
+## progress ends on the stalled rule long before the budget, so the budget bounds
+## the cost of a slow run and hides no failure. dev_notes/spikes/eigs-budget-sweep.R.
+EIGEN_MAXIT_PER_DIM <- 20L
+
 ## The preamble both verbs share: the operator is a linop of the right shape, the
 ## number of pairs asked for fits inside it, and the budget is positive. The
 ## subspace is checked separately, once the engine is known, because its default
@@ -191,7 +209,7 @@ eigen_setup <- function(A, k, maxit, verb, dim_limit) {
   if (k > dim_limit) {
     stopf("k = %d exceeds the %d pairs this operator has", k, dim_limit)
   }
-  maxit <- as.integer(maxit %||% max(300L, 20L * k))
+  maxit <- as.integer(maxit %||% (EIGEN_MAXIT_PER_DIM * dim_limit))
   if (is.na(maxit) || maxit < 1L) stopf("maxit must be a positive integer")
   list(k = k, maxit = maxit)
 }

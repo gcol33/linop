@@ -68,6 +68,16 @@ First development release. The finite object model and the expression graph.
   ended runs early: `eigs()` on the 1-D Laplacian of size 150, three largest
   at the defaults, stopped at 83 applies with an error of 6.6e-3 and now
   converges in 237.
+* The default `maxit` of `eigs()` and `svds()` is `20 n`, with `n` the
+  dimension the recurrence runs in (`min(m, n)` for `svds()`), in place of
+  `max(300, 20 k)`. At the default `ncv` the applies a crowded end of the
+  spectrum needs grow with `n`: the three largest eigenvalues of the 1-D
+  Laplacian of size 200 take 322, the largest at size 2000 takes 14255. The
+  rule covers the worst converging run of a sweep over Laplacians, random and
+  clustered spectra and difference operators by 2.5x for the reference engine
+  and 1.7x for PRIMME. The small end of a spectrum spread over four decades
+  needs up to 100 `n` and is left to `sigma`
+  (`dev_notes/spikes/eigs-budget-sweep.R`).
 * A reference run whose budget runs out in a round that locked a pair reports
   each pair once. The locked pair was also taken again from that round's
   unconverged pairs, returning a duplicate in place of the next one.
