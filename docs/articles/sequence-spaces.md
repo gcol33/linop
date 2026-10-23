@@ -270,7 +270,7 @@ operator itself does not need one:
 chosen <- eigs(H, k = 1, which = "largest_algebraic")
 chosen
 #> <primme on a finite section> 1 of 1 requested eigenpairs converged, which = 'largest_algebraic'
-#>   55 iterations of at most 300, 6 restarts
+#>   55 iterations of at most 1980, 6 restarts
 #>   section n = 49, from 2 widths
 #>   values: 2.236068
 #>   certificate: pass
@@ -442,7 +442,7 @@ free$certificate
 #> failures:
 #>   truncation bound: worst |b| sqrt(u_{-n}^2 + u_n^2) / ||u|| = 8.460e-03 against 2.000e-10 at n = 40; decay rate undefined inside the band
 #>   isolation: sigma_ess(H) = [-2, 2] by Weyl; the closest value clears it by -1.468e-03 against the error bound 8.460e-03; 1 of 1 values have not separated from the continuum
-#>   convergence: 0 of 1 requested pairs converged in 131 of at most 300 iterations; the eigensolve met its target and the section did not; the truncation term is 8.460e-03 at n = 40
+#>   convergence: 0 of 1 requested pairs converged in 131 of at most 1620 iterations; the eigensolve met its target and the section did not; the truncation term is 8.460e-03 at n = 40
 #>   forward error: min_j |q - lambda_j(H)| <= 8.460e-03 = sqrt(1.890e-10^2 + 8.460e-03^2) + 1.776e-15, against 2.000e-10; the eigenvectors of H are not covered
 ```
 

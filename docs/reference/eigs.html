@@ -140,7 +140,13 @@ the arithmetic floor, each plus that floor: the certificate's
 
 <dt id="arg-maxit">maxit<a class="anchor" aria-label="anchor" href="#arg-maxit"></a></dt>
 <dd><p>Budget of applies across all restarts, of the operator the
-iteration runs on: `A`, or under `sigma` the inner solve.</p></dd>
+iteration runs on: `A`, or under `sigma` the inner solve. `NULL` takes
+`20 n` for an `n x n` operator, twenty times what forming it column by
+column would cost. Hard ends of a spectrum need applies that grow with `n`
+at a fixed `ncv` (seven times `n` for the largest eigenvalue of the 1-D
+Laplacian at `n = 2000`), so the default grows with it. A run that stops
+improving ends before the budget does, and a run that exhausts it returns a
+`fail` certificate.</p></dd>
 
 
 <dt id="arg-ncv">ncv<a class="anchor" aria-label="anchor" href="#arg-ncv"></a></dt>

@@ -264,20 +264,14 @@ fit$certificate
 #> check                          status       source           guarantee             conf
 #> ------------------------------------------------------------------------------------------
 #> arithmetic floor               pass         computation      estimate              -
-#> residual                       fail         computation      estimate              -
+#> residual                       pass         computation      identity              1
 #> orthogonality                  pass         computation      identity              1
-#> backward error                 fail         computation      estimate              -
+#> backward error                 pass         computation      estimate              -
 #> target identity                not_checked  computation      identity              -
-#> convergence                    fail         computation      identity              1
-#> forward error                  fail         theorem          deterministic_bound   1
+#> convergence                    pass         computation      identity              1
+#> forward error                  pass         theorem          deterministic_bound   1
 #> ------------------------------------------------------------------------------------------
-#> overall                        fail   no deterministic bound on: arithmetic floor, residual, backward error, target identity
-#> 
-#> failures:
-#>   residual: worst ||A x - theta x|| / (|theta| ||x||) = 1.875e-09 against tol 1.000e-10, floor 1.777e-15
-#>   backward error: worst ||A x - theta x|| / (||A|| ||x||) = 1.875e-09 against tol 1.000e-10
-#>   convergence: 0 of 3 requested pairs converged in 300 of at most 300 iterations; budget exhausted
-#>   forward error: min_j |theta - lambda_j(A)| <= 7.498e-09, that is 1.875e-09 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap
+#> overall                        qualified   no deterministic bound on: arithmetic floor, backward error, target identity
 ```
 
 `orthogonality` is new: the computed vectors should be orthonormal, and
@@ -331,9 +325,9 @@ fwd <- fit$certificate$checks
 fwd <- fwd[fwd$check == "forward error", ]
 fwd[, c("status", "source", "guarantee")]
 #>   status  source           guarantee
-#> 7   fail theorem deterministic_bound
+#> 7   pass theorem deterministic_bound
 cat(fwd$detail)
-#> min_j |theta - lambda_j(A)| <= 7.498e-09, that is 1.875e-09 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap
+#> min_j |theta - lambda_j(A)| <= 3.969e-10, that is 9.924e-11 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap
 ```
 
 `source` is `theorem` and `guarantee` is `deterministic_bound`, the only
@@ -454,7 +448,7 @@ the section is six orders short, and the convergence row says which:
 
 ch <- narrow$certificate$checks
 cat(ch$detail[ch$check == "convergence"])
-#> 0 of 1 requested pairs converged in 33 of at most 300 iterations; the eigensolve met its target and the section did not; the truncation term is 1.815e-03 at n = 12
+#> 0 of 1 requested pairs converged in 33 of at most 500 iterations; the eigensolve met its target and the section did not; the truncation term is 1.815e-03 at n = 12
 ```
 
 `isolation` is the row with no counterpart anywhere else. The essential
@@ -537,7 +531,7 @@ for rows that carry a dependency.
   covers [`eigs()`](https://gillescolling.com/linop/reference/eigs.md)
   and [`svds()`](https://gillescolling.com/linop/reference/svds.md),
   including a result whose values are exact and whose certificate reads
-  `fail`.
+  `qualified`.
 
 - [`vignette("capabilities")`](https://gillescolling.com/linop/articles/capabilities.md)
   covers evidence away from certificates, where the same three fields

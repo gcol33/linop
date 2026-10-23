@@ -48,6 +48,8 @@ svds(
 - maxit:
 
   Total applies of the operator, in either mode, across all restarts.
+  \`NULL\` takes \`20 min(m, n)\` for an \`m x n\` operator, the rule
+  \[eigs()\] uses on the dimension the singular vectors are sought in.
 
 - ncv:
 

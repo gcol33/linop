@@ -126,7 +126,8 @@ certificate's `backward error` and `residual` rows.</p></dd>
 
 <dt id="arg-maxit">maxit<a class="anchor" aria-label="anchor" href="#arg-maxit"></a></dt>
 <dd><p>Total applies of the operator, in either mode, across all
-restarts.</p></dd>
+restarts. `NULL` takes `20 min(m, n)` for an `m x n` operator, the rule
+[eigs()] uses on the dimension the singular vectors are sought in.</p></dd>
 
 
 <dt id="arg-ncv">ncv<a class="anchor" aria-label="anchor" href="#arg-ncv"></a></dt>

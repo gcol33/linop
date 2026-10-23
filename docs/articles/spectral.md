@@ -40,10 +40,10 @@ truth <- 2 - 2 * cos(seq_len(n) * pi / (n + 1))
 
 fit <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)
 fit
-#> <primme> 0 of 3 requested eigenpairs converged, which = 'largest_algebraic'
-#>   300 iterations of at most 300, 9 restarts
+#> <primme> 3 of 3 requested eigenpairs converged, which = 'largest_algebraic'
+#>   320 iterations of at most 4000, 9 restarts
 #>   values: 3.999756  3.999023  3.997802
-#>   certificate: fail
+#>   certificate: qualified
 ```
 
 ``` r
@@ -96,25 +96,35 @@ ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
 }, numeric(4)))
 ladder
 #>      ncv        error converged applies
-#> [1,]  20 2.040628e-09         0     302
-#> [2,]  30 4.101608e-12         0     300
-#> [3,]  40 2.620126e-14         0     301
-#> [4,]  60 1.332268e-15         0     300
-```
-
-At `ncv = 20` the default budget of 300 applies runs out before the
-residuals reach the tolerance, and the run reports the pairs it has as
-unconverged. A larger budget recovers it:
-
-``` r
-
-eigs(L, k = 3, which = "largest_algebraic", ncv = 20, maxit = 2000)$nconv
-#> [1] 3
+#> [1,]  20 8.881784e-16         3     541
+#> [2,]  30 4.440892e-16         3     400
+#> [3,]  40 4.440892e-16         3     350
+#> [4,]  60 1.332268e-15         3     320
 ```
 
 The top of the Laplacian’s spectrum is tightly clustered, which is what
 makes a small subspace slow here. A well-separated spectrum needs far
 fewer applies.
+
+The budget `maxit` counts applies, and its default is `20 n`: twenty
+times what forming the operator column by column would cost. It grows
+with `n` because a crowded end of the spectrum gets more crowded as `n`
+grows, and at a fixed `ncv` the applies grow with it: the reference
+Lanczos takes 1.6 `n` for the three largest here and 6 `n` at
+`n = 2000`. At the defaults the run converges well inside it:
+
+``` r
+
+dflt <- eigs(L, k = 3, which = "largest_algebraic")
+c(converged = dflt$nconv, applies = dflt$iterations, budget = dflt$maxit)
+#> converged   applies    budget 
+#>         3       677      4000
+```
+
+A run that stops improving ends before the budget does and says so, so a
+larger default costs time only on a run that is still converging. The
+far end of a spectrum spread over many decades is the case it does not
+cover; a shift near that end, `sigma`, is the tool there.
 
 ## What gets reported is the Rayleigh quotient
 
@@ -230,9 +240,9 @@ rbind(computed = small$d, closed_form = rev(svd(G)$d)[1:2])
 The request is not refused. What was reached is reported, and the
 certificate is where you find out whether it was enough.
 
-## A result that is right and certifies as `fail`
+## A result that is right and certifies as `qualified`
 
-This is worth meeting once, because it looks like a bug and is not:
+This is worth meeting once, because it looks like a hedge and is not:
 
 ``` r
 
@@ -243,11 +253,11 @@ rbind(computed = smallest$values, closed_form = sort(truth)[1:3])
 #> computed    0.0002442861 0.0009770848 0.002198217
 #> closed_form 0.0002442861 0.0009770848 0.002198217
 smallest$certificate$overall
-#> [1] "fail"
+#> [1] "qualified"
 ```
 
 Every value is right to the last printed digit and the certificate says
-`fail`. The reason is in which row failed:
+`qualified`. The reason is in which row is qualified:
 
 ``` r
 
@@ -257,27 +267,22 @@ smallest$certificate
 #> check                          status       source           guarantee             conf
 #> ------------------------------------------------------------------------------------------
 #> arithmetic floor               pass         computation      estimate              -
-#> residual                       fail         computation      estimate              -
+#> residual                       qualified    computation      estimate              -
 #> orthogonality                  pass         computation      identity              1
-#> backward error                 fail         computation      estimate              -
+#> backward error                 pass         computation      estimate              -
 #> target identity                not_checked  computation      identity              -
-#> convergence                    fail         computation      identity              1
-#> forward error                  fail         theorem          deterministic_bound   1
+#> convergence                    pass         computation      identity              1
+#> forward error                  pass         theorem          deterministic_bound   1
 #> ------------------------------------------------------------------------------------------
-#> overall                        fail   no deterministic bound on: arithmetic floor, residual, backward error, target identity
-#> 
-#> failures:
-#>   residual: worst ||A x - theta x|| / (|theta| ||x||) = 9.145e-05 against tol 1.000e-10, floor 1.450e-11
-#>   backward error: worst ||A x - theta x|| / (||A|| ||x||) = 2.241e-08 against tol 1.000e-10
-#>   convergence: 0 of 3 requested pairs converged in 301 of at most 300 iterations; budget exhausted
-#>   forward error: min_j |theta - lambda_j(A)| <= 8.936e-08, that is 2.241e-08 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap
+#> overall                        qualified   no deterministic bound on: arithmetic floor, residual, backward error, target identity
 ```
 
-`backward error` passes at 1.4e-13 and `forward error`, which is a real
-bound here, passes at 5.2e-13. What failed is `residual`, which divides
+`backward error` and `forward error`, which is a real bound here, pass
+with room to spare. The row that does not is `residual`, which divides
 by `|theta|`, and the smallest eigenvalue of this operator is 2.4e-4. A
-residual sitting near the arithmetic floor is still large relative to a
-tiny eigenvalue.
+residual near the arithmetic floor is still large relative to a tiny
+eigenvalue, so the pair meets the tolerance only once the floor is added
+to it, and `qualified` is the status that says so.
 
 `overall` is a summary of seven rows, and each row answers its own
 question. The rows are what to read.
