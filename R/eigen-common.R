@@ -60,25 +60,29 @@ ritz_order <- function(theta, which) {
 ## its own loses orthogonality at the rate the basis is ill conditioned, and what
 ## restores it is the second pass rather than the sweep order.
 ##
-## The coefficients are discarded here, and that is what keeps a Lanczos
-## recurrence with full reorthogonalisation a Lanczos recurrence: they are a
-## correction to a three-term recurrence rather than entries of the projected
-## problem. Feeding them into the projection instead would make it Arnoldi. GMRES
-## needs them, which is why it orthogonalises in its own loop rather than through
-## this one, and the only thing the two share is REORTH_ETA.
+## orth_project() also returns the coefficients it removed, h = Q^H W summed
+## over both passes, so that W_in = Q h + W_out to rounding. The Lanczos run keeps
+## them as the column of its projected matrix: they are Q^H A v measured, where a
+## three-term recurrence would assume them. GMRES orthogonalises in its own loop,
+## and the only thing it shares with these two is REORTH_ETA.
 ##
 ## The mask is exact, so a column that did not need the second pass has an exact
 ## zero multiple subtracted from it and is left bit for bit as it was.
-orth_against <- function(Q, W) {
-  if (is.null(Q) || !ncol(Q)) return(W)
+orth_project <- function(Q, W) {
+  if (is.null(Q) || !ncol(Q)) return(list(W = W, h = NULL))
   w0 <- col_norms(W)
-  W <- W - Q %*% cross_adjoint(Q, W)
+  h <- cross_adjoint(Q, W)
+  W <- W - Q %*% h
   again <- col_norms(W) < REORTH_ETA * w0
   if (any(again)) {
-    W <- W - Q %*% scale_cols(cross_adjoint(Q, W), as.numeric(again))
+    h2 <- scale_cols(cross_adjoint(Q, W), as.numeric(again))
+    W <- W - Q %*% h2
+    h <- h + h2
   }
-  W
+  list(W = W, h = h)
 }
+
+orth_against <- function(Q, W) orth_project(Q, W)$W
 
 ## A unit starting vector, in the storage mode the operator implies. Random
 ## unless the caller supplied one, and seeded either way so a report is

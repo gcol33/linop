@@ -220,7 +220,9 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
   ## truncation removed multiply zeros, so the variational principle puts the
   ## extreme eigenvalue of H beyond q with nothing assumed at all -- beyond it up
   ## to the floor, since q is computed and an exact-arithmetic inequality at the
-  ## last bit is not one a certificate may state.
+  ## last bit is not one a certificate may state. The Temple end is an inequality
+  ## about the same computed q, so it carries the floor as well: at n = 40 and
+  ## v = 1 the half-width is 2.8e-17 and q sits 4.4e-16 below sqrt(5).
   above <- q > band[2L]
   adjacent <- vapply(seq_len(k), function(i) {
     if (!isolated[i]) return(FALSE)
@@ -233,8 +235,8 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
           source = "theorem", guarantee = "estimate", confidence = NA_real_)
   } else {
     half <- ifelse(adjacent, bound^2 / gap, NA_real_)
-    lo <- ifelse(above, q - flr, q - half)
-    hi <- ifelse(above, q + half, q + flr)
+    lo <- ifelse(above, q - flr, q - half - flr)
+    hi <- ifelse(above, q + half + flr, q + flr)
     r$add("enclosure", cert_level(max(half[adjacent]), want, flr),
           sprintf("[%.12g, %.12g] for the %d of %d values adjacent to the band, half-width %.3e, assuming no spectrum between the band edge and the eigenvalue",
                   min(lo[adjacent]), max(hi[adjacent]), sum(adjacent), k,

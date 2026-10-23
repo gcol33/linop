@@ -343,6 +343,37 @@ test_that("the default budget grows with the dimension and covers a crowded end"
   expect_equal(eigs(laplacian_1d(50), k = 1, maxit = 77L)$maxit, 77L)
 })
 
+test_that("the projected matrix is the one the basis measures, after a restart too", {
+  ## A thick restart forms the retained vectors as V Z, with a rounding error
+  ## each time. The projected matrix carries what they are, V^H A V, rather than
+  ## the diagonal-and-arrow form exact arithmetic would give them.
+  n <- 300
+  A <- laplacian_1d(n)
+  v <- eigen_start_vector(n, "double", NULL, 1L)
+  run <- linop:::lanczos_run(A, v / sqrt(sum(v^2)), NULL, 20L, 20L)
+  ee <- eigen(run$Tm, symmetric = TRUE)
+  Z <- ee$vectors[, 1:9]
+  keep <- list(Y = run$V %*% Z, H = crossprod(Z, run$Tm %*% Z))
+  nxt <- linop:::lanczos_run(A, run$vnext, NULL, 20L, 20L, keep)
+  measured <- crossprod(nxt$V, laplacian_1d_apply(nxt$V))
+  expect_lt(max(abs(nxt$Tm - measured)), 1e-13)
+})
+
+test_that("the small end of a crowded spectrum reaches the residual row", {
+  ## The smallest eigenvalues of laplacian_1d(500) are 4e-5 of ||A||, so the
+  ## residual row asks for a vector accurate to a few eps in its high-frequency
+  ## components. Taking the retained block as exact Ritz pairs left the leading
+  ## pair at 10.8 eps ||A|| after 170 restarts, above the 8.4 the row allows.
+  n <- 500
+  A <- laplacian_1d(n)
+  for (k in c(1L, 3L)) {
+    fit <- eigs(A, k = k, which = "smallest_algebraic")
+    expect_equal(fit$nconv, k)
+    expect_equal(fit$values, laplacian_1d_eigenvalues(n)[seq_len(k)], tolerance = 1e-12)
+    expect_equal(cert_status(fit$certificate, "convergence"), "pass")
+  }
+})
+
 test_that("a budget that runs out in a round that locked returns each pair once", {
   ## The last round locks its leading pair and runs out of budget with the next
   ## one open. What is reported is the locked set followed by the open pairs, so
