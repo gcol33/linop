@@ -133,6 +133,15 @@ graph.
   `svds(diff_1d(100), k = 1, which = "smallest")` stopped with
   `d = 2.7e-17` and a `fail` certificate where the smallest singular
   value is `3.1e-2`. A caller’s `v0` is still in the domain of `A`.
+- [`svds()`](https://gillescolling.com/linop/reference/svds.md) through
+  PRIMME takes PRIMME’s estimate of `||A||` into the lower bound its
+  convergence test reads, as
+  [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) through
+  PRIMME already did. The bound from the measured triplets alone could
+  sit well below `||A||` at the small end, putting the residual row’s
+  floor below what a converged triplet reaches: a 60 x 60 operator with
+  smallest singular value 1.67e-8 ran to the budget with the right
+  triplet in hand and now converges in 651 applies.
 - The `enclosure` row of a finite section carries the arithmetic floor
   at the Temple end as well as at the variational one. Both ends are
   inequalities about the computed Rayleigh quotient, and at `n = 40` the
