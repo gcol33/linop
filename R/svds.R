@@ -163,6 +163,35 @@ svd_certificate <- function(A, d, u, v, tol, iterations, maxit, floor_const,
                     stop_reason = stop_reason, subject = "svd")
 }
 
+## The bidiagonalisation runs on whichever of A and A^H maps the smaller space
+## into the larger. Started in a domain wider than the codomain, the right
+## Krylov space picks up the start vector's component in null(A), which has
+## dimension n - m and is not a singular direction: the m singular values of a
+## wide A belong to triplets (sigma, u, v) with A^H u = sigma v, and no u is paired
+## with a v in null(A). The projected matrix still has a zero singular value for
+## it, the Ritz v satisfies A v = 0 to rounding and the Ritz u cannot satisfy
+## A^H u = 0, so the smallest request returns that non-triplet and the
+## certificate fails it: diff_1d(100), 99 x 100, one smallest, stopped at a
+## backward error of 0.21 with d = 2.7e-17, where the smallest singular value is
+## 2 sin(pi / 200) = 3.1e-2. Run on A^H, the start lives in R^m and the right
+## space of A is reached only through A^H, which has no null(A) component.
+##
+## A caller's v0 is in the domain of A; on A^H the start is A v0, the first left
+## vector the bidiagonalisation of A would have produced from it.
+gkl_svds <- function(A, ctl) {
+  if (A$dim[1L] >= A$dim[2L]) {
+    return(gkl_core(A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv, ctl$v0,
+                    ctl$seed, ctl$floor_const))
+  }
+  u0 <- if (is.null(ctl$v0)) NULL else linop_apply(A, as_block(ctl$v0), "N")
+  run <- gkl_core(adjoint(A), ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv, u0,
+                  ctl$seed, ctl$floor_const)
+  u <- run$u
+  run$u <- run$v
+  run$v <- u
+  run
+}
+
 ## The outer loop, the same shape as lanczos_core(): build, extract, measure,
 ## lock what converged, restart thickly from what did not. Two bases instead of
 ## one and two orthogonalisation sets, because a left singular vector and a right
