@@ -318,10 +318,13 @@ Before shipping an adapter:
 1. `verify()` returns `pass` or `qualified`, on a real instance and, if the
    format supports it, a complex one.
 2. `qualified` is explained. Which check did not run, and why.
+
 3. Declared capabilities are honoured, and `verify(x)$probes` says
    `consistent`.
 4. `cost` is passed, so the operator is not mistaken for a dense matrix.
+
 5. Blocks of width greater than one behave, which `block consistency` covers.
+
 6. The apply does not modify its input, which `purity` covers.
 
 ## Where to next
@@ -329,6 +332,7 @@ Before shipping an adapter:
 - `vignette("capabilities")` covers what to declare and what a solver will do
   with it.
 - `vignette("expressions")` covers the cost model your `cost` function feeds.
+
 - `vignette("certificates")` covers the three other shapes the certificate takes,
   the ones a solve and a spectral computation return.
 - `vignette("solvers")` covers the methods your adapter will be run through.

@@ -1,20 +1,38 @@
 url: https://gillescolling.com/linop/
-
 template:
   bootstrap: 5
   bootswatch: sandstone
   light-switch: yes
-
+  includes:
+    in_header: |
+      <script>
+      (function () {
+        var D = String.fromCharCode(36);
+        window.MathJax = {
+          tex: {
+            inlineMath: [[D, D], ["\\(", "\\)"]],
+            displayMath: [[D + D, D + D], ["\\[", "\\]"]]
+          },
+          chtml: { linebreaks: { automatic: true, width: "90% container" } },
+          svg: { linebreaks: { automatic: true, width: "90% container" } },
+          options: { renderActions: { addMenu: [] } }
+        };
+      })();
+      </script>
 navbar:
   structure:
-    left: [intro, reference, articles]
-    right: [search, github, lightswitch]
-
+    left:
+    - intro
+    - reference
+    - articles
+    right:
+    - search
+    - github
+    - lightswitch
 articles:
 - title: Getting started
   navbar: Getting started
-  contents:
-  - linop
+  contents: linop
 - title: Core concepts
   navbar: Core concepts
   contents:
@@ -29,14 +47,11 @@ articles:
   - certificates
 - title: Extending
   navbar: Extending
-  contents:
-  - adapters
-
+  contents: adapters
 reference:
 - title: Build an operator
-  desc: >
-    One generic dispatching on its first argument, plus named constructors for
-    the operators that appear constantly inside expressions.
+  desc: |
+    One generic dispatching on its first argument, plus named constructors for the operators that appear constantly inside expressions.
   contents:
   - linop
   - linop_eye
@@ -44,23 +59,18 @@ reference:
   - is_linop
   - dtype
 - title: Operators on a sequence space
-  desc: >
-    An operator whose index set is infinite, the truncation that makes it
-    computable, and the rate its eigenvectors decay at. What comes back from the
-    truncation is an ordinary operator, and what comes back from a spectral
-    computation on it is a statement about the operator underneath.
+  desc: |
+    An operator whose index set is infinite, the truncation that makes it computable, and the rate its eigenvectors decay at. What comes back from the truncation is an ordinary operator, and what comes back from a spectral computation on it is a statement about the operator underneath.
   contents:
   - linop_jacobi
   - finite_section
   - decay_rate
 - title: Views
   desc: The conjugate transpose, distinct from the transpose.
-  contents:
-  - adjoint
+  contents: adjoint
 - title: Inspect and cost an expression
-  desc: >
-    Read the structure of a lazy expression, estimate its cost, and trade cost
-    for memory where that pays.
+  desc: |
+    Read the structure of a lazy expression, estimate its cost, and trade cost for memory where that pays.
   contents:
   - explain
   - linop_cost
@@ -71,9 +81,8 @@ reference:
   - as.matrix.linop
   - as_sparse
 - title: Capabilities and evidence
-  desc: >
-    What an operator knows about itself, the argument that established it, and
-    what a solver will accept.
+  desc: |
+    What an operator knows about itself, the argument that established it, and what a solver will accept.
   contents:
   - cap
   - capability
@@ -82,36 +91,27 @@ reference:
   - requirement
 - title: Check a claim
   desc: The conformance suite an adapter author runs before shipping.
-  contents:
-  - verify
+  contents: verify
 - title: Read a certificate
-  desc: >
-    Each verb puts its certificate where its own return value has room. This
-    reads it off any of them.
-  contents:
-  - certificate
+  desc: |
+    Each verb puts its certificate where its own return value has room. This reads it off any of them.
+  contents: certificate
 - title: Solve a system
-  desc: >
-    One verb over seven Krylov methods, choosing on declared capabilities and
-    shape, returning what a matrix solve returns with a certificate attached.
-  contents:
-  - solve.linop
+  desc: |
+    One verb over seven Krylov methods, choosing on declared capabilities and shape, returning what a matrix solve returns with a certificate attached.
+  contents: solve.linop
 - title: Eigenvalues and singular values
-  desc: >
-    Restarted Lanczos with full reorthogonalisation, and the same loop on the
-    augmented operator. Each pair carries a backward error and a bound on how
-    far the value can be from an exact one.
+  desc: |
+    Restarted Lanczos with full reorthogonalisation, and the same loop on the augmented operator. Each pair carries a backward error and a bound on how far the value can be from an exact one.
   contents:
   - eigs
   - svds
 - title: Preconditioners
-  desc: >
-    One direction internally, and a contract each method enforces at the point
-    the preconditioner is accepted.
+  desc: |
+    One direction internally, and a contract each method enforces at the point the preconditioner is accepted.
   contents:
   - preconditioner
   - as_preconditioner
   - as_preconditioner_inverse
 - title: internal
-  contents:
-  - promote
+  contents: promote
