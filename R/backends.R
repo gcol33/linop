@@ -155,9 +155,7 @@ register_backend("golub-kahan", "svds", priority = 0,
                  provides_label = "Golub-Kahan-Lanczos with full reorthogonalisation",
                  requires = c("apply", "adjoint"), targets = c("LM", "SM"),
                  default_ncv = function(A, k) default_ncv(A, k),
-                 run = function(A, ctl, engine)
-                   gkl_core(A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                            ctl$v0, ctl$seed, ctl$floor_const))
+                 run = function(A, ctl, engine) gkl_svds(A, ctl))
 
 register_backend("primme", "eigs_hermitian", priority = 100,
                  provides_label = "PRIMME with implicit restarting",

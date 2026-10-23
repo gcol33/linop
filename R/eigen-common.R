@@ -192,9 +192,9 @@ default_ncv <- function(A, k) {
 ## default ncv is fixed in n while an end of the spectrum crowds as n grows. At
 ## the default ncv, three largest of laplacian_1d(n) take 1.6n applies at n = 200
 ## and 7.1n at n = 2000 (one largest, 14255 applies), the singular values of
-## diff_1d(1000) 7.9n, a random spectrum and a clustered top under 1.5n, so
-## twenty covers the reference by 2.5x; PRIMME at its own basis needs up to 11.8n
-## on the same fixtures, covered by 1.7x. It does not cover the small end of a
+## diff_1d(1000) 7.8n at the large end and 12.3n at the small, a random spectrum
+## and a clustered top under 1.5n, so twenty covers the reference by 1.6x; PRIMME
+## at its own basis needs up to 11.8n on the same fixtures, covered by 1.7x. It does not cover the small end of a
 ## spectrum spread over four decades, 100n at n = 500, a shift-invert problem: sigma
 ## near that end turns it into a well-separated one. A run that stops making
 ## progress ends on the stalled rule long before the budget, so the budget bounds

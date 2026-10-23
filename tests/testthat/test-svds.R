@@ -181,6 +181,42 @@ test_that("a budget too small comes back as a fail certificate, not an error", {
   expect_match(detail, "of 4 requested pairs")
 })
 
+test_that("a wide operator's null space is not reported as a zero singular value", {
+  ## diff_1d(n) is (n - 1) x n with the constant vector in its null space. Its
+  ## n - 1 singular values are 2 sin(j pi / (2n)), j = 1..n-1, all positive; the
+  ## null vector has no left partner, so it is not a triplet.
+  for (n in c(100, 300)) {
+    A <- diff_1d(n)
+    fit <- svds(A, k = 1, which = "smallest")
+    expect_equal(fit$nconv, 1L)
+    expect_equal(fit$d, 2 * sin(pi / (2 * n)), tolerance = 1e-10)
+    expect_lte(triplet_backward(A, fit$d, fit$u, fit$v, 2), 1e-10)
+    expect_equal(cert_status(fit$certificate, "convergence"), "pass")
+  }
+  ## a caller's start vector is in the domain of A whichever way the run goes
+  v0 <- seq_len(100) / 100
+  fit <- svds(diff_1d(100), k = 1, which = "smallest", v0 = v0)
+  expect_equal(fit$d, 2 * sin(pi / 200), tolerance = 1e-10)
+})
+
+test_that("a zero singular value and a near-zero one are found with both vectors", {
+  ## The periodic difference is square with the constant vector in the null space
+  ## on both sides, so 0 is a singular value with a genuine triplet; moving one
+  ## entry by 1e-6 makes the smallest 1.67e-8.
+  n <- 60
+  P <- diag(n)[c(2:n, 1), ] - diag(n)
+  Q <- P
+  Q[1, 1] <- Q[1, 1] + 1e-6
+  for (M in list(P, Q)) {
+    truth <- min(svd(M)$d)
+    fit <- svds(linop(M), k = 1, which = "smallest")
+    expect_equal(fit$nconv, 1L)
+    expect_lt(abs(fit$d - truth), 1e-10 * 2)
+    expect_lte(sqrt(sum((M %*% fit$v - fit$d * fit$u)^2)), 1e-10 * 2)
+    expect_lte(sqrt(sum((crossprod(M, fit$u) - fit$d * fit$v)^2)), 1e-10 * 2)
+  }
+})
+
 test_that("the default budget grows with the smaller dimension", {
   ## The largest singular value of the difference operator at n = 300 takes 1208
   ## applies at the default ncv, beyond a budget that does not scale with n.
