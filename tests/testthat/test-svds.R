@@ -217,6 +217,34 @@ test_that("a zero singular value and a near-zero one are found with both vectors
   }
 })
 
+test_that("a triplet's backward error is the augmented pair's, not either side's", {
+  ## The tolerance is on the augmented eigenpair z = [u; v] / sqrt(2), whose
+  ## residual is sqrt(||A v - d u||^2 + ||A^H u - d v||^2) / sqrt(2). One side
+  ## alone may exceed tol ||A|| while the pair meets it: here A v = 0 exactly and
+  ## ||A^H u|| = 2.6e-10 = 1.3e-10 ||A||, a backward error of 9.2e-11. At d = 0
+  ## the relative residual row is not a measure and is not_checked, which with
+  ## target identity makes the overall verdict qualified.
+  n <- 60
+  M <- diag(n)[c(2:n, 1), ] - diag(n)
+  A <- linop(M)
+  v <- matrix(1 / sqrt(n), n, 1L)
+  w <- matrix(sin(seq_len(n)), n, 1L)
+  w <- w - v * sum(v * w)
+  w <- w / sqrt(sum(crossprod(M, w)^2))
+  u <- v + 2.6e-10 * w
+  u <- u / sqrt(sum(u^2))
+  rv <- sqrt(sum(crossprod(M, u)^2))
+  cert <- svd_certificate(A, 0, u, v, tol = 1e-10, iterations = 1L, maxit = 1L,
+                          floor_const = SOLVE_FLOOR_CONST, norm_control = list(),
+                          norm_lower_bound = 0, requested = 1L, stop_reason = NULL)
+  expect_gt(rv / 2, 1e-10)
+  expect_equal(cert$values$backward_error, rv / sqrt(2) / cert$values$norm,
+               tolerance = 1e-6)
+  expect_equal(cert_status(cert, "backward error"), "pass")
+  expect_equal(cert_status(cert, "residual"), "not_checked")
+  expect_equal(cert$overall, "qualified")
+})
+
 test_that("the default budget grows with the smaller dimension", {
   ## The largest singular value of the difference operator at n = 300 takes 1208
   ## applies at the default ncv, beyond a budget that does not scale with n.
