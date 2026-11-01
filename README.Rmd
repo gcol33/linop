@@ -22,7 +22,7 @@ linop represents a linear operator by the function that applies it, such as a fi
 
 You give `linop()` a function that applies the operator to a block of columns, and the function that applies its conjugate transpose. The object that comes back behaves like a matrix under `%*%`, `t()`, `crossprod()`, `+` and `*`. Each of these operations adds a node to an expression graph, so nothing is computed until you apply the result to a vector or a block. An operator also carries capabilities, such as being Hermitian or positive definite, each with a record of the argument that established it, so you can see what a claim rests on and decide what a solver may rely on. linop supports:
 
-- **Operators too large to store.** A 262,144 x 262,144 image blur, 512 GiB as a dense matrix, is applied in 0.0095 seconds with a peak memory of 51 MB ([details](#operators-too-large-to-store)).
+- **Operators too large to store.** A 262,144 x 262,144 image blur, 512 GiB as a dense matrix, is written as a function of a few lines and applied block by block in a fraction of a second ([details](#operators-too-large-to-store)).
 - **Solving systems and computing spectra.** [`solve()`](https://gillescolling.com/linop/reference/solve.linop.html) chooses among seven Krylov methods on the operator's declared capabilities and shape, and [`eigs()`](https://gillescolling.com/linop/reference/eigs.html) and [`svds()`](https://gillescolling.com/linop/reference/svds.html) compute eigenpairs and singular triplets. Each result carries a certificate.
 - **Capabilities with their evidence.** Properties propagate through the algebra together with the argument behind them, and a solver states the evidence it accepts as a [`requirement()`](https://gillescolling.com/linop/reference/requirement.html).
 - **Checking a hand-written operator.** [`verify()`](https://gillescolling.com/linop/reference/verify.html) runs the contract every solver relies on, including the adjoint consistency test that catches a wrong conjugation.
@@ -114,15 +114,21 @@ img <- runif(n_img)
 y <- N %*% img
 ```
 
-| | |
-|---|---|
-| Operator | 262,144 x 262,144 |
-| Dense storage for the same operator | 512 GiB |
-| One apply of `Blur` | 0.0095 s |
-| One apply of `crossprod(Blur) + 1e-3 * I` | 0.019 s |
-| Peak R memory across the run | 51 MB |
+The time of one application of each operator, and the peak memory R used over the whole run, with `r R.version.string`:
 
-The timings were taken with R 4.6.0 on Windows 11, an i9-14900K and the reference BLAS. The expression is applied one block at a time, so the memory figure is set by the block you hand it and by the operator's own working set. Wrapping a callback costs 200 ns per apply, which is 0.13% or less of one application of an operator with 1e5 elements or more.
+```{r timing, echo = FALSE}
+invisible(gc(reset = TRUE))
+t_blur <- system.time(for (i in 1:5) Blur %*% img)[["elapsed"]] / 5
+t_n <- system.time(for (i in 1:5) N %*% img)[["elapsed"]] / 5
+peak_mb <- sum(gc()[, 6])
+data.frame(
+  operator = c("Blur", "crossprod(Blur) + 1e-3 * I"),
+  seconds = signif(c(t_blur, t_n), 2)
+)
+cat("Peak R memory:", round(peak_mb), "MB")
+```
+
+The expression is applied one block at a time, so the memory figure is set by the block you hand it and by the operator's own working set. Wrapping a callback costs 200 ns per apply, which is 0.13% or less of one application of an operator with 1e5 elements or more.
 
 [The expression graph](https://gillescolling.com/linop/articles/expressions.html) covers the simplification rules, the cost model, `collapse()` and materialisation.
 
@@ -212,7 +218,7 @@ Questions and bug reports go to the [GitHub issues](https://github.com/gcol33/li
 
 ## Contributing
 
-Pull requests are welcome; see the [contributing guide](https://github.com/gcol33/linop/blob/main/CONTRIBUTING.md).
+Pull requests are welcome; see the [contributing guide](https://gillescolling.com/linop/CONTRIBUTING.html).
 
 ## Support
 

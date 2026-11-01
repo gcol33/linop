@@ -27,8 +27,9 @@ established it, so you can see what a claim rests on and decide what a
 solver may rely on. linop supports:
 
 - **Operators too large to store.** A 262,144 x 262,144 image blur, 512
-  GiB as a dense matrix, is applied in 0.0095 seconds with a peak memory
-  of 51 MB ([details](#operators-too-large-to-store)).
+  GiB as a dense matrix, is written as a function of a few lines and
+  applied block by block in a fraction of a second
+  ([details](#operators-too-large-to-store)).
 - **Solving systems and computing spectra.**
   [`solve()`](https://gillescolling.com/linop/reference/solve.linop.html)
   chooses among seven Krylov methods on the operator’s declared
@@ -164,19 +165,18 @@ img <- runif(n_img)
 y <- N %*% img
 ```
 
-|                                           |                   |
-|-------------------------------------------|-------------------|
-| Operator                                  | 262,144 x 262,144 |
-| Dense storage for the same operator       | 512 GiB           |
-| One apply of `Blur`                       | 0.0095 s          |
-| One apply of `crossprod(Blur) + 1e-3 * I` | 0.019 s           |
-| Peak R memory across the run              | 51 MB             |
+The time of one application of each operator, and the peak memory R used
+over the whole run, with R version 4.6.1 (2026-06-24 ucrt):
 
-The timings were taken with R 4.6.0 on Windows 11, an i9-14900K and the
-reference BLAS. The expression is applied one block at a time, so the
-memory figure is set by the block you hand it and by the operator’s own
-working set. Wrapping a callback costs 200 ns per apply, which is 0.13%
-or less of one application of an operator with 1e5 elements or more.
+    #>                     operator seconds
+    #> 1                       Blur   0.010
+    #> 2 crossprod(Blur) + 1e-3 * I   0.018
+    #> Peak R memory: 98 MB
+
+The expression is applied one block at a time, so the memory figure is
+set by the block you hand it and by the operator’s own working set.
+Wrapping a callback costs 200 ns per apply, which is 0.13% or less of
+one application of an operator with 1e5 elements or more.
 
 [The expression
 graph](https://gillescolling.com/linop/articles/expressions.html) covers
@@ -367,7 +367,7 @@ to act on with a small reproducible example, for instance made with
 ## Contributing
 
 Pull requests are welcome; see the [contributing
-guide](https://github.com/gcol33/linop/blob/main/CONTRIBUTING.md).
+guide](https://gillescolling.com/linop/CONTRIBUTING.html).
 
 ## Support
 
