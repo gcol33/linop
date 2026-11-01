@@ -82,8 +82,8 @@ The attribute on a solve survives arithmetic and is dropped by indexing,
 [`as.numeric()`](https://rdrr.io/r/base/numeric.html),
 [`c()`](https://rdrr.io/r/base/c.html) and the reductions. So the cost
 of [`solve()`](https://rdrr.io/r/base/solve.html) returning a plain
-matrix is not that the certificate is easily lost; it is that `2 * x`
-still carries one describing `x`.
+matrix is that `2 * x` still carries a certificate, and that certificate
+describes `x`.
 
 ## Status and evidence are separate questions
 
