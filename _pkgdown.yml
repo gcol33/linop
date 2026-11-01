@@ -30,14 +30,7 @@ navbar:
     - search
     - github
     - lightswitch
-  components:
-    intro:
-      text: Get started
-      href: articles/linop.html
 articles:
-- title: Get started
-  contents:
-  - linop
 - title: Core concepts
   navbar: Core concepts
   contents:

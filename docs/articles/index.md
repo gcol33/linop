@@ -1,10 +1,5 @@
 # Articles
 
-### Get started
-
-- [Getting started with
-  linop](https://gillescolling.com/linop/articles/linop.md):
-
 ### Core concepts
 
 - [The expression
