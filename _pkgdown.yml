@@ -25,14 +25,19 @@ navbar:
     - intro
     - reference
     - articles
+    - news
     right:
     - search
     - github
     - lightswitch
+  components:
+    intro:
+      text: Get started
+      href: articles/linop.html
 articles:
-- title: Getting started
-  navbar: Getting started
-  contents: linop
+- title: Get started
+  contents:
+  - linop
 - title: Core concepts
   navbar: Core concepts
   contents:
@@ -47,7 +52,8 @@ articles:
   - certificates
 - title: Extending
   navbar: Extending
-  contents: adapters
+  contents:
+  - adapters
 reference:
 - title: Build an operator
   desc: |

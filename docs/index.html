@@ -52,8 +52,6 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Getting started</h6></li>
-    <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Core concepts</h6></li>
     <li><a class="dropdown-item" href="articles/expressions.html">The expression graph</a></li>
     <li><a class="dropdown-item" href="articles/capabilities.html">Capabilities and evidence</a></li>
@@ -66,8 +64,11 @@
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Extending</h6></li>
     <li><a class="dropdown-item" href="articles/adapters.html">Writing an adapter</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="articles/index.html">More articles...</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -99,7 +100,7 @@
 <p>You give <code><a href="reference/linop.html">linop()</a></code> a function that applies the operator to a block of columns, and the function that applies its conjugate transpose. The object that comes back behaves like a matrix under <code>%*%</code>, <code><a href="https://rdrr.io/r/base/t.html" class="external-link">t()</a></code>, <code><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod()</a></code>, <code>+</code> and <code>*</code>. Each of these operations adds a node to an expression graph, so nothing is computed until you apply the result to a vector or a block. An operator also carries capabilities, such as being Hermitian or positive definite, each with a record of the argument that established it, so you can see what a claim rests on and decide what a solver may rely on. linop supports:</p>
 <ul>
 <li>
-<strong>Operators too large to store.</strong> A 262,144 x 262,144 image blur, 512 GiB as a dense matrix, is applied in 0.0095 seconds with a peak memory of 51 MB (<a href="#operators-too-large-to-store">details</a>).</li>
+<strong>Operators too large to store.</strong> A 262,144 x 262,144 image blur, 512 GiB as a dense matrix, is written as a function of a few lines and applied block by block in a fraction of a second (<a href="#operators-too-large-to-store">details</a>).</li>
 <li>
 <strong>Solving systems and computing spectra.</strong> <a href="https://gillescolling.com/linop/reference/solve.linop.html"><code>solve()</code></a> chooses among seven Krylov methods on the operator’s declared capabilities and shape, and <a href="https://gillescolling.com/linop/reference/eigs.html"><code>eigs()</code></a> and <a href="https://gillescolling.com/linop/reference/svds.html"><code>svds()</code></a> compute eigenpairs and singular triplets. Each result carries a certificate.</li>
 <li>
@@ -193,44 +194,25 @@
 <code class="sourceCode R"><span><span class="va">N</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">Blur</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1e-3</span> <span class="op">*</span> <span class="fu"><a href="reference/linop_eye.html">linop_eye</a></span><span class="op">(</span><span class="va">n_img</span><span class="op">)</span></span>
 <span><span class="va">img</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">n_img</span><span class="op">)</span></span>
 <span><span class="va">y</span> <span class="op">&lt;-</span> <span class="va">N</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">img</span></span></code></pre></div>
-<table class="table"><tbody>
-<tr>
-<td>Operator</td>
-<td>262,144 x 262,144</td>
-</tr>
-<tr>
-<td>Dense storage for the same operator</td>
-<td>512 GiB</td>
-</tr>
-<tr>
-<td>One apply of <code>Blur</code>
-</td>
-<td>0.0095 s</td>
-</tr>
-<tr>
-<td>One apply of <code>crossprod(Blur) + 1e-3 * I</code>
-</td>
-<td>0.019 s</td>
-</tr>
-<tr>
-<td>Peak R memory across the run</td>
-<td>51 MB</td>
-</tr>
-</tbody></table>
-<p>The timings were taken with R 4.6.0 on Windows 11, an i9-14900K and the reference BLAS. The expression is applied one block at a time, so the memory figure is set by the block you hand it and by the operator’s own working set. Wrapping a callback costs 200 ns per apply, which is 0.13% or less of one application of an operator with 1e5 elements or more.</p>
+<p>The time of one application of each operator, and the peak memory R used over the whole run, with R version 4.6.1 (2026-06-24 ucrt):</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co">#&gt;                     operator seconds</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; 1                       Blur   0.010</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; 2 crossprod(Blur) + 1e-3 * I   0.018</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; Peak R memory: 98 MB</span></span></code></pre></div>
+<p>The expression is applied one block at a time, so the memory figure is set by the block you hand it and by the operator’s own working set. Wrapping a callback costs 200 ns per apply, which is 0.13% or less of one application of an operator with 1e5 elements or more.</p>
 <p><a href="https://gillescolling.com/linop/articles/expressions.html">The expression graph</a> covers the simplification rules, the cost model, <code><a href="reference/collapse.html">collapse()</a></code> and materialisation.</p>
 </div>
 <div class="section level2">
 <h2 id="capabilities-and-their-evidence">Capabilities and their evidence<a class="anchor" aria-label="anchor" href="#capabilities-and-their-evidence"></a>
 </h2>
 <p>An operator records what is known about it together with the argument that established it, and both travel through the algebra. <code>adjoint(A) %*% A</code> is Hermitian whatever is claimed about <code>A</code>, so the product node records it from its construction:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">A</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/linop.html">linop</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">3</span>, <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, <span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">G</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/adjoint.html">adjoint</a></span><span class="op">(</span><span class="va">A</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">A</span></span>
 <span><span class="fu"><a href="reference/cap.html">cap</a></span><span class="op">(</span><span class="va">G</span>, <span class="st">"hermitian"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; TRUE  (construction / identity / conf 1)</span></span></code></pre></div>
 <p>When two operators are declared positive definite by their author, their sum is positive definite by a sound rule, and the declarations it rests on stay visible underneath:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">id</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="va">X</span></span>
 <span><span class="va">twice</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">X</span></span>
 <span><span class="va">pd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>hermitian <span class="op">=</span> <span class="cn">TRUE</span>, positive_definite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -240,7 +222,7 @@
 <span><span class="fu"><a href="reference/cap.html">cap</a></span><span class="op">(</span><span class="va">P</span> <span class="op">+</span> <span class="va">Q</span>, <span class="st">"positive_definite"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; TRUE  (construction / identity / conf 1 &lt;- [user_declaration / identity / conf 1; user_declaration / identity / conf 1])</span></span></code></pre></div>
 <p>A solver states what it accepts as a predicate over the whole chain. This one accepts construction, computation and theorems, and refuses a chain that ends in a user’s declaration:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">req</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/requirement.html">requirement</a></span><span class="op">(</span>sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"construction"</span>, <span class="st">"computation"</span>, <span class="st">"theorem"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/evidence_satisfies.html">evidence_satisfies</a></span><span class="op">(</span><span class="fu"><a href="reference/cap.html">cap</a></span><span class="op">(</span><span class="va">P</span> <span class="op">+</span> <span class="va">Q</span>, <span class="st">"positive_definite"</span><span class="op">)</span><span class="op">$</span><span class="va">evidence</span>, <span class="va">req</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
@@ -250,7 +232,7 @@
 <h2 id="checking-an-operator">Checking an operator<a class="anchor" aria-label="anchor" href="#checking-an-operator"></a>
 </h2>
 <p><code><a href="reference/verify.html">verify()</a></code> runs the contract that every solver in the package relies on, and reports each check with its own status:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/verify.html">verify</a></span><span class="op">(</span><span class="va">S</span><span class="op">)</span></span>
 <span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
@@ -268,7 +250,7 @@
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; overall                        qualified   no deterministic bound on: declared capabilities</span></span></code></pre></div>
 <p>The certificate keeps the checks that carry no deterministic bound in a list of their own. A wrong conjugation in an adjoint is the most common bug in a hand-written operator, and the adjoint consistency check fails on it. Here the adjoint is a copy of the forward action:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/linop.html">linop</a></span><span class="op">(</span><span class="va">up</span>, adjoint <span class="op">=</span> <span class="va">up</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/verify.html">verify</a></span><span class="op">(</span><span class="va">Bad</span><span class="op">)</span><span class="op">$</span><span class="va">overall</span></span>
 <span><span class="co">#&gt; [1] "fail"</span></span></code></pre></div>
@@ -331,7 +313,7 @@
 <div class="section level2">
 <h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>
 </h2>
-<p>Pull requests are welcome; see the <a href="https://github.com/gcol33/linop/blob/main/CONTRIBUTING.md" class="external-link">contributing guide</a>.</p>
+<p>Pull requests are welcome; see the <a href="https://gillescolling.com/linop/CONTRIBUTING.html">contributing guide</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="support">Support<a class="anchor" aria-label="anchor" href="#support"></a>
@@ -355,13 +337,13 @@
 Evidence-Bearing Capabilities_. R package version 0.0.0.9000,
 &lt;https://gillescolling.com/linop/&gt;.</code></pre>
 <p>BibTeX:</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="va">@Manual</span>{<span class="ot">colling2026linop</span>,</span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="dt">title</span> = {linop: Matrix-Free Linear Operators with Evidence-Bearing Capabilities},</span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="dt">author</span> = {Gilles Colling},</span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="dt">year</span> = {2026},</span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="dt">note</span> = {R package version 0.0.0.9000},</span>
-<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>  <span class="dt">url</span> = {https://gillescolling.com/linop/},</span>
-<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="va">@Manual</span>{<span class="ot">colling2026linop</span>,</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  <span class="dt">title</span> = {linop: Matrix-Free Linear Operators with Evidence-Bearing Capabilities},</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>  <span class="dt">author</span> = {Gilles Colling},</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>  <span class="dt">year</span> = {2026},</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>  <span class="dt">note</span> = {R package version 0.0.0.9000},</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>  <span class="dt">url</span> = {https://gillescolling.com/linop/},</span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>}</span></code></pre></div>
 <p>Download the citation as <a href="https://gillescolling.com/linop/linop.bib">BibTeX</a> or <a href="https://gillescolling.com/linop/linop.ris">RIS</a>.</p>
 </div>
 </div>
