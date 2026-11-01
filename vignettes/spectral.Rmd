@@ -213,7 +213,7 @@ Every value is right to the last printed digit and the certificate says
 smallest$certificate
 ```
 
-`backward error` and `forward error`, which is a real bound here, pass with room
+`backward error` and `forward error`, which is a rigorous bound here, pass with room
 to spare. The row that does not is `residual`, which divides by `|theta|`, and
 the smallest eigenvalue of this operator is 2.4e-4. A residual near the
 arithmetic floor is still large relative to a tiny eigenvalue, so the pair meets

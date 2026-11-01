@@ -72,8 +72,8 @@ the contract, and that is `verify()`, which returns a certificate of its own.
 
 The attribute on a solve survives arithmetic and is dropped by indexing,
 `as.numeric()`, `c()` and the reductions. So the cost of `solve()` returning a
-plain matrix is not that the certificate is easily lost; it is that `2 * x` still
-carries one describing `x`.
+plain matrix is that `2 * x` still carries a certificate, and that certificate
+describes `x`.
 
 ## Status and evidence are separate questions
 

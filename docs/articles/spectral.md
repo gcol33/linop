@@ -277,12 +277,12 @@ smallest$certificate
 #> overall                        qualified   no deterministic bound on: arithmetic floor, residual, backward error, target identity
 ```
 
-`backward error` and `forward error`, which is a real bound here, pass
-with room to spare. The row that does not is `residual`, which divides
-by `|theta|`, and the smallest eigenvalue of this operator is 2.4e-4. A
-residual near the arithmetic floor is still large relative to a tiny
-eigenvalue, so the pair meets the tolerance only once the floor is added
-to it, and `qualified` is the status that says so.
+`backward error` and `forward error`, which is a rigorous bound here,
+pass with room to spare. The row that does not is `residual`, which
+divides by `|theta|`, and the smallest eigenvalue of this operator is
+2.4e-4. A residual near the arithmetic floor is still large relative to
+a tiny eigenvalue, so the pair meets the tolerance only once the floor
+is added to it, and `qualified` is the status that says so.
 
 `overall` is a summary of seven rows, and each row answers its own
 question. The rows are what to read.

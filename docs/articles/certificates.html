@@ -195,8 +195,8 @@ alone is that it satisfies the contract, and that is
 <p>The attribute on a solve survives arithmetic and is dropped by
 indexing, <code><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric()</a></code>, <code><a href="https://rdrr.io/r/base/c.html" class="external-link">c()</a></code> and the
 reductions. So the cost of <code><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve()</a></code> returning a plain matrix
-is not that the certificate is easily lost; it is that
-<code>2 * x</code> still carries one describing <code>x</code>.</p>
+is that <code>2 * x</code> still carries a certificate, and that
+certificate describes <code>x</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="status-and-evidence-are-separate-questions">Status and evidence are separate questions<a class="anchor" aria-label="anchor" href="#status-and-evidence-are-separate-questions"></a>
