@@ -22,7 +22,7 @@ three matrix products.
 ## Two verbs
 
 [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) computes a
-few eigenpairs of a hermitian operator.
+few eigenpairs of a square operator.
 [`svds()`](https://gillescolling.com/linop/reference/svds.md) computes a
 few singular triplets of any operator. Both run against the action
 alone, and both hold `ncv` vectors rather than a matrix.
@@ -55,29 +55,124 @@ rbind(computed = fit$values,
 #> closed_form 3.999756 3.999023 3.997802
 ```
 
-## The operator has to say it is hermitian
+## Hermitian or not
 
-There is one eigensolver here and it is Lanczos, which is defined for a
-hermitian operator. Symmetry is not probed and not assumed:
+[`eigs()`](https://gillescolling.com/linop/reference/eigs.md) has two
+methods. Lanczos is defined for a hermitian operator, and its projected
+problem is a real symmetric tridiagonal matrix. Arnoldi with
+Krylov-Schur restarting runs on any square operator. Symmetry is not
+probed and not assumed, so a callback that declares nothing gets
+Arnoldi:
 
 ``` r
 
 Undeclared <- linop(lap, adjoint = lap, dim = c(n, n))
-eigs(Undeclared, k = 2)
-#> Error:
-#> ! method 'eigs' requires the operator to be hermitian; it declares hermitian = NA.
-#>   Unknown is not false. Declare it with linop(..., properties = c(hermitian = TRUE)) if you can justify it.
+plain <- eigs(Undeclared, k = 3, which = "largest_algebraic", ncv = 60)
+plain$method
+#> [1] "arnoldi"
+plain$values - rev(sort(truth))[1:3]
+#> [1] 8.881784e-16 1.332268e-15 4.440892e-16
 ```
 
-Unknown is not false, and the refusal says so rather than guessing
+The values are right, and the dispatch says why Lanczos was passed over:
+
+``` r
+
+d <- plain$certificate$dispatch$candidates
+d[d$backend != "primme", c("backend", "status")]
+#>   backend   status
+#> 2 lanczos rejected
+#> 3 arnoldi selected
+d$reason[d$backend == "lanczos"]
+#> [1] "requires the operator to be hermitian; it declares hermitian = NA, and unknown is not false"
+```
+
+Unknown is not false, and the dispatch says so rather than guessing
 either way. A dense leaf establishes symmetry by checking it, so a
 matrix needs no declaration; a callback has nothing to check and the
-declaration is how you supply it.
+declaration is how you supply it. What the declaration buys is the real
+recurrence and a bound on the eigenvalues, the `forward error` row of
+the certificate:
 
-A non-hermitian operator is refused for a different reason, and there is
-no Arnoldi in this version, so it has no eigensolver here at all.
+``` r
+
+row <- function(fit, check) fit$certificate$checks$status[fit$certificate$checks$check == check]
+c(declared = row(fit, "forward error"), undeclared = row(plain, "forward error"))
+#>      declared    undeclared 
+#>        "pass" "not_checked"
+```
+
+## A non-normal operator
+
+Convection-diffusion on a grid,
+`2 u_j - (1 + mu) u_{j-1} - (1 - mu) u_{j+1}`, is not symmetric for
+`mu != 0`, and its eigenvalues are still known in closed form,
+`2 - 2 sqrt(1 - mu^2) cos(j pi / (n + 1))`. Its eigenvectors are the
+sine vectors scaled by `rho^j`, `rho = sqrt((1 + mu)/(1 - mu))`, so they
+are far from orthogonal once `rho^n` is large.
+
+``` r
+
+convdiff <- function(n, mu) {
+  force(n); force(mu)
+  linop(function(X) 2 * X - (1 + mu) * rbind(0, X[-n, , drop = FALSE]) -
+                    (1 - mu) * rbind(X[-1, , drop = FALSE], 0), dim = c(n, n))
+}
+cd_truth <- function(n, mu) 2 - 2 * sqrt(1 - mu^2) * cos(seq_len(n) * pi / (n + 1))
+
+mild <- eigs(convdiff(80, 0.04), k = 3, which = "largest_real")
+mild$values - sort(cd_truth(80, 0.04), decreasing = TRUE)[1:3]
+#> [1] -7.993606e-15  3.552714e-14 -2.975398e-13
+```
+
+At `mu = 0.04` and `n = 80`, `rho^n` is 24 and the values agree with the
+closed form to rounding. At `mu = 0.5` and `n = 100` it is `3^50`, and
+the same computation goes differently:
+
+``` r
+
+hard <- eigs(convdiff(100, 0.5), k = 2, which = "largest_real")
+hard$values - sort(cd_truth(100, 0.5), decreasing = TRUE)[1:2]
+#> [1] 0.03611324+0.01361576i 0.03862589-0.01361577i
+hard$certificate
+#> solved by arnoldi (operator not established hermitian, Arnoldi with Krylov-Schur restarting (highest priority eligible; primme requires the operator to be hermitian; it declares hermitian = NA, and unknown is not false; lanczos requires the operator to be hermitian; it declares hermitian = NA, and unknown is not false))
+#> ------------------------------------------------------------------------------------------
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> arithmetic floor               pass         computation      estimate              -
+#> residual                       pass         computation      identity              1
+#> orthogonality                  not_checked  computation      identity              -
+#> backward error                 pass         computation      estimate              -
+#> target identity                not_checked  computation      identity              -
+#> convergence                    pass         computation      identity              1
+#> forward error                  not_checked  computation      identity              -
+#> ------------------------------------------------------------------------------------------
+#> overall                        qualified   no deterministic bound on: arithmetic floor, orthogonality, backward error, target identity, forward error
+```
+
+The backward error passes: each value is an exact eigenvalue of an
+operator within `tol ||A||` of this one. The eigenvalues of this
+operator move by far more than that under such a perturbation, which is
+what an eigenvector condition number of `3^50` means, so the computed
+values are wrong in the first digit, and they come back as a complex
+pair although every eigenvalue is real. The certificate does not claim
+otherwise. Its `forward error` row places each value in the operator’s
+pseudospectrum and stops there, because the bound from there to an
+eigenvalue needs the eigenvector condition number, and that is not
+computed. The `orthogonality` row is not checked either, since these
+eigenvectors are not orthogonal.
+
+A real operator’s non-real eigenvalues come in conjugate pairs, and
+[`eigs()`](https://gillescolling.com/linop/reference/eigs.md) computes
+the two members together, so asking for `k` values that end inside a
+pair still returns both members converged. `which` takes
+`"largest_imaginary"` and `"smallest_imaginary"` for the magnitude of
+the imaginary part, and a complex `sigma` for the values nearest a point
+off the real axis.
+
 [`svds()`](https://gillescolling.com/linop/reference/svds.md) works on
-any operator and is often the thing that was actually wanted.
+any operator and is sometimes the thing that was actually wanted:
+singular values are well conditioned whatever the eigenvectors are.
 
 ## `ncv` is the knob that matters
 

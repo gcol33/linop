@@ -42,5 +42,7 @@ decay.
 H <- linop_jacobi(diagonal = 1)
 ## the golden-ratio conjugate, for the eigenvalue sqrt(5)
 decay_rate(H, sqrt(5))
+#> [1] 0.618034
 decay_rate(H, 0)
+#> [1] NA
 ```

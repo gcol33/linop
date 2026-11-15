@@ -109,4 +109,5 @@ reports what was reached rather than the request being refused.
 A <- linop(rbind(diag(c(3, 2, 1)), 0))
 fit <- svds(A, k = 2)
 fit$d
+#> [1] 3 2
 ```

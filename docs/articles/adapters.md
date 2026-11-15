@@ -324,7 +324,7 @@ Zc <- linop(function(X) conv(wz, X),
             adjoint = function(X) conv(Conj(wz), X),
             dim = c(6, 6))
 verify(Zc)$overall
-#> [1] "fail"
+#> [1] "qualified"
 ```
 
 A materialisation trap worth knowing, found by running exactly this

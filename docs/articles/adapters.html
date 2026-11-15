@@ -373,7 +373,7 @@ four modes independently:</p>
 <span>            adjoint <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="fu">conv</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/complex.html" class="external-link">Conj</a></span><span class="op">(</span><span class="va">wz</span><span class="op">)</span>, <span class="va">X</span><span class="op">)</span>,</span>
 <span>            dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fl">6</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/verify.html">verify</a></span><span class="op">(</span><span class="va">Zc</span><span class="op">)</span><span class="op">$</span><span class="va">overall</span></span>
-<span><span class="co">#&gt; [1] "fail"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "qualified"</span></span></code></pre></div>
 <p>A materialisation trap worth knowing, found by running exactly this
 check on a node that built its own dense form: the first version used
 <code>diag(1, n)</code>, a real identity, and <code>conv()</code>

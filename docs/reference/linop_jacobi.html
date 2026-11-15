@@ -143,13 +143,30 @@ about the identity, so `hermitian` and `symmetric` are recorded with
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co">## the potential v at the origin, whose top eigenvalue is sign(v) sqrt(v^2 + 4)</span></span>
-<span><span class="va">H</span> <span class="op">&lt;-</span> <span class="fu">linop_jacobi</span><span class="op">(</span>diagonal <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">H</span><span class="op">)</span></span>
-<span><span class="cn">F</span> <span class="op">&lt;-</span> <span class="fu"><a href="finite_section.html">finite_section</a></span><span class="op">(</span><span class="va">H</span>, n <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="eigs.html">eigs</a></span><span class="op">(</span><span class="cn">F</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span><span class="op">)</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">values</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">5</span><span class="op">)</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">certificate</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co">## the potential v at the origin, whose top eigenvalue is sign(v) sqrt(v^2 + 4)</span></span></span>
+<span class="r-in"><span><span class="va">H</span> <span class="op">&lt;-</span> <span class="fu">linop_jacobi</span><span class="op">(</span>diagonal <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">H</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] Inf Inf</span>
+<span class="r-in"><span><span class="cn">F</span> <span class="op">&lt;-</span> <span class="fu"><a href="finite_section.html">finite_section</a></span><span class="op">(</span><span class="va">H</span>, n <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="eigs.html">eigs</a></span><span class="op">(</span><span class="cn">F</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">values</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">5</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -4.440892e-16</span>
+<span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">certificate</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> check                          status       source           guarantee             conf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> arithmetic floor               pass         construction     deterministic_bound   1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> finite residual                pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> orthogonality                  pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> truncation bound               pass         theorem          deterministic_bound   1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> isolation                      pass         theorem          deterministic_bound   1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> enclosure                      pass         theorem          estimate              -</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> convergence                    pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> forward error                  pass         theorem          deterministic_bound   1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> overall                        pass   no deterministic bound on: enclosure</span>
+</code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

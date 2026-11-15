@@ -82,10 +82,13 @@ A \`linop\` behaves like a matrix: use ordinary matrix operations.
 ``` r
 A <- linop(diag(c(3, 2, 1)))
 dim(A)
+#> [1] 3 3
 A %*% c(1, 1, 1)
+#> [1] 3 2 1
 
 n <- 5
 S <- linop(function(X) rbind(X[-1, , drop = FALSE], 0), dim = c(n, n),
            adjoint = function(X) rbind(0, X[-n, , drop = FALSE]))
 verify(S)$overall
+#> [1] "qualified"
 ```

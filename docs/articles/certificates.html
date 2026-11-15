@@ -450,6 +450,15 @@ of this shape where either appears. The bound is about <em>some</em>
 eigenvalue of <code>A</code>; which one is the
 <code>target identity</code> question and stays
 <code>not_checked</code>.</p>
+<p>For an operator that is not established hermitian, the perturbation
+<code>E = -r x^H / ||x||^2</code> still has norm
+<code>||r|| / ||x||</code> and still makes <code>theta</code> exact, so
+the backward error row reads the same. Weyl’s inequality does not apply,
+and the distance from <code>theta</code> to an eigenvalue can exceed
+<code>||r||</code> by the eigenvector condition number, so the forward
+row is <code>not_checked</code> and says that <code>theta</code> lies in
+the pseudospectrum of that radius. <code><a href="../articles/spectral.html">vignette("spectral")</a></code> has
+an operator where that distance is the whole first digit.</p>
 </div>
 <div class="section level2">
 <h2 id="evidence-can-carry-a-dependency">Evidence can carry a dependency<a class="anchor" aria-label="anchor" href="#evidence-can-carry-a-dependency"></a>

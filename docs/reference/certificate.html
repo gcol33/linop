@@ -120,11 +120,51 @@ lost: it is that `2 * x` still carries a certificate describing `x`.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="va">A</span> <span class="op">&lt;-</span> <span class="fu"><a href="linop.html">linop</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span>, properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>hermitian <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>                                            positive_definite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">certificate</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">certificate</span><span class="op">(</span><span class="fu"><a href="eigs.html">eigs</a></span><span class="op">(</span><span class="va">A</span>, k <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">certificate</span><span class="op">(</span><span class="fu"><a href="verify.html">verify</a></span><span class="op">(</span><span class="va">A</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">A</span> <span class="op">&lt;-</span> <span class="fu"><a href="linop.html">linop</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span>, properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>hermitian <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>                                            positive_definite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">certificate</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> solved by gmres (no capability is established, and gmres requires none)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> check                          status       source           guarantee             conf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> arithmetic floor               pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> residual                       pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> backward error                 pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> convergence                    pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> forward error                  not_checked  computation      identity              -</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> overall                        qualified   no deterministic bound on: forward error</span>
+<span class="r-in"><span><span class="fu">certificate</span><span class="op">(</span><span class="fu"><a href="eigs.html">eigs</a></span><span class="op">(</span><span class="va">A</span>, k <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> check                          status       source           guarantee             conf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> arithmetic floor               pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> residual                       pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> orthogonality                  pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> backward error                 pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> target identity                not_checked  computation      identity              -</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> convergence                    pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> forward error                  pass         theorem          deterministic_bound   1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> overall                        qualified   no deterministic bound on: target identity</span>
+<span class="r-in"><span><span class="fu">certificate</span><span class="op">(</span><span class="fu"><a href="verify.html">verify</a></span><span class="op">(</span><span class="va">A</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> check                          status       source           guarantee             conf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> adjoint consistency            pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> view identities                pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> real transpose equals adjoint  pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> linearity                      pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> block consistency              pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> shape and dtype                pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> complex linearity              pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> declared capabilities          pass         probe            heuristic             -</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> purity                         pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> gemm agreement                 pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> materialisation agreement      pass         computation      identity              1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ------------------------------------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> overall                        pass   no deterministic bound on: declared capabilities</span>
+</code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

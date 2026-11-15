@@ -45,5 +45,11 @@ perturbation has none of them.
 H <- linop_jacobi(diagonal = c(1.5, -0.5, 2))
 F <- finite_section(H, n = 12)
 dim(F)
+#> [1] 25 25
 print(F)
+#> <linop> 25 x 25, double
+#>   hermitian, symmetric, real
+#> 
+#> section |j| <= 12
+#> `- jacobi on l^2(Z), sigma_ess [-2, 2]
 ```

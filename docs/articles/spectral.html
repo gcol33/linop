@@ -119,10 +119,10 @@ products.</p>
 <div class="section level2">
 <h2 id="two-verbs">Two verbs<a class="anchor" aria-label="anchor" href="#two-verbs"></a>
 </h2>
-<p><code><a href="../reference/eigs.html">eigs()</a></code> computes a few eigenpairs of a hermitian
-operator. <code><a href="../reference/svds.html">svds()</a></code> computes a few singular triplets of any
-operator. Both run against the action alone, and both hold
-<code>ncv</code> vectors rather than a matrix.</p>
+<p><code><a href="../reference/eigs.html">eigs()</a></code> computes a few eigenpairs of a square operator.
+<code><a href="../reference/svds.html">svds()</a></code> computes a few singular triplets of any operator.
+Both run against the action alone, and both hold <code>ncv</code>
+vectors rather than a matrix.</p>
 <p>The 1D Laplacian has closed-form eigenvalues, which makes it the
 fixture to check against:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
@@ -146,24 +146,107 @@ fixture to check against:</p>
 <span><span class="co">#&gt; closed_form 3.999756 3.999023 3.997802</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="the-operator-has-to-say-it-is-hermitian">The operator has to say it is hermitian<a class="anchor" aria-label="anchor" href="#the-operator-has-to-say-it-is-hermitian"></a>
+<h2 id="hermitian-or-not">Hermitian or not<a class="anchor" aria-label="anchor" href="#hermitian-or-not"></a>
 </h2>
-<p>There is one eigensolver here and it is Lanczos, which is defined for
-a hermitian operator. Symmetry is not probed and not assumed:</p>
+<p><code><a href="../reference/eigs.html">eigs()</a></code> has two methods. Lanczos is defined for a
+hermitian operator, and its projected problem is a real symmetric
+tridiagonal matrix. Arnoldi with Krylov-Schur restarting runs on any
+square operator. Symmetry is not probed and not assumed, so a callback
+that declares nothing gets Arnoldi:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Undeclared</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">lap</span>, adjoint <span class="op">=</span> <span class="va">lap</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">Undeclared</span>, k <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;">:</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> method 'eigs' requires the operator to be hermitian; it declares hermitian = NA.</span></span>
-<span><span class="co">#&gt;   Unknown is not false. Declare it with linop(..., properties = c(hermitian = TRUE)) if you can justify it.</span></span></code></pre></div>
-<p>Unknown is not false, and the refusal says so rather than guessing
+<span><span class="va">plain</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">Undeclared</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span>
+<span><span class="va">plain</span><span class="op">$</span><span class="va">method</span></span>
+<span><span class="co">#&gt; [1] "arnoldi"</span></span>
+<span><span class="va">plain</span><span class="op">$</span><span class="va">values</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/rev.html" class="external-link">rev</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">truth</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] 8.881784e-16 1.332268e-15 4.440892e-16</span></span></code></pre></div>
+<p>The values are right, and the dispatch says why Lanczos was passed
+over:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="va">plain</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">dispatch</span><span class="op">$</span><span class="va">candidates</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">backend</span> <span class="op">!=</span> <span class="st">"primme"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"backend"</span>, <span class="st">"status"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   backend   status</span></span>
+<span><span class="co">#&gt; 2 lanczos rejected</span></span>
+<span><span class="co">#&gt; 3 arnoldi selected</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">reason</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">backend</span> <span class="op">==</span> <span class="st">"lanczos"</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] "requires the operator to be hermitian; it declares hermitian = NA, and unknown is not false"</span></span></code></pre></div>
+<p>Unknown is not false, and the dispatch says so rather than guessing
 either way. A dense leaf establishes symmetry by checking it, so a
 matrix needs no declaration; a callback has nothing to check and the
-declaration is how you supply it.</p>
-<p>A non-hermitian operator is refused for a different reason, and there
-is no Arnoldi in this version, so it has no eigensolver here at all.
-<code><a href="../reference/svds.html">svds()</a></code> works on any operator and is often the thing that
-was actually wanted.</p>
+declaration is how you supply it. What the declaration buys is the real
+recurrence and a bound on the eigenvalues, the
+<code>forward error</code> row of the certificate:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">row</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span>, <span class="va">check</span><span class="op">)</span> <span class="va">fit</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">checks</span><span class="op">$</span><span class="va">status</span><span class="op">[</span><span class="va">fit</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">checks</span><span class="op">$</span><span class="va">check</span> <span class="op">==</span> <span class="va">check</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>declared <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"forward error"</span><span class="op">)</span>, undeclared <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">plain</span>, <span class="st">"forward error"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      declared    undeclared </span></span>
+<span><span class="co">#&gt;        "pass" "not_checked"</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="a-non-normal-operator">A non-normal operator<a class="anchor" aria-label="anchor" href="#a-non-normal-operator"></a>
+</h2>
+<p>Convection-diffusion on a grid,
+<code>2 u_j - (1 + mu) u_{j-1} - (1 - mu) u_{j+1}</code>, is not
+symmetric for <code>mu != 0</code>, and its eigenvalues are still known
+in closed form, <code>2 - 2 sqrt(1 - mu^2) cos(j pi / (n + 1))</code>.
+Its eigenvectors are the sine vectors scaled by <code>rho^j</code>,
+<code>rho = sqrt((1 + mu)/(1 - mu))</code>, so they are far from
+orthogonal once <code>rho^n</code> is large.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">convdiff</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n</span>, <span class="va">mu</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/force.html" class="external-link">force</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/force.html" class="external-link">force</a></span><span class="op">(</span><span class="va">mu</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">X</span> <span class="op">-</span> <span class="op">(</span><span class="fl">1</span> <span class="op">+</span> <span class="va">mu</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="va">n</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span> <span class="op">-</span></span>
+<span>                    <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">mu</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span>, <span class="fl">0</span><span class="op">)</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">cd_truth</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n</span>, <span class="va">mu</span><span class="op">)</span> <span class="fl">2</span> <span class="op">-</span> <span class="fl">2</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">mu</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">cos</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span> <span class="op">*</span> <span class="va">pi</span> <span class="op">/</span> <span class="op">(</span><span class="va">n</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">mild</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="fu">convdiff</span><span class="op">(</span><span class="fl">80</span>, <span class="fl">0.04</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_real"</span><span class="op">)</span></span>
+<span><span class="va">mild</span><span class="op">$</span><span class="va">values</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu">cd_truth</span><span class="op">(</span><span class="fl">80</span>, <span class="fl">0.04</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] -7.993606e-15  3.552714e-14 -2.975398e-13</span></span></code></pre></div>
+<p>At <code>mu = 0.04</code> and <code>n = 80</code>, <code>rho^n</code>
+is 24 and the values agree with the closed form to rounding. At
+<code>mu = 0.5</code> and <code>n = 100</code> it is <code>3^50</code>,
+and the same computation goes differently:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">hard</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="fu">convdiff</span><span class="op">(</span><span class="fl">100</span>, <span class="fl">0.5</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">2</span>, which <span class="op">=</span> <span class="st">"largest_real"</span><span class="op">)</span></span>
+<span><span class="va">hard</span><span class="op">$</span><span class="va">values</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu">cd_truth</span><span class="op">(</span><span class="fl">100</span>, <span class="fl">0.5</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] 0.03611324+0.01361576i 0.03862589-0.01361577i</span></span>
+<span><span class="va">hard</span><span class="op">$</span><span class="va">certificate</span></span>
+<span><span class="co">#&gt; solved by arnoldi (operator not established hermitian, Arnoldi with Krylov-Schur restarting (highest priority eligible; primme requires the operator to be hermitian; it declares hermitian = NA, and unknown is not false; lanczos requires the operator to be hermitian; it declares hermitian = NA, and unknown is not false))</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; arithmetic floor               pass         computation      estimate              -</span></span>
+<span><span class="co">#&gt; residual                       pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; orthogonality                  not_checked  computation      identity              -</span></span>
+<span><span class="co">#&gt; backward error                 pass         computation      estimate              -</span></span>
+<span><span class="co">#&gt; target identity                not_checked  computation      identity              -</span></span>
+<span><span class="co">#&gt; convergence                    pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; forward error                  not_checked  computation      identity              -</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; overall                        qualified   no deterministic bound on: arithmetic floor, orthogonality, backward error, target identity, forward error</span></span></code></pre></div>
+<p>The backward error passes: each value is an exact eigenvalue of an
+operator within <code>tol ||A||</code> of this one. The eigenvalues of
+this operator move by far more than that under such a perturbation,
+which is what an eigenvector condition number of <code>3^50</code>
+means, so the computed values are wrong in the first digit, and they
+come back as a complex pair although every eigenvalue is real. The
+certificate does not claim otherwise. Its <code>forward error</code> row
+places each value in the operator’s pseudospectrum and stops there,
+because the bound from there to an eigenvalue needs the eigenvector
+condition number, and that is not computed. The
+<code>orthogonality</code> row is not checked either, since these
+eigenvectors are not orthogonal.</p>
+<p>A real operator’s non-real eigenvalues come in conjugate pairs, and
+<code><a href="../reference/eigs.html">eigs()</a></code> computes the two members together, so asking for
+<code>k</code> values that end inside a pair still returns both members
+converged. <code>which</code> takes <code>"largest_imaginary"</code> and
+<code>"smallest_imaginary"</code> for the magnitude of the imaginary
+part, and a complex <code>sigma</code> for the values nearest a point
+off the real axis.</p>
+<p><code><a href="../reference/svds.html">svds()</a></code> works on any operator and is sometimes the thing
+that was actually wanted: singular values are well conditioned whatever
+the eigenvectors are.</p>
 </div>
 <div class="section level2">
 <h2 id="ncv-is-the-knob-that-matters">
@@ -173,7 +256,7 @@ was actually wanted.</p>
 compresses the subspace to the vectors it keeps, so the smaller
 <code>ncv</code> is, the more applies the method spends reaching the
 tolerance:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ladder</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">30</span>, <span class="fl">40</span>, <span class="fl">60</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">nc</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, ncv <span class="op">=</span> <span class="va">nc</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>ncv <span class="op">=</span> <span class="va">nc</span>,</span>
@@ -198,7 +281,7 @@ the spectrum gets more crowded as <code>n</code> grows, and at a fixed
 1.6 <code>n</code> for the three largest here and 6 <code>n</code> at
 <code>n = 2000</code>. At the defaults the run converges well inside
 it:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dflt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>converged <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">nconv</span>, applies <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">iterations</span>, budget <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">maxit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; converged   applies    budget </span></span>
@@ -225,7 +308,7 @@ inherits the inner solve’s error.</p>
 <div class="section level2">
 <h2 id="which-end">Which end<a class="anchor" aria-label="anchor" href="#which-end"></a>
 </h2>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>largest  <span class="op">=</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">2</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>,  ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span><span class="op">$</span><span class="va">values</span>,</span>
 <span>  smallest <span class="op">=</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">2</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">40</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     largest1     largest2    smallest1    smallest2 </span></span>
@@ -245,7 +328,7 @@ code ports without edits.</p>
 <code>sigma</code> runs the same recurrence on
 <code>(A - sigma I)^-1</code>, and that inverse is not formed: it is the
 package’s own solvers, applied once per step.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">near</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, sigma <span class="op">=</span> <span class="fl">0.01</span>, ncv <span class="op">=</span> <span class="fl">30</span>, inner <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"minres"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">near</span><span class="op">$</span><span class="va">values</span><span class="op">)</span>,</span>
 <span>      closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">truth</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">truth</span> <span class="op">-</span> <span class="fl">0.01</span><span class="op">)</span><span class="op">)</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
@@ -267,7 +350,7 @@ directly.</p>
 </h2>
 <p><code><a href="../reference/svds.html">svds()</a></code> needs both the forward action and the adjoint,
 and requires nothing else:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span> <span class="op">*</span> <span class="fl">12</span><span class="op">)</span>, <span class="fl">60</span>, <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="va">R</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span></span>
@@ -277,7 +360,7 @@ and requires nothing else:</p>
 <span><span class="co">#&gt; computed    11.17144 10.08422</span></span>
 <span><span class="co">#&gt; closed_form 11.17144 10.08422</span></span></code></pre></div>
 <p>The triplets satisfy what they should:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>`A v - d u` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">G</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">sv</span><span class="op">$</span><span class="va">v</span> <span class="op">-</span> <span class="va">sv</span><span class="op">$</span><span class="va">u</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">d</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  `U orthonormal` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">u</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  `V orthonormal` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">v</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -299,7 +382,7 @@ separately.</p>
 the problem. A Krylov space reaches the largest singular values first,
 so the smallest need a subspace approaching the rank of the
 operator:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">small</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/svds.html">svds</a></span><span class="op">(</span><span class="va">R</span>, k <span class="op">=</span> <span class="fl">2</span>, which <span class="op">=</span> <span class="st">"smallest"</span>, ncv <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">small</span><span class="op">$</span><span class="va">d</span>, closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rev.html" class="external-link">rev</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/svd.html" class="external-link">svd</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span><span class="op">$</span><span class="va">d</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                 [,1]     [,2]</span></span>
@@ -313,7 +396,7 @@ certificate is where you find out whether it was enough.</p>
 </h2>
 <p>This is worth meeting once, because it looks like a hedge and is
 not:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">smallest</span><span class="op">$</span><span class="va">values</span>, closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">truth</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span></span>
@@ -325,7 +408,7 @@ not:</p>
 <p>Every value is right to the last printed digit and the certificate
 says <code>qualified</code>. The reason is in which row is
 qualified:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span><span class="op">$</span><span class="va">certificate</span></span>
 <span><span class="co">#&gt; solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>

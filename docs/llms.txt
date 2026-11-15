@@ -172,12 +172,12 @@ y <- N %*% img
 ```
 
 The time of one application of each operator, and the peak memory R used
-over the whole run, with R version 4.6.1 (2026-06-24 ucrt):
+over the whole run, with R version 4.6.0 (2026-04-24 ucrt):
 
 ``` R
 #>                     operator seconds
-#> 1                       Blur   0.010
-#> 2 crossprod(Blur) + 1e-3 * I   0.018
+#> 1                       Blur   0.008
+#> 2 crossprod(Blur) + 1e-3 * I   0.022
 #> Peak R memory: 98 MB
 ```
 
@@ -291,10 +291,11 @@ it, with node registration and the preconditioner contract.
 [`solve()`](https://rdrr.io/r/base/solve.html) reaches seven Krylov
 methods for linear systems, and enforces the preconditioner contract in
 each method that accepts a preconditioner.
-[`eigs()`](https://gillescolling.com/linop/reference/eigs.md) is a
-Hermitian eigensolver and
-[`svds()`](https://gillescolling.com/linop/reference/svds.md) a singular
-value solver. Each result carries a certificate, read with
+[`eigs()`](https://gillescolling.com/linop/reference/eigs.md) computes
+eigenpairs by Lanczos for a Hermitian operator and by Arnoldi for any
+other square one, and
+[`svds()`](https://gillescolling.com/linop/reference/svds.md) is a
+singular value solver. Each result carries a certificate, read with
 [`certificate()`](https://gillescolling.com/linop/reference/certificate.md),
 with the operator-norm estimate its arithmetic floor rests on.
 
@@ -548,7 +549,7 @@ the augmented operator. Each pair carries a backward error and a bound
 on how far the value can be from an exact one.
 
 - [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) :
-  Eigenvalues and eigenvectors of a hermitian operator
+  Eigenvalues and eigenvectors of an operator
 - [`svds()`](https://gillescolling.com/linop/reference/svds.md) :
   Singular values and vectors of an operator
 

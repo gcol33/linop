@@ -71,8 +71,24 @@ recorded with \`source = "construction"\` rather than as declarations.
 ## the potential v at the origin, whose top eigenvalue is sign(v) sqrt(v^2 + 4)
 H <- linop_jacobi(diagonal = 1)
 dim(H)
+#> [1] Inf Inf
 F <- finite_section(H, n = 50)
 fit <- eigs(F, k = 1, which = "largest_algebraic")
 fit$values - sqrt(5)
+#> [1] -4.440892e-16
 fit$certificate
+#> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))
+#> ------------------------------------------------------------------------------------------
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> arithmetic floor               pass         construction     deterministic_bound   1
+#> finite residual                pass         computation      identity              1
+#> orthogonality                  pass         computation      identity              1
+#> truncation bound               pass         theorem          deterministic_bound   1
+#> isolation                      pass         theorem          deterministic_bound   1
+#> enclosure                      pass         theorem          estimate              -
+#> convergence                    pass         computation      identity              1
+#> forward error                  pass         theorem          deterministic_bound   1
+#> ------------------------------------------------------------------------------------------
+#> overall                        pass   no deterministic bound on: enclosure
 ```

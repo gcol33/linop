@@ -59,6 +59,20 @@ graph.
   eigenpairs of a hermitian operator by Lanczos with full
   reorthogonalisation, locking and thick restarts, and takes `sigma` for
   the eigenvalues nearest a shift. It needs no adjoint.
+- `eigs(method = "arnoldi")` returns eigenpairs of any square operator
+  by Arnoldi with Krylov-Schur restarting and locking, and
+  `method = "auto"` takes it for an operator not established hermitian,
+  which [`eigs()`](https://gillescolling.com/linop/reference/eigs.md)
+  used to refuse. A real operator keeps real arithmetic and returns its
+  conjugate pairs together. `which` gains `"largest_real"`,
+  `"smallest_real"`, `"largest_imaginary"` and `"smallest_imaginary"`
+  (RSpectra’s `"LR"`, `"SR"`, `"LI"`, `"SI"`), and `sigma` may be
+  complex. Its certificate reports the backward error and leaves the
+  forward error and orthogonality rows `not_checked`, since neither
+  holds for a non-normal operator.
+- A callback declared real is handed the real and imaginary parts of a
+  complex block as one real block, so it promotes without having to
+  accept complex input.
 - [`svds()`](https://gillescolling.com/linop/reference/svds.md) returns
   singular triplets by Golub-Kahan-Lanczos with full
   reorthogonalisation, locking and thick restarts.

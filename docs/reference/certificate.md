@@ -46,6 +46,45 @@ certificate describing \`x\`.
 A <- linop(diag(c(2, 3, 4)), properties = c(hermitian = TRUE,
                                             positive_definite = TRUE))
 certificate(solve(A, c(2, 3, 4)))
+#> solved by gmres (no capability is established, and gmres requires none)
+#> ------------------------------------------------------------------------------------------
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> arithmetic floor               pass         computation      identity              1
+#> residual                       pass         computation      identity              1
+#> backward error                 pass         computation      identity              1
+#> convergence                    pass         computation      identity              1
+#> forward error                  not_checked  computation      identity              -
+#> ------------------------------------------------------------------------------------------
+#> overall                        qualified   no deterministic bound on: forward error
 certificate(eigs(A, k = 1))
+#> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))
+#> ------------------------------------------------------------------------------------------
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> arithmetic floor               pass         computation      identity              1
+#> residual                       pass         computation      identity              1
+#> orthogonality                  pass         computation      identity              1
+#> backward error                 pass         computation      identity              1
+#> target identity                not_checked  computation      identity              -
+#> convergence                    pass         computation      identity              1
+#> forward error                  pass         theorem          deterministic_bound   1
+#> ------------------------------------------------------------------------------------------
+#> overall                        qualified   no deterministic bound on: target identity
 certificate(verify(A))
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> adjoint consistency            pass         computation      identity              1
+#> view identities                pass         computation      identity              1
+#> real transpose equals adjoint  pass         computation      identity              1
+#> linearity                      pass         computation      identity              1
+#> block consistency              pass         computation      identity              1
+#> shape and dtype                pass         computation      identity              1
+#> complex linearity              pass         computation      identity              1
+#> declared capabilities          pass         probe            heuristic             -
+#> purity                         pass         computation      identity              1
+#> gemm agreement                 pass         computation      identity              1
+#> materialisation agreement      pass         computation      identity              1
+#> ------------------------------------------------------------------------------------------
+#> overall                        pass   no deterministic bound on: declared capabilities
 ```

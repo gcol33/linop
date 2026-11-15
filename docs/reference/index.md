@@ -105,7 +105,7 @@ the augmented operator. Each pair carries a backward error and a bound
 on how far the value can be from an exact one.
 
 - [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) :
-  Eigenvalues and eigenvectors of a hermitian operator
+  Eigenvalues and eigenvectors of an operator
 - [`svds()`](https://gillescolling.com/linop/reference/svds.md) :
   Singular values and vectors of an operator
 
