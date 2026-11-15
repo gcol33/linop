@@ -283,8 +283,10 @@ in this package are restarted Lanczos, Arnoldi and Golub-Kahan
 iterations with full reorthogonalisation, which hold their whole basis
 in each round. The [PRIMME](https://github.com/primme/primme) library
 restarts implicitly and keeps a basis of fixed small size; it is
-available when the companion package `linop.primme` is installed, and
-the default `method = "auto"` then takes it. The Spectra library is
+available when the companion package
+[linop.primme](https://github.com/gcol33/linop.primme) is installed
+(`install.packages("linop.primme", repos = "https://gcol33.r-universe.dev")`),
+and the default `method = "auto"` then takes it. The Spectra library is
 reachable through
 [RSpectra](https://CRAN.R-project.org/package=RSpectra) as
 `method = "rspectra"` for a real operator. Whichever engine runs, the
