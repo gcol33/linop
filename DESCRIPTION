@@ -12,8 +12,8 @@ Description: Linear operators defined by their action rather than their entries.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.4.0)
-Suggests: Matrix, RSpectra, linop.primme, DelayedArray, torch, testthat (>= 3.0.0),
-    knitr, rmarkdown
+Suggests: Matrix, RSpectra, linop.primme, DelayedArray, torch, bigmemory,
+    testthat (>= 3.0.0), knitr, rmarkdown
 VignetteBuilder: knitr
 Additional_repositories: https://gcol33.r-universe.dev
 Config/testthat/edition: 3

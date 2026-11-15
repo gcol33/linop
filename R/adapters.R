@@ -54,3 +54,34 @@ linop.torch_tensor <- function(x, properties = NULL, ...) {
     dim = as.integer(x$shape), dtype = if (cplx) "complex" else "double",
     properties = properties, cost = 2 * prod(as.numeric(x$shape)))
 }
+
+## A big.matrix is reachable a block of rows at a time and has no product of its
+## own, so the adapter forms one: N reads row blocks and multiplies each, C reads
+## the same blocks and accumulates their transposed products. A file-backed
+## big.matrix is memory-mapped, so this never holds more than one block of it.
+## The block is sized to about BIGMATRIX_BLOCK_ENTRIES entries.
+BIGMATRIX_BLOCK_ENTRIES <- 4e6
+
+#' @rdname linop
+#' @details A `big.matrix` (bigmemory, including a file-backed, memory-mapped
+#'   one) becomes a callback leaf that reads it a block of rows at a time, so at
+#'   most one block is in memory. bigmemory stores real numbers only.
+#' @export
+linop.big.matrix <- function(x, properties = NULL, ...) {
+  if (!requireNamespace("bigmemory", quietly = TRUE)) stopf("a big.matrix needs the bigmemory package")
+  m <- nrow(x); n <- ncol(x)
+  step <- max(1L, as.integer(BIGMATRIX_BLOCK_ENTRIES %/% max(n, 1L)))
+  blocks <- lapply(seq(1L, m, by = step), function(s) seq.int(s, min(m, s + step - 1L)))
+  linop_fun(
+    apply = function(X) {
+      Y <- matrix(if (is.complex(X)) 0i else 0, m, ncol(X))
+      for (r in blocks) Y[r, ] <- x[r, , drop = FALSE] %*% X
+      Y
+    },
+    adjoint = function(X) {
+      Y <- matrix(if (is.complex(X)) 0i else 0, n, ncol(X))
+      for (r in blocks) Y <- Y + crossprod(x[r, , drop = FALSE], X[r, , drop = FALSE])
+      Y
+    },
+    dim = c(m, n), dtype = "double", properties = properties, cost = 2 * m * n)
+}

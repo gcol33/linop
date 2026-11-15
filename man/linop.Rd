@@ -3,6 +3,7 @@
 \name{linop.DelayedMatrix}
 \alias{linop.DelayedMatrix}
 \alias{linop.torch_tensor}
+\alias{linop.big.matrix}
 \alias{linop}
 \alias{linop.linop}
 \alias{linop.matrix}
@@ -14,6 +15,8 @@
 \method{linop}{DelayedMatrix}(x, properties = NULL, ...)
 
 \method{linop}{torch_tensor}(x, properties = NULL, ...)
+
+\method{linop}{big.matrix}(x, properties = NULL, ...)
 
 linop(x, ...)
 
@@ -73,6 +76,10 @@ A two-dimensional `torch_tensor` becomes a callback leaf applied by
   device and back. Only `float64` and `complex128` tensors are taken: a
   single-precision apply carries an error near 1e-7 that the certificates'
   arithmetic floor, written for double precision, would not see.
+
+A `big.matrix` (bigmemory, including a file-backed, memory-mapped
+  one) becomes a callback leaf that reads it a block of rows at a time, so at
+  most one block is in memory. bigmemory stores real numbers only.
 
 A `linop` behaves like a matrix: use ordinary matrix operations.
 }

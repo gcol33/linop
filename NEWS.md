@@ -63,8 +63,10 @@ First development release. The finite object model and the expression graph.
   lists every engine considered and why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the reference.
 * `linop()` takes a `DelayedMatrix` (DelayedArray, and so HDF5-backed matrices
-  from HDF5Array) and a two-dimensional `torch_tensor` of type float64 or
-  complex128, applied by their own block-processed or on-device products. A
+  from HDF5Array), a two-dimensional `torch_tensor` of type float64 or
+  complex128, and a `big.matrix` (bigmemory, file-backed or not), applied by
+  their own block-processed or on-device products, or for a `big.matrix` a
+  block of rows at a time. A
   single-precision tensor is refused, since its apply error is below nothing
   the certificates can see.
 * A dense real symmetric leaf of order up to 200 proves positive definiteness

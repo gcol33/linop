@@ -49,3 +49,29 @@ test_that("a torch tensor applies on its device in every mode, double precision 
   x <- solve(A, rep(1, 6), method = "cg", tol = 1e-12)
   expect_equal(as.numeric(x), solve(S, rep(1, 6)), tolerance = 1e-9)
 })
+
+test_that("a big.matrix, file-backed too, applies a block of rows at a time", {
+  skip_if_not_installed("bigmemory")
+  M <- rmat(37, 6, seed = 6)
+  for (backed in c(FALSE, TRUE)) {
+    B <- if (backed) {
+      dir <- tempfile(); dir.create(dir)
+      bigmemory::as.big.matrix(M, backingfile = "m.bin", descriptorfile = "m.desc",
+                               backingpath = dir)
+    } else bigmemory::as.big.matrix(M)
+    A <- linop(B)
+    expect_lt(modes_vs_dense(A, M), 1e-13)
+    expect_lt(modes_vs_dense(A, M + 0i), 1e-13)
+  }
+  ## several row blocks, by shrinking the block size
+  old <- linop:::BIGMATRIX_BLOCK_ENTRIES
+  ns <- asNamespace("linop")
+  unlockBinding("BIGMATRIX_BLOCK_ENTRIES", ns)
+  assign("BIGMATRIX_BLOCK_ENTRIES", 30, envir = ns)
+  on.exit({ assign("BIGMATRIX_BLOCK_ENTRIES", old, envir = ns)
+            lockBinding("BIGMATRIX_BLOCK_ENTRIES", ns) }, add = TRUE)
+  A <- linop(bigmemory::as.big.matrix(M))
+  expect_lt(modes_vs_dense(A, M), 1e-13)
+  fit <- svds(linop(bigmemory::as.big.matrix(M)), k = 2)
+  expect_equal(fit$d, svd(M)$d[1:2], tolerance = 1e-9)
+})
