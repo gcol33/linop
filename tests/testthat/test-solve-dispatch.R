@@ -34,11 +34,12 @@ test_that("auto picks cg for a hermitian positive definite operator, and says wh
 })
 
 test_that("auto picks minres where definiteness is not established", {
-  ## A dense leaf computes symmetry from the entries, which is an identity on
-  ## data the operator holds, and computes no definiteness, which would cost a
-  ## factorization. So the capability that is established selects the method.
+  ## A dense leaf computes hermitian symmetry from the entries, and proves
+  ## definiteness only for a real matrix (verified_positive_definite()), so a
+  ## complex hermitian positive definite one is hermitian and of unknown
+  ## definiteness, and the capability that is established selects the method.
   n <- 30
-  M <- spd_prescribed(n, seq(1, 6, length.out = n))
+  M <- hpd_prescribed(n, seq(1, 6, length.out = n))
   A <- linop(M)
   expect_true(isTRUE(capv(A, "hermitian")))
   expect_equal(linop:::cape(A, "hermitian")$source, "computation")
@@ -52,16 +53,12 @@ test_that("auto picks minres where definiteness is not established", {
   expect_equal(as.matrix(x), solve(M, b), tolerance = 1e-8, ignore_attr = TRUE)
 })
 
-test_that("no constructor in the package reaches the cg branch of auto today", {
-  ## Measured, and recorded here rather than left to be rediscovered. The cg
-  ## branch requires positive_definite behind construction, adapter_contract,
-  ## theorem or computation evidence. linop_scaling() and linop_eye() establish
-  ## it that way and are diagonal, so the direct route takes them first; every
-  ## other route to positive_definite in the package is a bare user declaration,
-  ## which auto does not act on. The branch is correct and its supply is empty.
-  ##
-  ## When a constructor starts proving definiteness, this test is the one that
-  ## fails, and it should be replaced rather than adjusted.
+test_that("a dense real positive definite leaf reaches the cg branch by a proof", {
+  ## The branch was empty until the dense leaf proved definiteness: every route
+  ## to positive_definite was a bare declaration, which auto does not act on,
+  ## or a diagonal leaf, which the direct route takes first. Rump's verified
+  ## Cholesky on an exactly symmetric real matrix up to DENSE_PD_MAX_N is a
+  ## computation with an identity guarantee.
   n <- 12
   Mspd <- spd_prescribed(n, seq(1, 4, length.out = n))
   ops <- list(
@@ -71,12 +68,40 @@ test_that("no constructor in the package reaches the cg branch of auto today", {
     dense_declared = linop(Mspd, properties = c(hermitian = TRUE,
                                                 positive_definite = TRUE)),
     fun_declared = laplacian_1d(n),
-    gram = adjoint(linop(rmat(2 * n, n, seed = 1))) %*% linop(rmat(2 * n, n, seed = 1)))
+    gram = adjoint(linop(rmat(2 * n, n, seed = 1))) %*% linop(rmat(2 * n, n, seed = 1)),
+    complex_hpd = linop(hpd_prescribed(n, seq(1, 4, length.out = n))))
   picked <- vapply(ops, function(A) linop:::auto_method(A)$method, character(1))
-  expect_false(any(picked == "cg"))
   expect_equal(unname(picked[c("eye", "scaling")]), c("direct", "direct"))
-  expect_equal(unname(picked[c("dense_bare", "gram")]), c("minres", "minres"))
+  expect_equal(unname(picked["dense_bare"]), "cg")
+  expect_equal(linop:::cape(ops$dense_bare, "positive_definite")$source, "computation")
+  expect_equal(unname(picked[c("gram", "complex_hpd")]), c("minres", "minres"))
+  ## a declaration replaces the computed evidence, and auto does not act on it
   expect_equal(unname(picked[c("dense_declared", "fun_declared")]), c("gmres", "gmres"))
+})
+
+test_that("the proof of definiteness is never wrong and gives up where it should", {
+  f <- linop:::verified_positive_definite
+  expect_true(f(spd_prescribed(50, exp(seq(0, log(1e10), length.out = 50)))))
+  ## a negative eigenvalue of 1e-3 among ones, an exactly singular matrix, and a
+  ## positive definite one too ill conditioned for the proof: none is TRUE
+  ind <- spd_prescribed(30, c(-1e-3, seq(1, 2, length.out = 29)))
+  expect_true(is.na(f(ind)))
+  expect_true(is.na(f(diag(c(1, 1, 0)))))
+  expect_true(is.na(f(spd_prescribed(50, exp(seq(0, log(1e15), length.out = 50))))))
+  ## and outside its scope: not exactly symmetric, complex, or above the size gate
+  S <- spd_prescribed(10, seq(1, 2, length.out = 10)); S[1, 2] <- S[1, 2] + 1e-15
+  expect_true(is.na(f(S)))
+  expect_true(is.na(f(hpd_prescribed(10, seq(1, 2, length.out = 10)))))
+  n <- linop:::DENSE_PD_MAX_N + 1L
+  expect_true(is.na(f(diag(n) + 0)))
+  ## over 20 seeds of random symmetric matrices near the definite boundary, TRUE
+  ## only where the smallest eigenvalue is positive
+  for (s in 1:20) {
+    set.seed(s)
+    X <- matrix(rnorm(400), 20); M <- crossprod(X) - stats::runif(1, 0, 2) * 20 * diag(20) / 10
+    M <- (M + t(M)) / 2
+    if (isTRUE(f(M))) expect_gt(min(eigen(M, symmetric = TRUE, only.values = TRUE)$values), 0)
+  }
 })
 
 test_that("auto falls back to gmres, which is what makes it total", {
@@ -289,7 +314,7 @@ test_that("details = TRUE returns the full object and the plain one is its solut
   expect_equal(fit$x, plain, ignore_attr = TRUE)
   expect_true(fit$converged)
   expect_equal(fit$requested, "auto")
-  expect_equal(fit$method, "minres")
+  expect_equal(fit$method, "cg")
   expect_true(fit$iterations > 0L)
 })
 
@@ -297,8 +322,8 @@ test_that("the certificate prints which route ran and why", {
   A <- linop(spd_prescribed(15, seq(1, 4, length.out = 15)))
   cert <- attr(solve(A, rep(1, 15), tol = 1e-10, maxit = 300L), "certificate")
   out <- utils::capture.output(print(cert))
-  expect_match(out[1L], "solved by minres")
-  expect_match(out[1L], "definiteness is not established")
+  expect_match(out[1L], "solved by cg")
+  expect_match(out[1L], "hermitian positive definite")
 })
 
 test_that("a solve that does not converge comes back as a certificate, not an error", {

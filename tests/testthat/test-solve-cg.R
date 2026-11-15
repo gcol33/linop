@@ -424,9 +424,9 @@ test_that("a preconditioner that returns the wrong shape is caught", {
 
 test_that("cg names the capability it needed", {
   n <- 10
-  ## symmetric and hermitian are established exactly by the dense leaf;
-  ## positive definiteness is not checked by anything, so it stays unknown
-  A <- linop(spd_prescribed(n, seq(1, 2, length.out = n), seed = 1))
+  ## hermitian is established exactly by the dense leaf; definiteness is proven
+  ## only for a real matrix, so a complex one stays unknown
+  A <- linop(hpd_prescribed(n, seq(1, 2, length.out = n), seed = 1))
   expect_true(is.na(capv(A, "positive_definite")))
   expect_error(cg(A, rep(1, n)), "positive_definite")
   expect_error(cg(A, rep(1, n)), "Unknown is not false")

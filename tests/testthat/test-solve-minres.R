@@ -97,7 +97,8 @@ test_that("unknown definiteness is a minres problem rather than a refusal", {
   ## this operator definite, and it happens to be, but minres does not need to
   ## know either way.
   n <- 30
-  M <- spd_prescribed(n, seq(1, 5, length.out = n), seed = 2)
+  ## complex, so the dense leaf proves hermitian and not definite
+  M <- hpd_prescribed(n, seq(1, 5, length.out = n), seed = 2)
   A <- linop(M)
   expect_true(is.na(capv(A, "positive_definite")))
   expect_true(isTRUE(capv(A, "hermitian")))
@@ -106,7 +107,7 @@ test_that("unknown definiteness is a minres problem rather than a refusal", {
   b <- matrix(stats::rnorm(n), n, 1)
   fit <- minres(A, b, tol = 1e-12)
   expect_true(fit$converged)
-  expect_equal(as.numeric(fit$x), solve(M, as.numeric(b)), tolerance = 1e-8)
+  expect_equal(as.vector(fit$x), as.vector(solve(M, b)), tolerance = 1e-8)
 })
 
 ## ------------------------------------------------ the minimal-residual property

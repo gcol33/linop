@@ -62,6 +62,11 @@ First development release. The finite object model and the expression graph.
   `A` and the certificate is the same whichever engine ran; its `dispatch`
   lists every engine considered and why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the reference.
+* A dense real symmetric leaf of order up to 200 proves positive definiteness
+  by a verified Cholesky factorisation (Rump's approach, Higham's backward
+  error bound), so `solve(method = "auto")` reaches CG on it; until now nothing
+  in the package reached that branch. A proof that fails leaves the capability
+  unknown, never false.
 * Structured operators: `linop_kron()`, `linop_blockdiag()`, `linop_lowrank()`,
   `linop_perm()` and `linop_power()`, `cbind()` and `rbind()` on linops, and
   `solve(a)` with no right-hand side for the exact inverse where one exists (a
