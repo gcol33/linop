@@ -114,7 +114,9 @@ test_that("shift-invert finds the eigenvalues nearest sigma, which the plain run
   n <- 60
   A <- laplacian_1d(n)
   truth <- laplacian_1d_eigenvalues(n)
-  sigma <- 2
+  ## off the midpoint, where 4 sin^2 places its eigenvalues in pairs equidistant
+  ## from 2 and the third nearest would be a tie
+  sigma <- 2.02
   want <- truth[order(abs(truth - sigma))][1:3]
 
   fs <- eigs(A, k = 3, sigma = sigma)
@@ -367,7 +369,7 @@ test_that("the small end of a crowded spectrum reaches the residual row", {
   n <- 500
   A <- laplacian_1d(n)
   for (k in c(1L, 3L)) {
-    fit <- eigs(A, k = k, which = "smallest_algebraic")
+    fit <- eigs(A, k = k, which = "smallest_algebraic", method = "lanczos")
     expect_equal(fit$nconv, k)
     expect_equal(fit$values, laplacian_1d_eigenvalues(n)[seq_len(k)], tolerance = 1e-12)
     expect_equal(cert_status(fit$certificate, "convergence"), "pass")

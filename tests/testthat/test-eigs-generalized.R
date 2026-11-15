@@ -33,7 +33,7 @@ test_that("a definite pencil runs Lanczos in the B inner product, at both ends",
   K <- laplacian_1d(n)
   M <- linop(fem_mass(n), properties = c(positive_definite = TRUE))
   truth <- fem_eigenvalues(n)
-  top <- eigs(K, k = 3, which = "largest_algebraic", B = M)
+  top <- eigs(K, k = 3, which = "largest_algebraic", B = M, method = "lanczos")
   expect_equal(top$method, "lanczos")
   expect_equal(top$values, rev(truth)[1:3], tolerance = 1e-12)
   expect_lt(pencil_residual(K, M, top$vectors, top$values), 1e-9)
@@ -43,7 +43,7 @@ test_that("a definite pencil runs Lanczos in the B inner product, at both ends",
   expect_match(top$certificate$dispatch$reason, "hermitian pencil with B positive definite")
   expect_match(top$certificate$dispatch$reason, "on B\\^-1 A")
 
-  low <- eigs(K, k = 3, which = "smallest_algebraic", B = M)
+  low <- eigs(K, k = 3, which = "smallest_algebraic", B = M, method = "lanczos")
   expect_equal(low$nconv, 3L)
   expect_equal(low$values, truth[1:3], tolerance = 1e-12)
   expect_equal(cert_status(low$certificate, "residual"), "pass")
@@ -55,7 +55,7 @@ test_that("B = I gives the standard problem's values", {
   ## linop_eye() establishes definiteness; a dense identity computes symmetry only
   I <- linop_eye(n)
   std <- eigs(A, k = 3, which = "largest_algebraic")
-  gen <- eigs(A, k = 3, which = "largest_algebraic", B = I)
+  gen <- eigs(A, k = 3, which = "largest_algebraic", B = I, method = "lanczos")
   expect_equal(gen$method, "lanczos")
   expect_equal(gen$values, std$values, tolerance = 1e-12)
 })
@@ -72,7 +72,7 @@ test_that("random definite pencils, real and complex, against eigen() over 20 se
     ref <- sort(Re(eigen(solve(Bd, Ad), only.values = TRUE)$values), decreasing = TRUE)
     A <- linop(Ad)
     B <- linop(Bd, properties = c(positive_definite = TRUE))
-    fit <- eigs(A, k = 3, which = "largest_algebraic", B = B, seed = s)
+    fit <- eigs(A, k = 3, which = "largest_algebraic", B = B, seed = s, method = "lanczos")
     info <- sprintf("seed %d %s", s, dt)
     expect_equal(fit$method, "lanczos", info = info)
     expect_equal(fit$values, ref[1:3], tolerance = 1e-10, info = info)
@@ -103,7 +103,8 @@ test_that("a B that declares nothing takes Arnoldi, and the dispatch says why", 
   n <- 60
   Md <- fem_mass(n)
   M <- linop(function(X) Md %*% X, dim = c(n, n))
-  fit <- eigs(laplacian_1d(n), k = 3, which = "largest_real", B = M)
+  ## A computed hermitian, so the refusal is about B
+  fit <- eigs(linop(as.matrix(laplacian_1d(n))), k = 3, which = "largest_real", B = M)
   expect_equal(fit$method, "arnoldi")
   expect_equal(fit$values, rev(fem_eigenvalues(n))[1:3], tolerance = 1e-10)
   cand <- fit$certificate$dispatch$candidates
@@ -120,7 +121,7 @@ test_that("shift-invert on (A - sigma B)^-1 B, definite and not", {
   M <- linop(fem_mass(n), properties = c(positive_definite = TRUE))
   truth <- fem_eigenvalues(n)
   near <- truth[order(abs(truth - 0.5))][1:3]
-  fit <- eigs(K, k = 3, sigma = 0.5, B = M)
+  fit <- eigs(K, k = 3, sigma = 0.5, B = M, method = "lanczos")
   expect_equal(fit$method, "lanczos shift-invert")
   expect_match(fit$certificate$dispatch$reason, "\\(A - 0.5 B\\)\\^-1 B")
   expect_equal(sort(fit$values), sort(near), tolerance = 1e-12)
@@ -204,4 +205,18 @@ test_that("the external engines refuse B by name", {
   skip_if_not_installed("linop.primme")
   M <- linop(fem_mass(10), properties = c(positive_definite = TRUE))
   expect_error(eigs(laplacian_1d(10), k = 2, B = M, method = "primme"), "does not take B")
+})
+
+test_that("auto takes Lanczos for a pencil only when both declarations meet the minimum", {
+  n <- 40
+  K <- linop(as.matrix(laplacian_1d(n)))
+  declared <- linop(fem_mass(n), properties = c(positive_definite = TRUE))
+  fit <- eigs(K, k = 2, which = "largest_algebraic", B = declared)
+  expect_equal(fit$method, "arnoldi")
+  cand <- fit$certificate$dispatch$candidates
+  expect_match(cand$reason[cand$backend == "lanczos"],
+               "the B inner product auto acts on positive_definite only")
+  ## linop_eye() establishes definiteness by construction
+  eye <- eigs(K, k = 2, which = "largest_algebraic", B = linop_eye(n))
+  expect_equal(eye$method, "lanczos")
 })

@@ -134,7 +134,7 @@ test_that("shift-invert with a real shift and with a complex one", {
   want <- truth[order(Mod(truth - sigma))[1:2]]
   expect_lt(nearest_error(fz$values, want), 1e-10)
   ## a complex shift on a hermitian operator passes over Lanczos to Arnoldi
-  h <- eigs(laplacian_1d(40), k = 2, sigma = 1 + 0.1i)
+  h <- eigs(linop(as.matrix(laplacian_1d(40))), k = 2, sigma = 1 + 0.1i)
   expect_equal(h$method, "arnoldi shift-invert")
   expect_match(h$certificate$dispatch$candidates$reason[
     h$certificate$dispatch$candidates$backend == "lanczos"], "complex shift")

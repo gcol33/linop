@@ -178,7 +178,12 @@ caps_product <- function(ops) {
       caps$positive_semidefinite <- capability(TRUE, ev_construction())
       inner <- if (gram_h) R else L
       fr <- cap(inner, "full_rank")
-      if (isTRUE(cap_value(fr))) {
+      ## X^H X is definite exactly when X has full column rank, X X^H when it has
+      ## full row rank. full_rank is rank min(m, n), which is the right one only
+      ## when the dimension the Gram matrix lives on is the smaller: a wide X of
+      ## full rank has a singular X^H X.
+      side <- if (gram_h) inner$dim[2L] else inner$dim[1L]
+      if (isTRUE(cap_value(fr)) && side <= min(inner$dim)) {
         caps$positive_definite <- capability(TRUE, ev_construction(list(fr$evidence)))
       }
       if (isTRUE(capv(inner, "real"))) {

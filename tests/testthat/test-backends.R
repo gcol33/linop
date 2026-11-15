@@ -95,7 +95,8 @@ test_that("an engine speaking another contract version is rejected, not attempte
 
 test_that("auto takes primme when it is installed, and the priority option overrides it", {
   skip_if_not_installed("linop.primme")
-  A <- laplacian_1d(40)
+  ## a dense leaf computes its symmetry, which auto acts on
+  A <- linop(as.matrix(laplacian_1d(40)))
   with_default_priority({
     expect_equal(eigs(A, k = 2)$method, "primme")
     expect_equal(svds(A, k = 2)$method, "primme")
@@ -108,7 +109,7 @@ test_that("auto takes primme when it is installed, and the priority option overr
 
 test_that("primme refuses a tolerance below machine epsilon, and auto takes the reference", {
   skip_if_not_installed("linop.primme")
-  A <- laplacian_1d(30)
+  A <- linop(as.matrix(laplacian_1d(30)))
   for (tol in c(0, 1e-17)) {
     fit <- with_default_priority(eigs(A, k = 2, tol = tol, maxit = 40L))
     expect_equal(fit$method, "lanczos")
@@ -270,7 +271,7 @@ test_that("a basis too small for a block of k is primme's to refuse, with the si
                "needs ncv >= 4")
   expect_equal(eigs(A, k = 1, ncv = 3L, which = "largest_algebraic",
                     method = "primme", maxit = 3000L)$method, "primme")
-  fit <- with_default_priority(eigs(A, k = 4, ncv = 8L))
+  fit <- with_default_priority(eigs(linop(as.matrix(A)), k = 4, ncv = 8L))
   expect_equal(fit$method, "lanczos")
 })
 
@@ -354,4 +355,23 @@ test_that("an error inside the operator surfaces through the engine as an R erro
   bad <- linop(function(X) stop("the operator failed"), dim = c(30, 30),
                properties = c(hermitian = TRUE))
   expect_error(eigs(bad, k = 2, method = "primme"), "the operator failed")
+})
+
+test_that("auto acts on a hermitian declaration only at the evidence minimum", {
+  ## A bare user declaration is honoured by name and passed over by auto, the
+  ## split solve() makes between method = "minres" and auto's MINRES.
+  A <- laplacian_1d(30)
+  fit <- eigs(A, k = 2, which = "largest_algebraic")
+  expect_equal(fit$method, "arnoldi")
+  cand <- fit$certificate$dispatch$candidates
+  expect_match(cand$reason[cand$backend == "lanczos"],
+               "auto acts on hermitian only at computed, constructed or proven evidence")
+  expect_false(grepl("\n", cand$reason[cand$backend == "lanczos"]))
+  expect_equal(eigs(A, k = 2, which = "largest_algebraic", method = "lanczos")$method,
+               "lanczos")
+  ## the certificate still reads the declaration, recorded under the forward row
+  expect_equal(cert_status(fit$certificate, "forward error"), "pass")
+  ## a dense leaf computes its symmetry, and auto takes Lanczos
+  expect_equal(eigs(linop(as.matrix(A)), k = 2, which = "largest_algebraic")$method,
+               "lanczos")
 })

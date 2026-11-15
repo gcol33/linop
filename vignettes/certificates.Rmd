@@ -204,7 +204,7 @@ term for each. For an eigenpair, `theta` and `x` are both outputs and `A` is the
 only datum, so the denominator loses a term and the table gains rows:
 
 ```{r eigen}
-fit <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)
+fit <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos", ncv = 60)
 fit$certificate
 ```
 

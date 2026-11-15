@@ -68,6 +68,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
   rounds <- 0L
   anorm_lb <- 0
   bnorm_lb <- if (is.null(B)) NULL else 0
+  normal <- hermitian && is.null(B)
   ## Every expansion step computes ||A v_j|| for a unit v_j, a lower bound on
   ## ||A|| that costs nothing, and the stopping rule's floor scales with that
   ## bound. Measured pairs alone give a poor one at an end of the spectrum near
@@ -120,7 +121,14 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     Y <- vapply(seq_len(q), function(i) schur_eigvec(T, i, smin), complex(ma))
     Y <- matrix(Y, ma, q)
     Za <- U %*% Y
-    if (l) {
+    if (normal) {
+      ## The Schur form of a hermitian operator is diagonal and its Schur vectors
+      ## are eigenvectors, orthonormal also inside a repeated eigenvalue, where
+      ## the triangular factor's eigenvectors are any basis of the eigenspace.
+      ## The locked block is decoupled from the active one up to the residuals
+      ## it locked at.
+      Z <- rbind(matrix(0, l, q), U[, seq_len(q), drop = FALSE])
+    } else if (l) {
       Tl <- M[seq_len(l), seq_len(l), drop = FALSE]
       Xc <- M[seq_len(l), act, drop = FALSE] %*% Za
       Zl <- vapply(seq_len(q), function(i)
@@ -267,10 +275,11 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
   }
   ## A spectrum with no non-real member comes back in real storage, as base
   ## eigen() returns it.
-  if (all(Im(values) == 0) && all(Im(vectors) == 0)) {
+  ## A hermitian measurement is real whatever the storage of its vector.
+  if (hermitian || (all(Im(values) == 0) && all(Im(vectors) == 0))) {
     values <- Re(values)
     thetas <- Re(thetas)
-    if (!cplx) vectors <- Re(vectors)
+    if (!cplx && all(Im(vectors) == 0)) vectors <- Re(vectors)
   }
 
   ord <- ritz_order(thetas, sel)

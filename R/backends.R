@@ -32,6 +32,11 @@ BACKEND_CONTRACT <- "1.1"
 ## eigs, also the operator the iteration runs on), ctl, the list of k, sel,
 ## tol, maxit, ncv, v0, seed and floor_const, and the engine; it returns the
 ## pairs in the shape lanczos_core() and gkl_core() return them.
+##
+## evidence_minimum is a requirement(), or a function returning one, the evidence for each capability has to
+## satisfy before auto acts on it. It filters auto and does not gate a method
+## named by the caller, who is then asserting their own declaration: the split
+## solve() makes for CG and MINRES, for the same reason.
 register_backend <- function(name, family, run, priority, provides_label,
                              engine_version = NA_character_, package = NULL,
                              info_fn = NULL,
@@ -39,6 +44,7 @@ register_backend <- function(name, family, run, priority, provides_label,
                              dtypes = c("double", "complex"),
                              requires = "apply", targets = character(0),
                              capabilities = character(0),
+                             evidence_minimum = NULL,
                              default_ncv = function(A, k) NULL,
                              supports = function(A, request) TRUE) {
   key <- paste(family, name, sep = ":")
@@ -49,6 +55,7 @@ register_backend <- function(name, family, run, priority, provides_label,
                    contract_version = contract_version, dtypes = dtypes,
                    requires = requires, targets = targets,
                    capabilities = capabilities,
+                   evidence_minimum = evidence_minimum,
                    default_ncv = default_ncv, supports = supports),
          envir = .backends)
   invisible(key)
@@ -107,6 +114,10 @@ backend_refusal <- function(b, A, request) {
   for (cap in b$capabilities) {
     why <- capability_refusal(A, cap)
     if (!is.null(why)) return(why)
+    if (isTRUE(request$auto)) {
+      why <- evidence_refusal(A, cap, b$evidence_minimum)
+      if (!is.null(why)) return(why)
+    }
   }
   if (length(b$targets) && !is.null(request$which) && !request$which %in% b$targets) {
     return(sprintf("does not select which = '%s'", request$which))
@@ -118,6 +129,7 @@ backend_refusal <- function(b, A, request) {
 }
 
 select_backend <- function(family, A, request, method, verb) {
+  request$auto <- identical(method, "auto")
   verdicts <- backend_verdicts(family, A, request)
   names_all <- vapply(verdicts, function(v) v$backend$name, character(1))
   if (!is_scalar_string(method) || !method %in% c("auto", names_all)) {
@@ -173,17 +185,39 @@ hermitian_shift_supports <- function(request) {
 
 ## A pencil reaches the hermitian recurrence only in the B inner product, which
 ## is an inner product only for B hermitian positive definite.
+## Under auto the evidence for both has to meet the minimum CG's does, since the
+## inner product is exactly as good as B's definiteness.
 definite_pencil_supports <- function(request) {
   B <- request$B
   if (is.null(B)) return(TRUE)
   why <- capability_refusal(B, "hermitian") %||% capability_refusal(B, "positive_definite")
+  if (is.null(why) && isTRUE(request$auto)) {
+    why <- evidence_refusal(B, "hermitian", CG_PD_REQUIREMENT) %||%
+           evidence_refusal(B, "positive_definite", CG_PD_REQUIREMENT)
+  }
   if (is.null(why)) TRUE
   else paste0("the B inner product ", sub("the operator", "B", why, fixed = TRUE))
 }
 
+## Why auto will not act on a capability the operator does hold: its evidence is
+## below the minimum. NULL when it meets it or there is no minimum.
+evidence_refusal <- function(A, name, req) {
+  if (is.function(req)) req <- req()
+  if (is.null(req) || evidence_satisfies(cape(A, name), req)) return(NULL)
+  sprintf(paste0("auto acts on %s only at computed, constructed or proven evidence, ",
+                 "and the operator's is %s; name the method to rely on it"),
+          name, cape(A, name)$source)
+}
+
+## The minimum auto applies to a hermitian engine: MINRES's, the same reading of
+## the evidence fields solve() uses to choose a hermitian method. A function,
+## because this file is collated before the one defining it.
+eigs_hermitian_requirement <- function() MINRES_HERMITIAN_REQUIREMENT
+
 register_backend("lanczos", "eigs", priority = 0,
                  provides_label = "Lanczos with full reorthogonalisation",
                  targets = c("LM", "SM", "LA", "SA"), capabilities = "hermitian",
+                 evidence_minimum = eigs_hermitian_requirement,
                  default_ncv = function(A, k) default_ncv(A, k),
                  supports = function(A, request) {
                    s <- hermitian_shift_supports(request)
@@ -217,7 +251,7 @@ register_backend("primme", "eigs", priority = 100,
                  provides_label = "PRIMME with implicit restarting",
                  engine_version = "3.2.3", package = "linop.primme",
                  info_fn = "primme_engine", targets = c("LM", "SM", "LA", "SA"),
-                 capabilities = "hermitian",
+                 capabilities = "hermitian", evidence_minimum = eigs_hermitian_requirement,
                  supports = function(A, request) {
                    if (!is.null(request$B)) return("it does not take B")
                    s <- hermitian_shift_supports(request)

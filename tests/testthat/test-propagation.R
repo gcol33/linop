@@ -124,3 +124,16 @@ test_that("brute force: no declared flag contradicts the materialised matrix", {
     for (j in seq_along(exprs)) expect_sound(exprs[[j]], sprintf("iter %d expr %d", i, j))
   }
 })
+
+test_that("a Gram product is definite only on the side where full rank means injective", {
+  ## A wide operator of full rank has rank m < n, so X^H X is singular and
+  ## X X^H definite; a tall one the other way round.
+  wide <- linop(rmat(3, 6, seed = 1), properties = c(full_rank = TRUE))
+  tall <- linop(rmat(6, 3, seed = 2), properties = c(full_rank = TRUE))
+  expect_true(is.na(capv(adjoint(wide) %*% wide, "positive_definite")))
+  expect_true(isTRUE(capv(wide %*% adjoint(wide), "positive_definite")))
+  expect_true(isTRUE(capv(adjoint(tall) %*% tall, "positive_definite")))
+  expect_true(is.na(capv(tall %*% adjoint(tall), "positive_definite")))
+  G <- as.matrix(adjoint(wide) %*% wide)
+  expect_lt(min(eigen(G, symmetric = TRUE, only.values = TRUE)$values), 1e-10)
+})
