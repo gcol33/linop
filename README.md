@@ -166,11 +166,11 @@ y <- N %*% img
 ```
 
 The time of one application of each operator, and the peak memory R used
-over the whole run, with R version 4.6.1 (2026-06-24 ucrt):
+over the whole run, with R version 4.6.0 (2026-04-24 ucrt):
 
     #>                     operator seconds
-    #> 1                       Blur   0.010
-    #> 2 crossprod(Blur) + 1e-3 * I   0.018
+    #> 1                       Blur   0.008
+    #> 2 crossprod(Blur) + 1e-3 * I   0.022
     #> Peak R memory: 98 MB
 
 The expression is applied one block at a time, so the memory figure is
@@ -272,7 +272,8 @@ it, with node registration and the preconditioner contract.
 
 `solve()` reaches seven Krylov methods for linear systems, and enforces
 the preconditioner contract in each method that accepts a
-preconditioner. `eigs()` is a Hermitian eigensolver and `svds()` a
+preconditioner. `eigs()` computes eigenpairs by Lanczos for a Hermitian
+operator and by Arnoldi for any other square one, and `svds()` is a
 singular value solver. Each result carries a certificate, read with
 `certificate()`, with the operator-norm estimate its arithmetic floor
 rests on.

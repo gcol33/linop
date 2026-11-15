@@ -104,6 +104,17 @@ fun_apply <- function(op, X, mode) {
   ## copies of the block for the two identities above. Dropping them is the same
   ## quantity, bitwise; the complex path is unchanged.
   conj_if <- function(Z) if (is.complex(Z)) Conj(Z) else Z
+  ## A callback declared real is entitled to receive real blocks, the way the
+  ## sparse leaf's Matrix product is, and a complex block reaches it whenever a
+  ## real operator has non-real eigenvectors. The real and imaginary parts go in
+  ## as one block of twice the width, so the author sees one call, and the
+  ## recombination is exact for any operator linear over the reals, including a
+  ## complex one declared real by mistake.
+  if (op$dtype == "double" && is.complex(X)) {
+    k <- ncol(X)
+    Y <- fun_apply(op, cbind(Re(X), Im(X)), mode)
+    return(Y[, seq_len(k), drop = FALSE] + 1i * Y[, k + seq_len(k), drop = FALSE])
+  }
   switch(mode,
     N = f(X),
     C = g(X),

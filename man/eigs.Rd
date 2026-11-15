@@ -2,7 +2,7 @@
 % Please edit documentation in R/eigs.R
 \name{eigs}
 \alias{eigs}
-\title{Eigenvalues and eigenvectors of a hermitian operator}
+\title{Eigenvalues and eigenvectors of an operator}
 \usage{
 eigs(
   A,
@@ -23,17 +23,24 @@ eigs(
 )
 }
 \arguments{
-\item{A}{A square hermitian `linop`. No adjoint is required.}
+\item{A}{A square `linop`. No adjoint is required.}
 
 \item{k}{How many eigenpairs.}
 
 \item{which}{Which end of the spectrum: `"largest"` or `"smallest"` by
-magnitude, `"largest_algebraic"` or `"smallest_algebraic"` by value.
-RSpectra's `"LM"`, `"SM"`, `"LA"` and `"SA"` are accepted for the same four.}
+magnitude, `"largest_algebraic"` or `"smallest_algebraic"` by value (by real
+part for a complex spectrum, also spelled `"largest_real"` and
+`"smallest_real"`), and `"largest_imaginary"` or `"smallest_imaginary"` by
+the magnitude of the imaginary part. RSpectra's `"LM"`, `"SM"`, `"LA"`,
+`"SA"`, `"LR"`, `"SR"`, `"LI"` and `"SI"` are accepted for the same orders.
+A hermitian spectrum is real, so the two imaginary orders are refused for an
+operator established hermitian.}
 
-\item{sigma}{A real shift. Given one, the eigenvalues nearest `sigma` are
-sought, by running the same recurrence on `(A - sigma I)^-1` through the
-package's own solvers. `which` does not apply and passing both is an error.}
+\item{sigma}{A shift. Given one, the eigenvalues nearest `sigma` are sought,
+by running the same recurrence on `(A - sigma I)^-1` through the package's
+own solvers: MINRES for a hermitian operator and a real shift, GMRES
+otherwise. A complex shift is accepted for any operator and runs Arnoldi.
+`which` does not apply and passing both is an error.}
 
 \item{B}{Reserved for the generalized problem `A x = lambda B x`, which is not
 in this version.}
@@ -54,19 +61,21 @@ improving ends before the budget does, and a run that exhausts it returns a
 `fail` certificate.}
 
 \item{ncv}{Subspace size per restart. Storage is `ncv` vectors. `NULL`
-takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"`, and
-PRIMME's own basis size for `"primme"`.}
+takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"` and
+`"arnoldi"`, and PRIMME's own basis size for `"primme"`.}
 
 \item{v0}{Starting vector, or `NULL` for a seeded random one.}
 
 \item{seed}{Seed for the starting vector. The caller's random stream is
 restored afterwards.}
 
-\item{method}{`"auto"`, `"lanczos"` or `"primme"`. `"lanczos"` is the
-reference implementation in this package. `"primme"` is the PRIMME library,
-available when the `linop.primme` package is installed, which restarts
+\item{method}{`"auto"`, `"lanczos"`, `"arnoldi"` or `"primme"`. `"lanczos"`
+is the reference implementation for a hermitian operator and `"arnoldi"` for
+any square one. `"primme"` is the PRIMME library, available for a hermitian
+operator when the `linop.primme` package is installed, which restarts
 implicitly and so keeps a basis of fixed small size. `"auto"` takes PRIMME
-when it is available and Lanczos otherwise; the certificate's `dispatch`
+when it is available and the operator is established hermitian, Lanczos when
+only the second holds, and Arnoldi otherwise; the certificate's `dispatch`
 records every engine considered and why. Whichever runs, the reported
 values are Rayleigh quotients measured on `A` and the certificate is the
 same.}
@@ -92,14 +101,25 @@ An object of class `linop_eigen`, with `values`, `vectors` and the
   width `n` that was chosen and the `widths` that were tried.
 }
 \description{
-Lanczos with full reorthogonalisation, run against the operator's action. The
-result records what converged, what residual each pair reached, and what
-argument establishes the bound on the eigenvalues.
+A few eigenpairs of a square operator, computed from its action alone. An
+operator established hermitian gets Lanczos with full reorthogonalisation;
+any other gets Arnoldi with Krylov-Schur restarting. The result records what
+converged, what residual each pair reached, and what argument establishes the
+bound on the eigenvalues.
 }
 \details{
 The eigenvalue reported for each pair is the Rayleigh quotient
 `x^H A x / (x^H x)`, measured on `A` itself. It is the value that minimises
 `||A x - mu x||`, so no other choice of `mu` certifies better.
+
+For an operator that is not established hermitian the values are complex
+wherever the spectrum is, and a real operator's non-real eigenvalues come in
+conjugate pairs that are computed together. The eigenvectors of a non-normal
+operator are not orthogonal, and a small residual places a value in the
+operator's pseudospectrum rather than near an eigenvalue: the certificate's
+`forward error` row says so instead of claiming a bound. An operator with no
+declaration at all runs too, through Arnoldi; declaring `hermitian = TRUE`
+buys the real recurrence and Weyl's bound.
 
 `target identity` is `not_checked`, always. A small residual proves the pair is
 an approximate eigenpair; that it is the largest, smallest or nearest one
@@ -113,6 +133,14 @@ L <- linop(function(X) rbind(X[-1, , drop = FALSE], 0) +
            dim = c(n, n), properties = c(hermitian = TRUE))
 fit <- eigs(L, k = 3, which = "largest_algebraic")
 fit$values
+
+## a non-normal operator, convection-diffusion: its spectrum is real and
+## known, and its eigenvectors are far from orthogonal
+C <- linop(function(X) 1.5 * rbind(X[-1, , drop = FALSE], 0) +
+                       0.5 * rbind(0, X[-n, , drop = FALSE]) - 2 * X,
+           dim = c(n, n))
+fit <- eigs(C, k = 2, which = "largest_real")
+fit$values - (-2 + 2 * sqrt(0.75) * cos(pi * (1:2) / (n + 1)))
 
 ## on an operator with no matrix, where the width is chosen rather than given
 H <- linop_jacobi(diagonal = 1)

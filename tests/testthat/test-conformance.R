@@ -63,21 +63,36 @@ test_that("verify() catches a block apply that disagrees with single columns", {
   expect_true("block consistency" %in% cert$checks$check[cert$checks$status == "fail"])
 })
 
-test_that("verify() catches a real operator that discards the imaginary part", {
+test_that("a real callback is handed real blocks, so a complex block promotes", {
   ## Section 5.5: a real operator applied to a complex block promotes the result.
+  ## The leaf hands a callback declared real the real and imaginary parts as one
+  ## real block, so a callback that cannot take complex input still promotes.
+  n <- 4
+  seen <- character(0)
+  real_only <- linop(function(X) { seen <<- c(seen, typeof(X)); 2 * X },
+                     dim = c(n, n))
+  Z <- matrix(complex(real = 1:8, imaginary = 8:1), n, 2)
+  expect_equal(linop:::linop_apply(real_only, Z, "N"), 2 * Z)
+  expect_identical(unique(seen), "double")
+  cert <- verify(linop(function(X) apply(X, 2, function(v) as.numeric(2 * v)),
+                       adjoint = function(X) apply(X, 2, function(v) as.numeric(2 * v)),
+                       dim = c(n, n)))
+  expect_equal(cert$checks$status[cert$checks$check == "complex linearity"], "pass")
+})
+
+test_that("verify() catches a complex operator that discards the imaginary part", {
   ## linop_apply() upcasts a real result to complex, so shape and dtype alone are
   ## satisfied by an apply that dropped the imaginary part of its input. Only
   ## A(x + iy) = A(x) + i A(y) distinguishes the two.
   n <- 4
   bad <- linop(function(X) apply(X, 2, function(v) as.numeric(2 * v)),
                adjoint = function(X) apply(X, 2, function(v) as.numeric(2 * v)),
-               dim = c(n, n))
+               dim = c(n, n), dtype = "complex")
   cert <- suppressWarnings(verify(bad))
   expect_equal(cert$overall, "fail")
   expect_true("complex linearity" %in% cert$checks$check[cert$checks$status == "fail"])
-  ## the checks it slipped past before this one existed
+  ## the check it slips past, since the result is upcast
   expect_equal(cert$checks$status[cert$checks$check == "shape and dtype"], "pass")
-  expect_equal(cert$checks$status[cert$checks$check == "linearity"], "pass")
 })
 
 test_that("complex linearity passes on every node type", {

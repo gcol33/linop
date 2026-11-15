@@ -14,3 +14,4 @@
 ^sidecars$
 ^\.run.*$
 ^CITATION\.cff$
+^pkgdown$

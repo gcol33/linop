@@ -62,17 +62,28 @@ normalise_properties <- function(properties) {
 ## capability nobody established is reported as such, with the declaration that
 ## would settle it, rather than as a refusal to believe the operator.
 require_capability <- function(A, name, method) {
+  why <- capability_refusal(A, name, hint = TRUE)
+  if (is.null(why)) return(invisible(TRUE))
+  stopf("method '%s' %s", method, why)
+}
+
+## The reason an operator does not meet a capability requirement, or NULL when it
+## does. Shared by require_capability() and by the backend registry, where a
+## method's refusal is one row of the dispatch table and takes the one-line form;
+## the hint naming the declaration that would settle it belongs to an error.
+capability_refusal <- function(A, name, hint = FALSE) {
   v <- capv(A, name)
-  if (isTRUE(v)) return(invisible(TRUE))
-  stopf(paste0("method '%s' requires the operator to be %s; it declares %s = %s.\n",
-               "  %s"),
-        method, name, name, format(v),
-        if (is.na(v)) {
-          sprintf(paste0("Unknown is not false. Declare it with ",
-                         "linop(..., properties = c(%s = TRUE)) if you can justify it."), name)
-        } else {
-          "The operator declares the opposite."
-        })
+  if (isTRUE(v)) return(NULL)
+  why <- sprintf("requires the operator to be %s; it declares %s = %s",
+                 name, name, format(v))
+  if (!hint) return(paste0(why, if (is.na(v)) ", and unknown is not false"))
+  paste0(why, ".\n  ",
+         if (is.na(v)) {
+           sprintf(paste0("Unknown is not false. Declare it with ",
+                          "linop(..., properties = c(%s = TRUE)) if you can justify it."), name)
+         } else {
+           "The operator declares the opposite."
+         })
 }
 
 ## Implications that hold by definition, applied once at construction so a user

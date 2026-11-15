@@ -1,23 +1,23 @@
-## Section 7.2, the reference eigensolver. Lanczos with full reorthogonalisation,
-## locking, and explicit restarts.
+## Section 7.2, the eigensolver verb, and the reference hermitian engine.
+## Lanczos with full reorthogonalisation, locking, and explicit restarts, for an
+## operator established hermitian; Arnoldi with Krylov-Schur restarting
+## (R/eigs-arnoldi.R) for every other square operator.
 ##
-## What it requires. A hermitian operator and a forward action, and nothing else:
-## every apply below is mode "N". That makes it the second thing in the package,
-## after GMRES and BiCGSTAB, that runs on an operator supplying no adjoint at all,
-## and for the same structural reason -- a hermitian operator IS its own adjoint,
-## so there is no second callback to ask for.
+## What each requires. Lanczos needs a hermitian operator and a forward action;
+## Arnoldi needs the forward action alone. Every apply in both is mode "N", so
+## neither asks for an adjoint, and for Lanczos the reason is structural -- a
+## hermitian operator IS its own adjoint, so there is no second callback to ask
+## for.
 ##
-## What it does not do. There is no evidence minimum on the hermitian
-## requirement, and that is a decision rather than an omission. Every other
-## dispatcher in the package that applies one has somewhere to fall back to: auto
-## refuses CG and takes MINRES, refuses MINRES and takes GMRES. Here there is one
-## method and no non-hermitian fallback until Arnoldi is written, so
-## a minimum would not select between methods, it would only refuse to run. The
-## declaration is carried into the certificate instead: the forward-error row
-## records it in depends_on, so a bound resting on a bare user_declaration fails
-## any requirement the declaration would have failed directly. The value gates the
-## run and the evidence is reported, which is section 5.3 applied where it can
-## still say something.
+## The hermitian requirement is a capability in the backend registry, so
+## method = "auto" reads it the way solve()'s auto reads its minima: an operator
+## that establishes it gets Lanczos (or PRIMME), and one that does not gets
+## Arnoldi, with the dispatch table naming the reason. A named method is the
+## caller's choice and is refused with the same reason. There is still no
+## evidence minimum on the declaration: a bare user_declaration of hermitian
+## selects Lanczos, and is carried into the certificate instead, where the
+## forward-error row records it in depends_on, so a bound resting on it fails any
+## requirement the declaration would have failed directly.
 ##
 ## The Rayleigh quotient is what gets reported, not the Ritz value. For a plain
 ## Lanczos run the two agree to rounding, since a Ritz value of a hermitian
@@ -39,29 +39,51 @@
 ## would not mean what it said.
 SIGMA_SELECT <- "LM"
 
-#' Eigenvalues and eigenvectors of a hermitian operator
+## The GMRES cycle length of the inner solve under a shift, for an operator not
+## established hermitian. See shift_invert_operator().
+SHIFT_INVERT_RESTART <- 100L
+
+#' Eigenvalues and eigenvectors of an operator
 #'
-#' Lanczos with full reorthogonalisation, run against the operator's action. The
-#' result records what converged, what residual each pair reached, and what
-#' argument establishes the bound on the eigenvalues.
+#' A few eigenpairs of a square operator, computed from its action alone. An
+#' operator established hermitian gets Lanczos with full reorthogonalisation;
+#' any other gets Arnoldi with Krylov-Schur restarting. The result records what
+#' converged, what residual each pair reached, and what argument establishes the
+#' bound on the eigenvalues.
 #'
 #' The eigenvalue reported for each pair is the Rayleigh quotient
 #' `x^H A x / (x^H x)`, measured on `A` itself. It is the value that minimises
 #' `||A x - mu x||`, so no other choice of `mu` certifies better.
+#'
+#' For an operator that is not established hermitian the values are complex
+#' wherever the spectrum is, and a real operator's non-real eigenvalues come in
+#' conjugate pairs that are computed together. The eigenvectors of a non-normal
+#' operator are not orthogonal, and a small residual places a value in the
+#' operator's pseudospectrum rather than near an eigenvalue: the certificate's
+#' `forward error` row says so instead of claiming a bound. An operator with no
+#' declaration at all runs too, through Arnoldi; declaring `hermitian = TRUE`
+#' buys the real recurrence and Weyl's bound.
 #'
 #' `target identity` is `not_checked`, always. A small residual proves the pair is
 #' an approximate eigenpair; that it is the largest, smallest or nearest one
 #' requires an inertia count, an enclosure or a separation bound, and matrix-free
 #' there is generally none. See `vignette("certificates")`.
 #'
-#' @param A A square hermitian `linop`. No adjoint is required.
+#' @param A A square `linop`. No adjoint is required.
 #' @param k How many eigenpairs.
 #' @param which Which end of the spectrum: `"largest"` or `"smallest"` by
-#'   magnitude, `"largest_algebraic"` or `"smallest_algebraic"` by value.
-#'   RSpectra's `"LM"`, `"SM"`, `"LA"` and `"SA"` are accepted for the same four.
-#' @param sigma A real shift. Given one, the eigenvalues nearest `sigma` are
-#'   sought, by running the same recurrence on `(A - sigma I)^-1` through the
-#'   package's own solvers. `which` does not apply and passing both is an error.
+#'   magnitude, `"largest_algebraic"` or `"smallest_algebraic"` by value (by real
+#'   part for a complex spectrum, also spelled `"largest_real"` and
+#'   `"smallest_real"`), and `"largest_imaginary"` or `"smallest_imaginary"` by
+#'   the magnitude of the imaginary part. RSpectra's `"LM"`, `"SM"`, `"LA"`,
+#'   `"SA"`, `"LR"`, `"SR"`, `"LI"` and `"SI"` are accepted for the same orders.
+#'   A hermitian spectrum is real, so the two imaginary orders are refused for an
+#'   operator established hermitian.
+#' @param sigma A shift. Given one, the eigenvalues nearest `sigma` are sought,
+#'   by running the same recurrence on `(A - sigma I)^-1` through the package's
+#'   own solvers: MINRES for a hermitian operator and a real shift, GMRES
+#'   otherwise. A complex shift is accepted for any operator and runs Arnoldi.
+#'   `which` does not apply and passing both is an error.
 #' @param B Reserved for the generalized problem `A x = lambda B x`, which is not
 #'   in this version.
 #' @param tol Convergence tolerance. Every method holds each pair, measured on
@@ -78,16 +100,18 @@ SIGMA_SELECT <- "LM"
 #'   improving ends before the budget does, and a run that exhausts it returns a
 #'   `fail` certificate.
 #' @param ncv Subspace size per restart. Storage is `ncv` vectors. `NULL`
-#'   takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"`, and
-#'   PRIMME's own basis size for `"primme"`.
+#'   takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"` and
+#'   `"arnoldi"`, and PRIMME's own basis size for `"primme"`.
 #' @param v0 Starting vector, or `NULL` for a seeded random one.
 #' @param seed Seed for the starting vector. The caller's random stream is
 #'   restored afterwards.
-#' @param method `"auto"`, `"lanczos"` or `"primme"`. `"lanczos"` is the
-#'   reference implementation in this package. `"primme"` is the PRIMME library,
-#'   available when the `linop.primme` package is installed, which restarts
+#' @param method `"auto"`, `"lanczos"`, `"arnoldi"` or `"primme"`. `"lanczos"`
+#'   is the reference implementation for a hermitian operator and `"arnoldi"` for
+#'   any square one. `"primme"` is the PRIMME library, available for a hermitian
+#'   operator when the `linop.primme` package is installed, which restarts
 #'   implicitly and so keeps a basis of fixed small size. `"auto"` takes PRIMME
-#'   when it is available and Lanczos otherwise; the certificate's `dispatch`
+#'   when it is available and the operator is established hermitian, Lanczos when
+#'   only the second holds, and Arnoldi otherwise; the certificate's `dispatch`
 #'   records every engine considered and why. Whichever runs, the reported
 #'   values are Rayleigh quotients measured on `A` and the certificate is the
 #'   same.
@@ -112,6 +136,14 @@ SIGMA_SELECT <- "LM"
 #'            dim = c(n, n), properties = c(hermitian = TRUE))
 #' fit <- eigs(L, k = 3, which = "largest_algebraic")
 #' fit$values
+#'
+#' ## a non-normal operator, convection-diffusion: its spectrum is real and
+#' ## known, and its eigenvectors are far from orthogonal
+#' C <- linop(function(X) 1.5 * rbind(X[-1, , drop = FALSE], 0) +
+#'                        0.5 * rbind(0, X[-n, , drop = FALSE]) - 2 * X,
+#'            dim = c(n, n))
+#' fit <- eigs(C, k = 2, which = "largest_real")
+#' fit$values - (-2 + 2 * sqrt(0.75) * cos(pi * (1:2) / (n + 1)))
 #'
 #' ## on an operator with no matrix, where the width is chosen rather than given
 #' H <- linop_jacobi(diagonal = 1)
@@ -156,16 +188,19 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                  "  recurrence rather than a flag on this one: every inner product changes and a\n",
                  "  solve against B enters each step."))
   }
-  require_capability(A, "hermitian", "eigs")
+  herm <- isTRUE(capv(A, "hermitian"))
   which_code <- normalise_which(which, EIGEN_WHICH, "eigs")
+  if (herm && which_code %in% c("LI", "SI")) {
+    stopf(paste0("which = '%s' orders by imaginary part, and this operator is established\n",
+                 "  hermitian, so every eigenvalue is real and every imaginary part is zero."),
+          which)
+  }
   s <- eigen_setup(A, k, maxit, "eigs", n)
   k <- s$k; maxit <- s$maxit
 
-  ## The operator the recurrence runs on, which is A itself unless a shift makes
-  ## it the solve. Selection happens on that operator's spectrum; measurement
-  ## always happens on A.
+  ## Selection happens on the spectrum of the operator the recurrence runs on,
+  ## which under a shift is the solve; measurement always happens on A.
   if (is.null(sigma)) {
-    Op <- A
     sel <- which_code
   } else {
     if (!identical(which, "largest")) {
@@ -174,23 +209,32 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                    "  transformed spectrum the recurrence works at. Drop which, or drop sigma and\n",
                    "  ask for an end of the spectrum of A directly."))
     }
-    Op <- shift_invert_operator(A, sigma, inner)
+    if (!(is.numeric(sigma) || is.complex(sigma)) || length(sigma) != 1L ||
+        !is.finite(sigma)) {
+      stopf("sigma must be a single finite number")
+    }
+    ## A complex shift with no imaginary part is a real one.
+    if (is.complex(sigma) && Im(sigma) == 0) sigma <- Re(sigma)
     sel <- SIGMA_SELECT
   }
 
   ## Which engine runs the recurrence. Every engine returns the same thing, the
   ## pairs with their Rayleigh quotients and residuals measured on A, so nothing
   ## below this line knows which one ran.
-  pick <- select_backend("eigs_hermitian", A,
+  pick <- select_backend("eigs", A,
                          list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv,
                               interior = sel %in% c("LM", "SM")),
                          method, "eigs")
+  ## The shift-invert operator is the hermitian one exactly when the engine
+  ## requires a hermitian operator, since that engine runs on it.
+  herm_engine <- "hermitian" %in% pick$backend$capabilities
+  Op <- if (is.null(sigma)) A else shift_invert_operator(A, sigma, inner, herm_engine)
   ncv <- eigen_ncv(ncv %||% pick$backend$default_ncv(A, k), k, n)
   run <- pick$backend$run(Op, A, list(k = k, sel = sel, tol = tol, maxit = maxit,
                                       ncv = ncv, v0 = v0, seed = seed,
                                       floor_const = floor_const), pick$engine)
   label <- if (is.null(sigma)) pick$backend$label
-           else sprintf("%s on (A - %g I)^-1", pick$backend$label, sigma)
+           else sprintf("%s on (A - %s I)^-1", pick$backend$label, format(sigma))
   chosen <- if (is.null(sigma)) pick$backend$name
             else paste(pick$backend$name, "shift-invert")
 
@@ -207,8 +251,9 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                    certificate = cert, k = k, which = which, method = chosen,
                    iterations = run$steps, maxit = maxit, rounds = run$rounds,
                    converged = cert$values$converged, residuals = run$residuals,
-                   dispatch = backend_dispatch(method, pick,
-                                               paste("hermitian operator,", label)),
+                   dispatch = backend_dispatch(method, pick, paste0(
+                     if (herm) "hermitian operator, "
+                     else "operator not established hermitian, ", label)),
                    engine = run$engine)
 }
 
@@ -223,7 +268,8 @@ eigen_certify <- function(ctx) {
                     iterations = ctx$iterations, maxit = ctx$maxit,
                     floor_const = ctx$floor_const,
                     norm_lower_bound = ctx$norm_lower_bound,
-                    hermitian_evidence = cape(ctx$A, "hermitian"),
+                    hermitian_evidence = if (isTRUE(capv(ctx$A, "hermitian")))
+                                           cape(ctx$A, "hermitian"),
                     requested = ctx$requested,
                     stop_reason = ctx$stop_reason, subject = "eigen")
 }
@@ -236,28 +282,43 @@ eigen_certify <- function(ctx) {
 ## the residual the outer loop measures on A, which is why nothing downstream has
 ## to trust it.
 ##
-## Hermitian by construction given that A is: the shifted operator inherits the
-## declaration through caps_sum() and caps_scale(), and its inverse is hermitian
-## with it. That is also why the adjoint callback is the apply -- a hermitian
-## operator is its own adjoint, so norm2() gets its power iteration for nothing.
-shift_invert_operator <- function(A, sigma, inner) {
-  if (!is.numeric(sigma) || length(sigma) != 1L || !is.finite(sigma)) {
-    stopf(paste0("sigma must be a single finite real number.\n",
-                 "  A complex shift would leave A - sigma I non-hermitian, which this recurrence\n",
-                 "  is not defined for."))
-  }
+## For a hermitian engine, hermitian by construction given that A is: the shifted
+## operator inherits the declaration through caps_sum() and caps_scale(), and its
+## inverse is hermitian with it. That is also why the adjoint callback is the
+## apply -- a hermitian operator is its own adjoint, so norm2() gets its power
+## iteration for nothing. For Arnoldi nothing is declared and nothing is needed:
+## the inner method is GMRES, and no adjoint is supplied because Arnoldi applies
+## only mode "N". A complex shift makes the operator complex whatever A is.
+shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE) {
   n <- A$dim[1L]
-  shifted <- A - sigma * linop_eye(n, A$dtype)
+  if (hermitian && is.complex(sigma)) {
+    stopf(paste0("sigma must be real for a hermitian engine.\n",
+                 "  A complex shift leaves A - sigma I non-hermitian; method = 'arnoldi' takes it."))
+  }
+  dtype <- if (is.complex(sigma)) "complex" else A$dtype
+  shifted <- A - sigma * linop_eye(n, dtype)
   ## Tighter than the outer tolerance by default: what the inner solve leaves
   ## behind is amplified by the transformation, and the outer loop can only
   ## report it, not remove it.
-  args <- utils::modifyList(list(method = "minres", tol = 1e-12), inner)
+  ## GMRES restarted at its default of 30 stalls on the indefinite operator an
+  ## interior shift makes: on convection-diffusion at n = 100, sigma = -1.3, it
+  ## spends 1000 applies and stops at a relative residual of 6.4e-2. A longer
+  ## cycle is the default here, bounded so that its basis stays a modest multiple
+  ## of the outer one; inner = list(control = list(restart = )) overrides it.
+  defaults <- if (hermitian) list(method = "minres", tol = 1e-12)
+              else list(method = "gmres", tol = 1e-12,
+                        control = list(restart = min(n, SHIFT_INVERT_RESTART)))
+  args <- utils::modifyList(defaults, inner)
   apply_inverse <- function(X) {
     z <- do.call(solve, c(list(shifted, X), args))
     attr(z, "certificate") <- NULL
     z
   }
-  new_linop("fun", c(n, n), A$dtype,
+  if (!hermitian) {
+    return(new_linop("fun", c(n, n), dtype, new_caps(),
+                     list(apply = apply_inverse, adjoint = NULL)))
+  }
+  new_linop("fun", c(n, n), dtype,
             do.call(new_caps, list(
               hermitian = capability(TRUE, ev_construction(
                 depends_on = Filter(Negate(is.null),

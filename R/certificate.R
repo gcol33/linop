@@ -589,7 +589,7 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   r <- cert_rows()
   eps <- .Machine$double.eps
   X <- as_block(vectors)
-  theta <- as.numeric(values)
+  theta <- if (is.complex(values)) as.vector(values) else as.numeric(values)
   k <- ncol(X)
   ## A run that ran out of budget before its subspace was even k wide comes back
   ## with fewer pairs than were asked for, and is never padded to k with anything.
@@ -648,12 +648,27 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         confidence = if (clean) 1 else NA_real_)
 
   ## ----------------------------------------------------- orthogonality row --
-  orth <- cert_add_orthogonality(r, X, floor_const)
+  ## Eigenvectors of a hermitian operator are orthogonal and the returned ones
+  ## are measured against that. Those of a non-normal operator are not, so the
+  ## same measurement would read a correct result as a failure; what is
+  ## orthonormal there is the Schur basis the iteration kept, which is not
+  ## returned.
+  if (is.null(hermitian_evidence)) {
+    orth <- NA_real_
+    r$add("orthogonality", "not_checked",
+          "the operator is not established hermitian, and the eigenvectors of a non-normal operator are not orthogonal",
+          source = "computation", guarantee = "identity", confidence = NA_real_)
+  } else {
+    orth <- cert_add_orthogonality(r, X, floor_const)
+  }
 
   ## ---------------------------------------------------- backward error row --
   ## E = -r x^H - x r^H is hermitian, exhibited, and of norm exactly ||r||, and
   ## no smaller hermitian perturbation makes the pair exact. So this row is an
-  ## identity whenever ||A|| is one, in the way the Rigal-Gaches row is.
+  ## identity whenever ||A|| is one, in the way the Rigal-Gaches row is. For an
+  ## operator not established hermitian the perturbation is E = -r x^H / ||x||^2,
+  ## of norm ||r|| / ||x||, which is the smallest of any kind making the pair
+  ## exact (Kahan, Parlett and Jiang 1982), so the row reads the same.
   bclean <- all(bw <= tol)
   bfloored <- all(met)
   r$add("backward error",
@@ -682,10 +697,16 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   ## The one line in the package that carries a theorem rather than a
   ## measurement, and it carries the declaration it rests on with it.
   fwd_abs <- rn / scale_x
+  ## Without the hermitian declaration the exhibited E still makes theta an
+  ## exact eigenvalue of A + E, which puts theta in the ||r||/||x||
+  ## pseudospectrum of A. How far that set reaches from the spectrum is the
+  ## eigenvector condition number times its radius (Bauer-Fike), and that number
+  ## is not computed, so no distance to an eigenvalue is claimed.
   if (is.null(hermitian_evidence)) {
     r$add("forward error", "not_checked",
-          paste0("Weyl's bound needs the operator to be hermitian, and nothing establishes it; ",
-                 "without that, a residual constrains no eigenvalue"),
+          sprintf(paste0("theta lies in the %.3e-pseudospectrum of A; Weyl's bound needs the operator to be hermitian, ",
+                         "and the Bauer-Fike bound needs the eigenvector condition number, which is not computed"),
+                  max(fwd_abs)),
           source = "computation", guarantee = "identity", confidence = NA_real_)
   } else {
     r$add("forward error", if (all(fwd_abs <= tol * nA)) "pass" else "fail",

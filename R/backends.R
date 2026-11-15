@@ -25,7 +25,10 @@ BACKEND_CONTRACT <- "1.1"
 .backends <- new.env(parent = emptyenv())
 
 ## supports(A, request) returns TRUE or a string saying why not, never FALSE,
-## so every exclusion is explainable (section 3). run takes the operator (for
+## so every exclusion is explainable (section 3). capabilities names what the
+## method requires of the operator, and targets the values of which it can
+## select; both are checked here for every engine, so a requirement is stated once
+## in the registry entry rather than in each verb. run takes the operator (for
 ## eigs, also the operator the iteration runs on), ctl, the list of k, sel,
 ## tol, maxit, ncv, v0, seed and floor_const, and the engine; it returns the
 ## pairs in the shape lanczos_core() and gkl_core() return them.
@@ -35,6 +38,7 @@ register_backend <- function(name, family, run, priority, provides_label,
                              contract_version = BACKEND_CONTRACT,
                              dtypes = c("double", "complex"),
                              requires = "apply", targets = character(0),
+                             capabilities = character(0),
                              default_ncv = function(A, k) NULL,
                              supports = function(A, request) TRUE) {
   key <- paste(family, name, sep = ":")
@@ -44,6 +48,7 @@ register_backend <- function(name, family, run, priority, provides_label,
                    info_fn = info_fn,
                    contract_version = contract_version, dtypes = dtypes,
                    requires = requires, targets = targets,
+                   capabilities = capabilities,
                    default_ncv = default_ncv, supports = supports),
          envir = .backends)
   invisible(key)
@@ -82,19 +87,27 @@ backend_verdicts <- function(family, A, request) {
   pr <- vapply(bs, backend_priority, numeric(1))
   bs <- bs[order(-pr)]
   lapply(bs, function(b) {
-    why <- if (!A$dtype %in% b$dtypes) {
-      sprintf("does not take a %s operator", A$dtype)
-    } else {
-      eng <- backend_engine(b)
-      if (is.character(eng)) eng
-      else {
-        s <- b$supports(A, request)
-        if (isTRUE(s)) NULL else s
-      }
-    }
+    why <- backend_refusal(b, A, request)
     list(backend = b, priority = backend_priority(b), eligible = is.null(why),
          reason = why %||% "eligible")
   })
+}
+
+## Why a backend cannot take this request, or NULL. The checks run cheapest
+## first, and the one that loads an external package runs last.
+backend_refusal <- function(b, A, request) {
+  if (!A$dtype %in% b$dtypes) return(sprintf("does not take a %s operator", A$dtype))
+  for (cap in b$capabilities) {
+    why <- capability_refusal(A, cap)
+    if (!is.null(why)) return(why)
+  }
+  if (length(b$targets) && !is.null(request$which) && !request$which %in% b$targets) {
+    return(sprintf("does not select which = '%s'", request$which))
+  }
+  eng <- backend_engine(b)
+  if (is.character(eng)) return(eng)
+  s <- b$supports(A, request)
+  if (isTRUE(s)) NULL else s
 }
 
 select_backend <- function(family, A, request, method, verb) {
@@ -143,13 +156,34 @@ backend_dispatch <- function(method, sel, label) {
 
 ## ------------------------------------------------------------ the registry --
 
-register_backend("lanczos", "eigs_hermitian", priority = 0,
+## The hermitian engines refuse a complex shift: A - sigma I is then not
+## hermitian, and Arnoldi takes it instead.
+hermitian_shift_supports <- function(request) {
+  if (is.complex(request$sigma)) {
+    "a complex shift leaves A - sigma I non-hermitian"
+  } else TRUE
+}
+
+register_backend("lanczos", "eigs", priority = 0,
                  provides_label = "Lanczos with full reorthogonalisation",
-                 targets = c("LM", "SM", "LA", "SA"),
+                 targets = c("LM", "SM", "LA", "SA"), capabilities = "hermitian",
                  default_ncv = function(A, k) default_ncv(A, k),
+                 supports = function(A, request) hermitian_shift_supports(request),
                  run = function(Op, A, ctl, engine)
                    lanczos_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
                                 ctl$v0, ctl$seed, ctl$floor_const))
+
+## Below the reference Lanczos, so that a hermitian operator keeps the method
+## whose projected problem is real and symmetric; above nothing, because nothing
+## else runs on an operator that establishes no capability.
+register_backend("arnoldi", "eigs", priority = -10,
+                 provides_label = "Arnoldi with Krylov-Schur restarting",
+                 targets = c("LM", "SM", "LA", "SA", "LI", "SI"),
+                 default_ncv = function(A, k) default_ncv(A, k),
+                 run = function(Op, A, ctl, engine)
+                   arnoldi_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
+                                ctl$v0, ctl$seed, ctl$floor_const,
+                                hermitian = isTRUE(capv(A, "hermitian"))))
 
 register_backend("golub-kahan", "svds", priority = 0,
                  provides_label = "Golub-Kahan-Lanczos with full reorthogonalisation",
@@ -157,11 +191,15 @@ register_backend("golub-kahan", "svds", priority = 0,
                  default_ncv = function(A, k) default_ncv(A, k),
                  run = function(A, ctl, engine) gkl_svds(A, ctl))
 
-register_backend("primme", "eigs_hermitian", priority = 100,
+register_backend("primme", "eigs", priority = 100,
                  provides_label = "PRIMME with implicit restarting",
                  engine_version = "3.2.3", package = "linop.primme",
                  info_fn = "primme_engine", targets = c("LM", "SM", "LA", "SA"),
-                 supports = function(A, request) primme_supports(request),
+                 capabilities = "hermitian",
+                 supports = function(A, request) {
+                   s <- hermitian_shift_supports(request)
+                   if (isTRUE(s)) primme_supports(request) else s
+                 },
                  run = function(Op, A, ctl, engine) primme_eigs_run(Op, A, ctl, engine))
 
 register_backend("primme", "svds", priority = 100,

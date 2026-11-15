@@ -257,6 +257,14 @@ cat(fwd$detail)
 this shape where either appears. The bound is about *some* eigenvalue of `A`;
 which one is the `target identity` question and stays `not_checked`.
 
+For an operator that is not established hermitian, the perturbation
+`E = -r x^H / ||x||^2` still has norm `||r|| / ||x||` and still makes `theta`
+exact, so the backward error row reads the same. Weyl's inequality does not
+apply, and the distance from `theta` to an eigenvalue can exceed `||r||` by the
+eigenvector condition number, so the forward row is `not_checked` and says that
+`theta` lies in the pseudospectrum of that radius. `vignette("spectral")` has an
+operator where that distance is the whole first digit.
+
 ## Evidence can carry a dependency
 
 That bound holds because `A` is hermitian. If the only argument for that is your

@@ -34,7 +34,7 @@ test_that("every engine is listed with its verdict, and the one that ran says so
   d <- fit$certificate$dispatch
   expect_equal(d$requested, "lanczos")
   expect_equal(d$chosen, "lanczos")
-  expect_setequal(d$candidates$backend, c("lanczos", "primme"))
+  expect_setequal(d$candidates$backend, c("lanczos", "arnoldi", "primme"))
   expect_equal(d$candidates$status[d$candidates$backend == "lanczos"], "selected")
   expect_match(d$reason, "requested by name")
 
@@ -45,7 +45,7 @@ test_that("every engine is listed with its verdict, and the one that ran says so
 
 test_that("an engine whose package is absent is rejected by name, and auto passes over it", {
   A <- laplacian_1d(30)
-  with_backend("ghost", "eigs_hermitian", priority = 1000,
+  with_backend("ghost", "eigs", priority = 1000,
                provides_label = "nothing", package = "linop.ghost.absent",
                info_fn = "ghost_engine", run = function(...) stop("never run"), {
     fit <- with_default_priority(eigs(A, k = 2))
@@ -62,7 +62,7 @@ test_that("an engine whose package is absent is rejected by name, and auto passe
 
 test_that("supports() returns a reason, and the reason is what the rejection reports", {
   A <- laplacian_1d(30)
-  with_backend("picky", "eigs_hermitian", priority = 1000, provides_label = "nothing",
+  with_backend("picky", "eigs", priority = 1000, provides_label = "nothing",
                supports = function(A, request) "it only takes k = 1",
                run = function(...) stop("never run"), {
     fit <- with_default_priority(eigs(A, k = 2))
@@ -73,8 +73,8 @@ test_that("supports() returns a reason, and the reason is what the rejection rep
 })
 
 test_that("a method that names no engine lists the ones there are", {
-  expect_error(eigs(laplacian_1d(10), k = 2, method = "arnoldi"),
-               "method is one of 'auto', 'lanczos', 'primme'")
+  expect_error(eigs(laplacian_1d(10), k = 2, method = "davidson"),
+               "method is one of 'auto', 'arnoldi', 'lanczos', 'primme'")
 })
 
 ## -------------------------------------------------------- with the engine --
@@ -82,7 +82,7 @@ test_that("a method that names no engine lists the ones there are", {
 test_that("an engine speaking another contract version is rejected, not attempted", {
   skip_if_not_installed("linop.primme")
   A <- laplacian_1d(30)
-  with_backend("primme-old", "eigs_hermitian", priority = 1000,
+  with_backend("primme-old", "eigs", priority = 1000,
                provides_label = "nothing", package = "linop.primme",
                info_fn = "primme_engine", contract_version = "0.9",
                run = function(...) stop("never run"), {

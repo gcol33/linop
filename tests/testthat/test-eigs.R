@@ -391,16 +391,19 @@ test_that("eigs refuses what it is not defined for", {
   herm <- laplacian_1d(n)
 
   expect_error(eigs(linop(rmat(6, 4)), k = 2), "square")
-  expect_error(eigs(linop(rmat(5, 5)), k = 2), "requires the operator to be hermitian")
+  expect_error(eigs(linop(rmat(5, 5)), k = 2, method = "lanczos"),
+               "requires the operator to be hermitian")
   expect_error(eigs(herm, k = 2, B = linop_eye(n)), "does not take B")
   expect_error(eigs(herm, k = 2, sigma = 1, which = "smallest"), "cannot both be given")
-  expect_error(eigs(herm, k = 2, sigma = 1i), "single finite real")
+  expect_error(eigs(herm, k = 2, sigma = 1i, method = "lanczos"), "complex shift")
+  expect_error(eigs(herm, k = 2, sigma = c(1, 2)), "single finite number")
+  expect_error(eigs(herm, k = 2, which = "largest_imaginary"), "every eigenvalue is real")
   expect_error(eigs(herm, k = n + 1L), "exceeds")
   expect_error(eigs(herm, k = 0), "positive integer")
   expect_error(eigs(herm, k = 2, ncv = 2L), "must exceed k")
   expect_error(eigs(herm, k = 2, which = "biggest"), "does not take which")
-  expect_error(eigs(herm, k = 2, method = "arnoldi"),
-               "method is one of 'auto', 'lanczos', 'primme'")
+  expect_error(eigs(herm, k = 2, method = "davidson"),
+               "method is one of 'auto', 'arnoldi', 'lanczos', 'primme'")
   expect_error(eigs(herm, k = 2, v0 = rep(1, n + 1L)), "it has to be")
 })
 

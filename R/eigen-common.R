@@ -23,9 +23,16 @@
 ## Magnitude and algebraic order are separate entries rather than one flag,
 ## because for an indefinite hermitian operator they are genuinely different
 ## requests and a single "smallest" would have to guess which was meant.
+## "Algebraic" and "real part" are one request: for a real spectrum they order
+## the same values, so LA and LR share a code, as SA and SR do. The imaginary
+## orders rank by the magnitude of the imaginary part, which keeps the two members
+## of a conjugate pair together, as Spectra's LargestImag does.
 EIGEN_WHICH <- c(largest = "LM", smallest = "SM",
                  largest_algebraic = "LA", smallest_algebraic = "SA",
-                 LM = "LM", SM = "SM", LA = "LA", SA = "SA")
+                 largest_real = "LA", smallest_real = "SA",
+                 largest_imaginary = "LI", smallest_imaginary = "SI",
+                 LM = "LM", SM = "SM", LA = "LA", SA = "SA",
+                 LR = "LA", SR = "SA", LI = "LI", SI = "SI")
 
 ## Singular values are non-negative, so magnitude order and algebraic order
 ## coincide and only two of the four names mean anything distinct here.
@@ -41,13 +48,16 @@ normalise_which <- function(which, table, verb) {
 }
 
 ## The order the requested end of the spectrum comes in. order() is stable, so
-## equal values keep the order the projected problem produced them in.
+## equal values keep the order the projected problem produced them in. Re() of
+## real storage returns its argument, so a real spectrum orders as it always did.
 ritz_order <- function(theta, which) {
   switch(which,
          LM = order(-abs(theta)),
          SM = order(abs(theta)),
-         LA = order(-theta),
-         SA = order(theta))
+         LA = order(-Re(theta)),
+         SA = order(Re(theta)),
+         LI = order(-abs(Im(theta))),
+         SI = order(abs(Im(theta))))
 }
 
 ## Full reorthogonalisation of the block W against the stored orthonormal basis
@@ -136,12 +146,17 @@ SECTION_NCV_MIN <- 40L
 ## Each column of X measured on A: its Rayleigh quotient x^H A x / (x^H x), the
 ## norm of its residual A x - mu x relative to ||x||, and the larger of two
 ## lower bounds on ||A|| read off the same applies, ||A x|| / ||x|| and |mu|,
-## which is a Rayleigh quotient and so lies inside the spectrum.
-eigen_measure <- function(A, X) {
+## which is a Rayleigh quotient and so lies inside the field of values, whose
+## radius is at most ||A||.
+##
+## For a hermitian operator the quotient is real and its computed imaginary part
+## is rounding, so only the real part is formed. Otherwise the whole quotient is
+## the minimiser of ||A x - mu x|| over complex mu.
+eigen_measure <- function(A, X, hermitian = TRUE) {
   AX <- linop_apply(A, X, "N")
   xn <- col_norms(X)
   scale_x <- ifelse(xn > 0, xn, 1)
-  mu <- col_dot(X, AX) / scale_x^2
+  mu <- (if (hermitian) col_dot(X, AX) else col_cdot(X, AX)) / scale_x^2
   rr <- col_norms(AX - scale_cols(X, mu)) / scale_x
   list(mu = mu, rr = rr, anorm_lb = max(col_norms(AX) / scale_x, abs(mu)))
 }
@@ -231,8 +246,7 @@ eigen_ncv <- function(ncv, k, dim_limit) {
   ## since the k-1 already locked take k-1 of them. Asking for the whole spectrum
   ## is the one case where that is not a mistake: there one round spans the space.
   if (ncv <= k && k < dim_limit) {
-    stopf(paste0("ncv must exceed k; a subspace of exactly %d leaves the last pair no
-",
+    stopf(paste0("ncv must exceed k; a subspace of exactly %d leaves the last pair no\n",
                  "  direction to converge in once the other %d are locked"), k, k - 1L)
   }
   ncv
