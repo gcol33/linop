@@ -86,6 +86,32 @@ graph.
   why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the
   reference.
+- Structured operators:
+  [`linop_kron()`](https://gillescolling.com/linop/reference/linop_kron.md),
+  [`linop_blockdiag()`](https://gillescolling.com/linop/reference/linop_blockdiag.md),
+  [`linop_lowrank()`](https://gillescolling.com/linop/reference/linop_lowrank.md),
+  [`linop_perm()`](https://gillescolling.com/linop/reference/linop_perm.md)
+  and
+  [`linop_power()`](https://gillescolling.com/linop/reference/linop_power.md),
+  [`cbind()`](https://rdrr.io/r/base/cbind.html) and
+  [`rbind()`](https://rdrr.io/r/base/cbind.html) on linops, and
+  `solve(a)` with no right-hand side for the exact inverse where one
+  exists (a stored matrix, or a structure whose inverse is known). Each
+  is a node, applied matrix-free, with capabilities propagated from its
+  parts and its norm read off the structure where that is exact.
+- `eigs(method = "auto")` acts on a hermitian capability only at
+  computed, constructed or proven evidence, as
+  [`solve()`](https://rdrr.io/r/base/solve.html) does for MINRES and CG:
+  a bare `hermitian = TRUE` declaration on a callback now runs Arnoldi
+  under auto, and Lanczos or PRIMME by name. For a pencil, `B`’s
+  hermitian and positive definite evidence meets CG’s minimum. The
+  certificate still reads the declaration.
+- Arnoldi on a hermitian operator returns real values in every storage
+  mode, and Schur vectors as eigenvectors, so a repeated eigenvalue
+  comes back with an orthonormal basis of its eigenspace.
+- Fixed: `adjoint(X) %*% X` was stamped positive definite for a wide `X`
+  declared `full_rank`, whose Gram matrix is singular. Definiteness now
+  needs full rank on the side the Gram matrix lives on.
 - `eigs(B = )` solves the generalized problem `A x = lambda B x`. For
   `A` hermitian and `B` hermitian positive definite it runs Lanczos on
   `B^-1 A` in the `B` inner product and returns `B`-orthonormal vectors,

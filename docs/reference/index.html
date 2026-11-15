@@ -112,6 +112,50 @@
         </dt>
         <dd>The scalar type of an operator</dd>
       </dl></div><div class="section level2">
+      <h2 id="structured-operators">Structured operators<a class="anchor" aria-label="anchor" href="#structured-operators"></a></h2>
+
+      <div class="section-desc"><p>Operators built from others whose structure is kept as a node, so it applies matrix-free and its capabilities follow from the parts. cbind() and rbind() stack operators, and solve(a) with no right-hand side is the exact inverse where one exists.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="linop_kron.html">linop_kron()</a></code>
+
+        </dt>
+        <dd>Kronecker product of two operators</dd>
+
+        <dt>
+
+          <code><a href="linop_blockdiag.html">linop_blockdiag()</a></code>
+
+        </dt>
+        <dd>Block diagonal operator</dd>
+
+        <dt>
+
+          <code><a href="linop_lowrank.html">linop_lowrank()</a></code>
+
+        </dt>
+        <dd>Low-rank operator</dd>
+
+        <dt>
+
+          <code><a href="linop_perm.html">linop_perm()</a></code>
+
+        </dt>
+        <dd>Permutation operator</dd>
+
+        <dt>
+
+          <code><a href="linop_power.html">linop_power()</a></code>
+
+        </dt>
+        <dd>Integer power of an operator</dd>
+      </dl></div><div class="section level2">
       <h2 id="operators-on-a-sequence-space">Operators on a sequence space<a class="anchor" aria-label="anchor" href="#operators-on-a-sequence-space"></a></h2>
 
       <div class="section-desc"><p>An operator whose index set is infinite, the truncation that makes it computable, and the rate its eigenvectors decay at. What comes back from the truncation is an ordinary operator, and what comes back from a spectral computation on it is a statement about the operator underneath.</p></div>

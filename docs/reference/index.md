@@ -16,6 +16,24 @@ for the operators that appear constantly inside expressions.
 - [`dtype()`](https://gillescolling.com/linop/reference/dtype.md) : The
   scalar type of an operator
 
+## Structured operators
+
+Operators built from others whose structure is kept as a node, so it
+applies matrix-free and its capabilities follow from the parts. cbind()
+and rbind() stack operators, and solve(a) with no right-hand side is the
+exact inverse where one exists.
+
+- [`linop_kron()`](https://gillescolling.com/linop/reference/linop_kron.md)
+  : Kronecker product of two operators
+- [`linop_blockdiag()`](https://gillescolling.com/linop/reference/linop_blockdiag.md)
+  : Block diagonal operator
+- [`linop_lowrank()`](https://gillescolling.com/linop/reference/linop_lowrank.md)
+  : Low-rank operator
+- [`linop_perm()`](https://gillescolling.com/linop/reference/linop_perm.md)
+  : Permutation operator
+- [`linop_power()`](https://gillescolling.com/linop/reference/linop_power.md)
+  : Integer power of an operator
+
 ## Operators on a sequence space
 
 An operator whose index set is infinite, the truncation that makes it

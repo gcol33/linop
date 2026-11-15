@@ -176,9 +176,9 @@ over the whole run, with R version 4.6.0 (2026-04-24 ucrt):
 
 ``` R
 #>                     operator seconds
-#> 1                       Blur   0.010
+#> 1                       Blur   0.008
 #> 2 crossprod(Blur) + 1e-3 * I   0.018
-#> Peak R memory: 98 MB
+#> Peak R memory: 99 MB
 ```
 
 The expression is applied one block at a time, so the memory figure is
@@ -306,9 +306,12 @@ restarted Lanczos, Arnoldi and Golub-Kahan iterations with full
 reorthogonalisation, which hold their whole basis in each round. The
 [PRIMME](https://github.com/primme/primme) library restarts implicitly
 and keeps a basis of fixed small size; it is available when the
-companion package `linop.primme` is installed, and the default
-`method = "auto"` then takes it. The Spectra library is reachable
-through [RSpectra](https://CRAN.R-project.org/package=RSpectra) as
+companion package [linop.primme](https://github.com/gcol33/linop.primme)
+is installed
+(`install.packages("linop.primme", repos = "https://gcol33.r-universe.dev")`),
+and the default `method = "auto"` then takes it. The Spectra library is
+reachable through
+[RSpectra](https://CRAN.R-project.org/package=RSpectra) as
 `method = "rspectra"` for a real operator. Whichever engine runs, the
 reported values are measured on the operator and the certificate is the
 same object, with a record of which engine ran and why.

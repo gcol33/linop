@@ -31,7 +31,8 @@ solve(
 
 - b:
 
-  A vector or block of right-hand sides.
+  A vector or block of right-hand sides, or missing for the exact
+  inverse.
 
 - method:
 
@@ -79,3 +80,14 @@ otherwise, carrying the certificate in its \`"certificate"\` attribute.
 Arithmetic on the result drops that attribute, which is the documented
 cost of behaving like a matrix. With \`details = TRUE\`, the full
 object.
+
+## Details
+
+With \`b\` missing, \`solve(a)\` returns the inverse as a \`linop\`, but
+only where it is exact and fixed before any vector is seen: a stored
+matrix inverted once, or a structure whose inverse is known (identity,
+nonzero diagonal, permutation, unitary, scale, transpose and adjoint,
+and products, Kronecker products, block diagonals and powers of those).
+An iterative solve is not a linear operator, since what it applies
+depends on the vector it is given, so anything else is refused with
+\`solve(a, b)\` named.

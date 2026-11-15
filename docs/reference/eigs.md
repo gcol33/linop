@@ -120,9 +120,12 @@ eigs(
   stops on its own convergence rule; \`"auto"\` never takes it.
   \`"auto"\` takes PRIMME when it is available and the operator is
   established hermitian, Lanczos when only the second holds, and Arnoldi
-  otherwise; the certificate's \`dispatch\` records every engine
-  considered and why. Whichever runs, the reported values are Rayleigh
-  quotients measured on \`A\` and the certificate is the same.
+  otherwise. Established means computed, constructed or proven: a bare
+  \`hermitian = TRUE\` declaration on a callback is acted on only by
+  naming \`"lanczos"\` or \`"primme"\`, as \`solve()\` acts on one only
+  for a named method. The certificate's \`dispatch\` records every
+  engine considered and why. Whichever runs, the reported values are
+  Rayleigh quotients measured on \`A\` and the certificate is the same.
 
 - inner:
 

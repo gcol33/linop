@@ -257,9 +257,9 @@ and the table gains rows:
 
 ``` r
 
-fit <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)
+fit <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos", ncv = 60)
 fit$certificate
-#> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))
+#> solved by lanczos (hermitian operator, Lanczos with full reorthogonalisation (requested by name))
 #> ------------------------------------------------------------------------------------------
 #> check                          status       source           guarantee             conf
 #> ------------------------------------------------------------------------------------------
@@ -327,7 +327,7 @@ fwd[, c("status", "source", "guarantee")]
 #>   status  source           guarantee
 #> 7   pass theorem deterministic_bound
 cat(fwd$detail)
-#> min_j |theta - lambda_j(A)| <= 3.969e-10, that is 9.924e-11 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap
+#> min_j |theta - lambda_j(A)| <= 7.095e-13, that is 1.774e-13 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap
 ```
 
 `source` is `theorem` and `guarantee` is `deterministic_bound`, the only

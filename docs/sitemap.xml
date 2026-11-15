@@ -36,9 +36,14 @@
 <url><loc>https://gillescolling.com/linop/reference/index.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/is_linop.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/linop.html</loc></url>
+<url><loc>https://gillescolling.com/linop/reference/linop_blockdiag.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/linop_cost.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/linop_eye.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/linop_jacobi.html</loc></url>
+<url><loc>https://gillescolling.com/linop/reference/linop_kron.html</loc></url>
+<url><loc>https://gillescolling.com/linop/reference/linop_lowrank.html</loc></url>
+<url><loc>https://gillescolling.com/linop/reference/linop_perm.html</loc></url>
+<url><loc>https://gillescolling.com/linop/reference/linop_power.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/linop_scaling.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/preconditioner.html</loc></url>
 <url><loc>https://gillescolling.com/linop/reference/promote.html</loc></url>

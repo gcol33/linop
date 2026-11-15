@@ -38,10 +38,10 @@ L <- linop(lap, adjoint = lap, dim = c(n, n), properties = c(hermitian = TRUE))
 
 truth <- 2 - 2 * cos(seq_len(n) * pi / (n + 1))
 
-fit <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)
+fit <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos", ncv = 60)
 fit
-#> <primme> 3 of 3 requested eigenpairs converged, which = 'largest_algebraic'
-#>   320 iterations of at most 4000, 9 restarts
+#> <lanczos> 3 of 3 requested eigenpairs converged, which = 'largest_algebraic'
+#>   240 iterations of at most 4000, 6 restarts
 #>   values: 3.999756  3.999023  3.997802
 #>   certificate: qualified
 ```
@@ -90,9 +90,27 @@ d$reason[d$backend == "lanczos"]
 Unknown is not false, and the dispatch says so rather than guessing
 either way. A dense leaf establishes symmetry by checking it, so a
 matrix needs no declaration; a callback has nothing to check and the
-declaration is how you supply it. What the declaration buys is the real
-recurrence and a bound on the eigenvalues, the `forward error` row of
-the certificate:
+declaration is how you supply it.
+
+A declaration is your word, and `method = "auto"` does not act on it
+alone. It takes Lanczos when symmetry is computed, constructed or
+proven, as [`solve()`](https://rdrr.io/r/base/solve.html) takes MINRES
+only then, and otherwise runs Arnoldi and says why. Naming the method is
+how you rely on your own declaration, which is why the calls on `L` in
+this article say `method = "lanczos"`:
+
+``` r
+
+eigs(L, k = 3, which = "largest_algebraic", ncv = 60)$method
+#> [1] "arnoldi"
+d <- eigs(L, k = 3, which = "largest_algebraic", ncv = 60)$certificate$dispatch$candidates
+d$reason[d$backend == "lanczos"]
+#> [1] "auto acts on hermitian only at computed, constructed or proven evidence, and the operator's is user_declaration; name the method to rely on it"
+```
+
+Whichever method runs, the declaration buys a bound on the eigenvalues,
+the `forward error` row of the certificate, and that row records the
+declaration it rests on:
 
 ``` r
 
@@ -183,7 +201,7 @@ applies the method spends reaching the tolerance:
 ``` r
 
 ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
-  f <- eigs(L, k = 3, which = "largest_algebraic", ncv = nc)
+  f <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos", ncv = nc)
   c(ncv = nc,
     error = max(abs(f$values - rev(sort(truth))[1:3])),
     converged = f$nconv,
@@ -191,10 +209,10 @@ ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
 }, numeric(4)))
 ladder
 #>      ncv        error converged applies
-#> [1,]  20 8.881784e-16         3     541
-#> [2,]  30 4.440892e-16         3     400
-#> [3,]  40 4.440892e-16         3     350
-#> [4,]  60 1.332268e-15         3     320
+#> [1,]  20 8.881784e-16         3     378
+#> [2,]  30 4.440892e-16         3     283
+#> [3,]  40 4.440892e-16         3     260
+#> [4,]  60 8.881784e-16         3     240
 ```
 
 The top of the Laplacian’s spectrum is tightly clustered, which is what
@@ -210,10 +228,10 @@ Lanczos takes 1.6 `n` for the three largest here and 6 `n` at
 
 ``` r
 
-dflt <- eigs(L, k = 3, which = "largest_algebraic")
+dflt <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos")
 c(converged = dflt$nconv, applies = dflt$iterations, budget = dflt$maxit)
 #> converged   applies    budget 
-#>         3       677      4000
+#>         3       322      4000
 ```
 
 A run that stops improving ends before the budget does and says so, so a
@@ -237,8 +255,8 @@ error.
 
 ``` r
 
-c(largest  = eigs(L, k = 2, which = "largest_algebraic",  ncv = 60)$values,
-  smallest = eigs(L, k = 2, which = "smallest_algebraic", ncv = 40)$values)
+c(largest  = eigs(L, k = 2, which = "largest_algebraic", method = "lanczos", ncv = 60)$values,
+  smallest = eigs(L, k = 2, which = "smallest_algebraic", method = "lanczos", ncv = 40)$values)
 #>     largest1     largest2    smallest1    smallest2 
 #> 3.9997557139 3.9990229152 0.0002442861 0.0009770848
 ```
@@ -257,7 +275,8 @@ it is the package’s own solvers, applied once per step.
 
 ``` r
 
-near <- eigs(L, k = 3, sigma = 0.01, ncv = 30, inner = list(method = "minres"))
+near <- eigs(L, k = 3, sigma = 0.01, method = "lanczos", ncv = 30,
+             inner = list(method = "minres"))
 rbind(computed = sort(near$values),
       closed_form = sort(truth[order(abs(truth - 0.01))][1:3]))
 #>                   [,1]        [,2]       [,3]
@@ -293,7 +312,7 @@ M <- linop(mass, adjoint = mass, dim = c(n, n),
 t_j <- seq_len(n) * pi / (n + 1)
 pencil_truth <- sort(6 * (1 - cos(t_j)) / (2 + cos(t_j)), decreasing = TRUE)
 
-gen <- eigs(L, k = 3, which = "largest_algebraic", B = M, ncv = 60)
+gen <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos", B = M, ncv = 60)
 gen$values - pencil_truth[1:3]
 #> [1]  1.776357e-15 -3.552714e-15  0.000000e+00
 ```
@@ -384,7 +403,7 @@ This is worth meeting once, because it looks like a hedge and is not:
 
 ``` r
 
-smallest <- eigs(L, k = 3, which = "smallest_algebraic", ncv = 40)
+smallest <- eigs(L, k = 3, which = "smallest_algebraic", method = "lanczos", ncv = 40)
 
 rbind(computed = smallest$values, closed_form = sort(truth)[1:3])
 #>                     [,1]         [,2]        [,3]
@@ -400,19 +419,19 @@ Every value is right to the last printed digit and the certificate says
 ``` r
 
 smallest$certificate
-#> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))
+#> solved by lanczos (hermitian operator, Lanczos with full reorthogonalisation (requested by name))
 #> ------------------------------------------------------------------------------------------
 #> check                          status       source           guarantee             conf
 #> ------------------------------------------------------------------------------------------
 #> arithmetic floor               pass         computation      estimate              -
-#> residual                       qualified    computation      estimate              -
+#> residual                       pass         computation      identity              1
 #> orthogonality                  pass         computation      identity              1
 #> backward error                 pass         computation      estimate              -
 #> target identity                not_checked  computation      identity              -
 #> convergence                    pass         computation      identity              1
 #> forward error                  pass         theorem          deterministic_bound   1
 #> ------------------------------------------------------------------------------------------
-#> overall                        qualified   no deterministic bound on: arithmetic floor, residual, backward error, target identity
+#> overall                        qualified   no deterministic bound on: arithmetic floor, backward error, target identity
 ```
 
 `backward error` and `forward error`, which is a rigorous bound here,

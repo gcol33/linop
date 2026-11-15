@@ -58,7 +58,7 @@ certificate(solve(A, c(2, 3, 4)))
 #> ------------------------------------------------------------------------------------------
 #> overall                        qualified   no deterministic bound on: forward error
 certificate(eigs(A, k = 1))
-#> solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))
+#> solved by arnoldi (hermitian operator, Arnoldi with Krylov-Schur restarting (highest priority eligible; primme auto acts on hermitian only at computed, constructed or proven evidence, and the operator's is user_declaration; name the method to rely on it; lanczos auto acts on hermitian only at computed, constructed or proven evidence, and the operator's is user_declaration; name the method to rely on it))
 #> ------------------------------------------------------------------------------------------
 #> check                          status       source           guarantee             conf
 #> ------------------------------------------------------------------------------------------

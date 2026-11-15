@@ -378,9 +378,9 @@ the Rigal-Gaches denominator has a term for each. For an eigenpair,
 <code>A</code> is the only datum, so the denominator loses a term and
 the table gains rows:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, method <span class="op">=</span> <span class="st">"lanczos"</span>, ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">certificate</span></span>
-<span><span class="co">#&gt; solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))</span></span>
+<span><span class="co">#&gt; solved by lanczos (hermitian operator, Lanczos with full reorthogonalisation (requested by name))</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
@@ -443,7 +443,7 @@ Weyl’s inequality gives
 <span><span class="co">#&gt;   status  source           guarantee</span></span>
 <span><span class="co">#&gt; 7   pass theorem deterministic_bound</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">fwd</span><span class="op">$</span><span class="va">detail</span><span class="op">)</span></span>
-<span><span class="co">#&gt; min_j |theta - lambda_j(A)| &lt;= 3.969e-10, that is 9.924e-11 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap</span></span></code></pre></div>
+<span><span class="co">#&gt; min_j |theta - lambda_j(A)| &lt;= 7.095e-13, that is 1.774e-13 relative to ||A||; the eigenvectors are not covered, which needs a certified separation and not a Ritz gap</span></span></code></pre></div>
 <p><code>source</code> is <code>theorem</code> and
 <code>guarantee</code> is <code>deterministic_bound</code>, the only row
 of this shape where either appears. The bound is about <em>some</em>
