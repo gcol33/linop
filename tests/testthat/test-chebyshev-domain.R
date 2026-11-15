@@ -16,11 +16,11 @@ cheb_d <- function(cf) {
 }
 apply_strong <- function(P, cf) {
   out <- 0; dc <- cf
-  for (m in seq_along(P$args$coef) - 1L) {
+  for (m in seq_along(P$args$terms) - 1L) {
     if (m > 0L) dc <- cheb_d(dc)
-    out <- out + P$args$coef[m + 1L] * cheb_at(dc, gl$x)
+    out <- out + cheb_at(P$args$terms[[m + 1L]], gl$x) * cheb_at(dc, gl$x)
   }
-  out + cheb_at(linop:::cheb_mult(P$args$a, cf), gl$x)
+  out
 }
 in_domain <- function(P, N, seed) {
   set.seed(seed)
@@ -107,12 +107,68 @@ test_that("Galerkin on the weak form gives upper bounds that agree with the ultr
   expect_equal(gw$values, Re(uw$values), tolerance = 1e-10)
 })
 
-test_that("Galerkin refuses what its form does not cover", {
-  first <- linop_space("chebyshev", derivative = c(0, 1, -1), boundary = dirichlet())
-  expect_error(eigs(first, k = 1, which = "smallest", method = "galerkin"), "no first-order term")
+test_that("Galerkin with natural conditions: Neumann, mixed and Robin", {
+  ## Neumann: eigenvalues (k pi / 2)^2 from k = 0
   neu <- linop_space("chebyshev", derivative = c(0, 0, -1),
                      boundary = list(at = c(-1, 1), derivative = c(1, 1), value = c(0, 0)))
-  expect_error(eigs(neu, k = 1, which = "smallest", method = "galerkin"), "homogeneous Dirichlet")
+  g <- eigs(neu, k = 4, which = "smallest", method = "galerkin")
+  expect_equal(g$values, ((0:3) * pi / 2)^2, tolerance = 1e-12)
+  ## Dirichlet at -1, Neumann at 1: ((2k - 1) pi / 4)^2
+  mix <- linop_space("chebyshev", derivative = c(0, 0, -1),
+                     boundary = list(at = c(-1, 1), derivative = c(0, 1), value = c(0, 0)))
+  g <- eigs(mix, k = 3, which = "smallest", method = "galerkin")
+  expect_equal(g$values, ((2 * (1:3) - 1) * pi / 4)^2, tolerance = 1e-12)
+  expect_lt(abs(sum(g$vectors[, 1L] * (-1)^(seq_len(nrow(g$vectors)) - 1))), 1e-12)
+  ## a Robin end, against the ultraspherical pencil
+  rob <- linop_space("chebyshev", derivative = c(0.3, 0, -1),
+                     boundary = list(at = c(-1, 1), weights = list(c(1, 0), c(2, 1)), value = c(0, 0)))
+  expect_true(rob$args$self_adjoint)
+  expect_equal(eigs(rob, k = 3, which = "smallest", method = "galerkin")$values,
+               Re(eigs(rob, k = 3, which = "smallest")$values), tolerance = 1e-10)
+})
+
+test_that("variable coefficients: the adjoint, self-adjointness and Galerkin", {
+  ## -(k u')' + q u with k = 1 + x^2 / 2 = 1.25 T0 + 0.25 T2, q = 0.5 + 0.2 x
+  kc <- c(1.25, 0, 0.25)
+  op <- function(bc) linop_space("chebyshev",
+    derivative = list(c(0.5, 0.2), linop:::cheb_dcoef(-kc), -kc), boundary = bc)
+  rob <- op(list(at = c(-1, 1), weights = list(c(1, 0), c(2, 1)), value = c(0, 0)))
+  expect_true(rob$args$self_adjoint)
+  gv <- eigs(rob, k = 3, which = "smallest", method = "galerkin")
+  uv <- eigs(rob, k = 3, which = "smallest")
+  expect_equal(gv$values, Re(uv$values), tolerance = 1e-10)
+  expect_equal(cert_status(gv$certificate, "upper bound"), "pass")
+  ## a non-self-adjoint variable operator: its adjoint by the defining identity
+  nsa <- linop_space("chebyshev", derivative = list(c(1, 0.3), c(0.2, 0, 0.5), c(1, 0.4)),
+                     boundary = list(at = c(-1, 1), derivative = c(1, 0), value = c(0, 0)))
+  expect_false(nsa$args$self_adjoint)
+  for (seed in 1:5) expect_lt(lagrange_gap(nsa, seed), 1e-10, label = sprintf("seed %d", seed))
+  expect_true(adjoint(adjoint(nsa))$args$self_adjoint == FALSE)
+  ## u = sin(pi x) through a variable-coefficient solve
+  k <- 0:40
+  s <- ifelse(k %% 2 == 1, 2 * (-1)^((k - 1) / 2) * besselJ(pi, k), 0)
+  L <- op(dirichlet())
+  f <- linop:::cheb_apply_L(L, s)
+  ## f is in C^(2); bring it back to Chebyshev by solving the conversion, which is
+  ## upper triangular on a finite vector
+  N <- length(f)
+  S <- sapply(seq_len(N), function(j) { e <- numeric(N); e[j] <- 1
+    linop:::pad_to(linop:::cheb_convert_chain(e, 0L, 2L), N)[seq_len(N)] })
+  fc <- backsolve(S, f)
+  u <- solve(L, fc)
+  xs <- seq(-1, 1, length.out = 21)
+  val <- vapply(xs, function(t) sum(u * cos((seq_along(u) - 1) * acos(t))), numeric(1))
+  expect_lt(max(abs(val - sin(pi * xs))), 1e-11)
+})
+
+test_that("Galerkin refuses what its form does not cover", {
+  first <- linop_space("chebyshev", derivative = c(0, 1, -1), boundary = dirichlet())
+  expect_error(eigs(first, k = 1, which = "smallest", method = "galerkin"), "symmetric weak form")
+  inh <- linop_space("chebyshev", derivative = c(0, 0, -1), boundary = dirichlet())
+  inh$args$boundary$value <- c(1, 0)
+  expect_error(eigs(inh, k = 1, which = "smallest", method = "galerkin"), "homogeneous")
+  neg <- linop_space("chebyshev", derivative = c(0, 0, 1), boundary = dirichlet())
+  expect_error(eigs(neg, k = 1, which = "smallest", method = "galerkin"), "positive")
 })
 
 test_that("print shows the domain", {

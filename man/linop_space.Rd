@@ -16,7 +16,9 @@ linop_space(
 interval `[-1, 1]`; `"hermite"`, the line; `"laguerre"`, the half line.}
 
 \item{derivative}{Coefficients `c_0, c_1, ..., c_p` of `sum c_m (d/dx)^m`.
-The default, `c(0, 0, -1)`, is `-d^2/dx^2`.}
+The default, `c(0, 0, -1)`, is `-d^2/dx^2`. For `"chebyshev"` it may also be
+a list of polynomial coefficients `a_0(x), ..., a_p(x)`, each given by its
+Chebyshev coefficients, for `sum a_m(x) u^(m)`.}
 
 \item{multiplier}{The coefficients of the multiplying function: Fourier
 coefficients from frequency `-d` to `d` (an odd number of them) on the
@@ -64,9 +66,10 @@ residual on the untruncated system. The boundary conditions define the
 operator's domain: [adjoint()] returns the adjoint operator with the adjoint
 domain, by integration by parts (mixed conditions where the boundary form
 requires them), and the operator records whether it is self-adjoint in L2.
-For `-c u'' + (c_0 + a) u` with homogeneous Dirichlet conditions,
-`eigs(..., method = "galerkin")` discretises the weak form on a basis that
-vanishes at both ends and returns upper bounds of the eigenvalues
+For a self-adjoint `-(k u')' + q u` with `k > 0` and homogeneous Dirichlet,
+Neumann or Robin conditions, `eigs(..., method = "galerkin")` discretises the
+weak form (natural conditions enter it as boundary terms, Dirichlet ones as
+a basis that vanishes there) and returns upper bounds of the eigenvalues
 (Courant-Fischer), lifted back to Chebyshev coefficients.
 
 `kind = "hermite"` is the line, in the Hermite functions, where `x` and

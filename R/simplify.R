@@ -96,29 +96,33 @@ space_sum <- function(ops) {
       }
     }
   }
+  if (kind == "chebyshev") {
+    ## terms per order, each a Chebyshev coefficient polynomial
+    p <- max(vapply(ops, function(A) length(A$args$terms), integer(1)))
+    terms <- lapply(seq_len(p), function(m) Reduce(add_padded, lapply(ops, function(A)
+      if (m <= length(A$args$terms)) A$args$terms[[m]] else 0)))
+    return(new_chebyshev(terms, 0, bc))
+  }
   coef <- Reduce(add_padded, lapply(ops, function(A) A$args$coef))
   mult <- switch(kind,
     fourier = Reduce(add_centred, lapply(ops, function(A) A$args$vhat)),
-    chebyshev = Reduce(add_padded, lapply(ops, function(A) A$args$a)),
     basis = Reduce(add_padded, lapply(ops, function(A) A$args$v)))
-  if (kind == "chebyshev") return(new_chebyshev(coef, mult, bc))
   space_rebuild(ops[[1L]], coef, mult)
 }
 
 space_scale <- function(A, a) {
-  mult <- switch(A$node, fourier = A$args$vhat, chebyshev = A$args$a, basis = A$args$v)
   if (A$node == "chebyshev") {
     ## a boundary condition is a statement about the solution, not a term of the
     ## operator, so it is not scaled
-    return(new_chebyshev(a * A$args$coef, a * mult, A$args$boundary))
+    return(new_chebyshev(lapply(A$args$terms, function(t) a * t), 0, A$args$boundary))
   }
+  mult <- switch(A$node, fourier = A$args$vhat, basis = A$args$v)
   space_rebuild(A, a * A$args$coef, a * mult)
 }
 
 space_rebuild <- function(A, coef, mult) {
   switch(A$node,
     fourier = linop_space("fourier", derivative = coef, multiplier = mult),
-    chebyshev = new_chebyshev(coef, mult, A$args$boundary),
     basis = new_basis_operator(A$args$kind, coef, mult))
 }
 

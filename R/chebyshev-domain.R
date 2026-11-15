@@ -19,17 +19,40 @@
 ## capability: the Chebyshev coefficients are not orthonormal in L2, so the
 ## coefficient matrix of a self-adjoint operator is not hermitian.
 
-## B(u, v) as a matrix on (u, u', ..., u^(p-1)) x (v, ..., v^(p-1)).
-cheb_boundary_form <- function(coef, p) {
+## B(u, v) at one endpoint as a matrix on (u, ..., u^(p-1)) x (v, ..., v^(p-1)).
+## With variable coefficients the boundary form carries their derivatives,
+##     B(u, v) = sum_m sum_{j<m} (-1)^j u^(m-1-j) (a_m v)^(j),
+##     (a_m v)^(j) = sum_{i<=j} choose(j, i) a_m^(j-i) v^(i),
+## so the matrix differs between the two ends.
+cheb_boundary_form <- function(terms, p, at) {
   M <- matrix(0, p, p)
-  for (m in seq_along(coef) - 1L) {
-    if (m == 0L || coef[m + 1L] == 0) next
+  for (m in seq_along(terms) - 1L) {
+    am <- terms[[m + 1L]]
+    if (m == 0L || all(am == 0)) next
     for (j in 0:(m - 1L)) {
-      i <- m - 1L - j
-      M[i + 1L, j + 1L] <- M[i + 1L, j + 1L] + coef[m + 1L] * (-1)^j
+      r <- m - 1L - j
+      for (i in 0:j) {
+        M[r + 1L, i + 1L] <- M[r + 1L, i + 1L] +
+          (-1)^j * choose(j, i) * cheb_value_at(am, at, j - i)
+      }
     }
   }
   M
+}
+
+## The formal adjoint's coefficients, L* v = sum_m (-1)^m (a_m v)^(m) expanded:
+## b_j = sum_{m >= j} (-1)^m choose(m, j) a_m^(m-j).
+cheb_adjoint_terms <- function(terms) {
+  p <- length(terms) - 1L
+  lapply(0:p, function(j) {
+    out <- 0
+    for (m in j:p) {
+      d <- cheb_dcoef_n(terms[[m + 1L]], m - j)
+      n <- max(length(out), length(d))
+      out <- pad_to(out, n) + (-1)^m * choose(m, j) * pad_to(d, n)
+    }
+    trim_poly(out)
+  })
 }
 
 null_basis <- function(R, p) {
@@ -50,9 +73,9 @@ cheb_endpoint_rows <- function(bc, at, p) {
 cheb_adjoint_boundary <- function(P) {
   p <- P$args$order
   bc <- P$args$boundary
-  M <- cheb_boundary_form(P$args$coef, p)
   at <- numeric(0); weights <- list()
   for (e in c(-1, 1)) {
+    M <- cheb_boundary_form(P$args$terms, p, e)
     W <- null_basis(cheb_endpoint_rows(bc, e, p), p)
     if (!ncol(W)) next
     rows <- t(W) %*% M
@@ -72,8 +95,7 @@ cheb_adjoint <- function(P) {
     stopf(paste0("the adjoint of a Chebyshev operator needs its domain, which its boundary\n",
                  "  conditions define; this one has none"))
   }
-  coef <- P$args$coef * (-1)^(seq_along(P$args$coef) - 1L)
-  new_chebyshev(coef, P$args$a, cheb_adjoint_boundary(P))
+  new_chebyshev(cheb_adjoint_terms(P$args$terms), 0, cheb_adjoint_boundary(P))
 }
 
 same_rowspace <- function(A, B) {
@@ -89,8 +111,13 @@ cheb_self_adjoint <- function(P) {
   bc <- P$args$boundary
   p <- P$args$order
   if (is.null(bc) || p < 1L || length(bc$at) != p) return(NA)
-  odd <- seq_along(P$args$coef) %% 2L == 0L
-  if (any(P$args$coef[odd] != 0)) return(FALSE)
+  adj <- cheb_adjoint_terms(P$args$terms)
+  same_poly <- function(x, y) {
+    n <- max(length(x), length(y))
+    max(abs(pad_to(x, n) - pad_to(y, n))) <= 1e-12 * max(1, abs(x), abs(y))
+  }
+  if (length(adj) != length(P$args$terms) ||
+      !all(mapply(same_poly, adj, P$args$terms))) return(FALSE)
   adj <- cheb_adjoint_boundary(P)
   all(vapply(c(-1, 1), function(e)
     same_rowspace(cheb_endpoint_rows(bc, e, p), cheb_endpoint_rows(adj, e, p)), logical(1)))
@@ -116,17 +143,23 @@ cheb_domain_text <- function(P) {
 
 ## ---------------------------------------------------------------- Galerkin --
 
-## The weak form of L u = -c u'' + (c0 + a(x)) u with homogeneous Dirichlet
-## conditions, a(u, v) = c int u' v' + int (c0 + a) u v against m(u, v) = int u v,
-## is the sesquilinear form plan 8.5 asks to treat as a peer of the operator. It
-## is discretised on phi_j = T_{j+2} - T_j, which vanish at +-1 exactly, so the
-## trial space lies inside the form domain H^1_0. Gauss-Legendre quadrature on
-## enough nodes integrates every entry exactly, the integrands being polynomials.
-## The pencil (A_n, M_n) is definite, M_n being the Gram matrix of independent
-## functions, and goes to eigs(B = ) in the B inner product. The Ritz vectors
-## lift back to Chebyshev coefficients, and the Galerkin values are upper bounds
-## of the true eigenvalues by Courant-Fischer, since the trial space is a
-## subspace of the form domain.
+## The weak form of the self-adjoint L u = -(k u')' + q u, with k = -a_2 and
+## q = a_0 read off the coefficients (self-adjointness makes a_1 = a_2'), is
+##
+##     a(u, v) = int k u' v' + int q u v + boundary terms,   m(u, v) = int u v,
+##
+## the sesquilinear form plan 8.5 asks to treat as a peer of the operator. A
+## Dirichlet end is an essential condition and the basis vanishes there; a
+## Robin or Neumann end, alpha u + beta u' = 0 with beta nonzero, is natural:
+## integrating by parts leaves -[k u' v] at the ends, which the condition turns
+## into + k(1) (alpha/beta) u(1) v(1) - k(-1) (alpha/beta) u(-1) v(-1), and the
+## basis is unconstrained there. The basis is T_{j+2} - T_j for two Dirichlet
+## ends, T_{j+1} - T_j or T_{j+1} + T_j for one at 1 or at -1, T_j for none, so the
+## trial space lies in the form domain. Gauss-Legendre quadrature on enough nodes
+## integrates every entry exactly, the integrands being polynomials. The pencil
+## is definite (M_n is the Gram matrix of independent functions) and goes to
+## eigs(B = ); the vectors lift back to Chebyshev coefficients, and the values
+## are upper bounds of the true eigenvalues by Courant-Fischer.
 gauss_legendre <- function(Q) {
   k <- seq_len(Q - 1L)
   b <- k / sqrt(4 * k^2 - 1)
@@ -136,41 +169,77 @@ gauss_legendre <- function(Q) {
   list(x = e$values, w = 2 * e$vectors[1L, ]^2)
 }
 
+## Each end's condition, as "dirichlet" or the Robin ratio alpha / beta.
+cheb_galerkin_ends <- function(P) {
+  bc <- P$args$boundary
+  lapply(c(-1, 1), function(e) {
+    i <- which(bc$at == e)
+    w <- c(bc$weights[[i]], 0, 0)
+    if (w[2L] == 0) list(kind = "dirichlet") else list(kind = "natural", ratio = w[1L] / w[2L])
+  })
+}
+
 cheb_galerkin_ok <- function(P) {
   bc <- P$args$boundary
-  cf <- c(P$args$coef, 0, 0, 0)
-  if (P$args$order != 2L || cf[2L] != 0) {
-    return("it is for -c u'' + (c0 + a) u, a second-order operator with no first-order term")
+  if (P$args$order != 2L) return("it is for second-order operators")
+  if (is.null(bc) || length(bc$at) != 2L || !setequal(bc$at, c(-1, 1))) {
+    return("it needs one condition at each end")
   }
-  if (is.null(bc) || length(bc$at) != 2L || !setequal(bc$at, c(-1, 1)) ||
-      !all(vapply(bc$weights, function(w) length(w) >= 1L && w[1L] != 0 && all(w[-1L] == 0), logical(1))) ||
-      any(bc$value != 0)) {
-    return("it needs homogeneous Dirichlet conditions, u(-1) = u(1) = 0")
+  if (any(bc$value != 0)) return("it needs homogeneous conditions")
+  if (!isTRUE(P$args$self_adjoint)) {
+    return("it is for -(k u')' + q u with self-adjoint conditions, the operators with a symmetric weak form")
   }
+  g <- gauss_legendre(40L)
+  kx <- -vapply(g$x, function(x) sum(P$args$terms[[3L]] * cos((seq_along(P$args$terms[[3L]]) - 1L) * acos(x))), numeric(1))
+  if (any(kx <= 0)) return("it needs k = -a_2 positive on [-1, 1], for the form to be bounded below")
   TRUE
 }
 
+cheb_galerkin_basis <- function(ends, j) {
+  d <- vapply(ends, function(e) e$kind == "dirichlet", logical(1))
+  if (all(d)) list(hi = j + 2L, lo = j, sign = -1)
+  else if (d[2L]) list(hi = j + 1L, lo = j, sign = -1)
+  else if (d[1L]) list(hi = j + 1L, lo = j, sign = 1)
+  else list(hi = j, lo = NA_integer_, sign = 0)
+}
+
 cheb_galerkin_matrices <- function(P, n) {
-  c2 <- P$args$coef[3L]; c0 <- P$args$coef[1L]
-  a <- P$args$a
-  Q <- n + 4L + ceiling((length(a) - 1L) / 2)
+  ends <- cheb_galerkin_ends(P)
+  kcf <- -P$args$terms[[3L]]
+  qcf <- P$args$terms[[1L]]
+  Q <- n + 6L + ceiling(max(length(kcf), length(qcf)) / 2)
   g <- gauss_legendre(Q)
   th <- acos(pmin(1, pmax(-1, g$x)))
   Tk <- function(k) cos(k * th)
   dTk <- function(k) if (k == 0L) rep(0, Q) else k * sin(k * th) / sin(th)
-  Phi <- sapply(0:(n - 1L), function(j) Tk(j + 2L) - Tk(j))
-  dPhi <- sapply(0:(n - 1L), function(j) dTk(j + 2L) - dTk(j))
-  ax <- c0 + vapply(g$x, function(x) sum(a * cos((seq_along(a) - 1L) * acos(x))), numeric(1))
-  K <- (-c2) * crossprod(dPhi, g$w * dPhi) + crossprod(Phi, (g$w * ax) * Phi)
+  at_end <- function(k, e) if (e > 0) 1 else (-1)^k
+  phi <- function(j, f) {
+    b <- cheb_galerkin_basis(ends, j)
+    if (b$sign == 0) f(b$hi) else f(b$hi) + b$sign * f(b$lo)
+  }
+  Phi <- sapply(0:(n - 1L), phi, f = Tk)
+  dPhi <- sapply(0:(n - 1L), phi, f = dTk)
+  series <- function(cf) vapply(g$x, function(x) sum(cf * cos((seq_along(cf) - 1L) * acos(x))), numeric(1))
+  K <- crossprod(dPhi, (g$w * series(kcf)) * dPhi) + crossprod(Phi, (g$w * series(qcf)) * Phi)
+  for (e in 1:2) {
+    if (ends[[e]]$kind != "natural") next
+    x0 <- c(-1, 1)[e]
+    pv <- vapply(0:(n - 1L), phi, numeric(1), f = function(k) at_end(k, x0))
+    ke <- cheb_value_at(kcf, x0)
+    K <- K + (if (x0 > 0) 1 else -1) * ke * ends[[e]]$ratio * outer(pv, pv)
+  }
   Mm <- crossprod(Phi, g$w * Phi)
-  list(K = (K + t(K)) / 2, M = (Mm + t(Mm)) / 2)
+  list(K = (K + t(K)) / 2, M = (Mm + t(Mm)) / 2, ends = ends)
 }
 
-cheb_lift <- function(x) {
+cheb_lift <- function(x, ends) {
   n <- length(x)
   cvec <- numeric(n + 2L)
-  cvec[seq_len(n) + 2L] <- cvec[seq_len(n) + 2L] + x
-  cvec[seq_len(n)] <- cvec[seq_len(n)] - x
+  for (j in seq_len(n) - 1L) {
+    b <- cheb_galerkin_basis(ends, j)
+    cvec[b$hi + 1L] <- cvec[b$hi + 1L] + x[j + 1L]
+    if (b$sign != 0) cvec[b$lo + 1L] <- cvec[b$lo + 1L] + b$sign * x[j + 1L]
+  }
   cvec
 }
 
@@ -191,7 +260,7 @@ cheb_galerkin_eigs <- function(P, k, args) {
     fit <- eigs(linop(G$K), k = k, which = "smallest_algebraic", B = B,
                 tol = min(tol, 1e-12), method = "lanczos")
     lam <- fit$values
-    U <- apply(fit$vectors, 2L, cheb_lift)
+    U <- apply(fit$vectors, 2L, cheb_lift, ends = G$ends)
     strong <- vapply(seq_len(k), function(i) {
       cvec <- U[, i]
       Lc <- cheb_apply_L(P, cvec); Sc <- cheb_convert_chain(cvec, 0L, p)
@@ -211,7 +280,7 @@ cheb_galerkin_eigs <- function(P, k, args) {
         sprintf("the lifted function in the strong form, ||L u - theta u|| in C^(2) coefficients, relative: %.3e; widths %s",
                 max(strong), paste(widths, collapse = " -> ")))
   r$add("upper bound", "pass",
-        "each theta_i is at least the i-th eigenvalue of the operator (Courant-Fischer: the trial space lies in the form domain H^1_0), to the arithmetic floor",
+        "each theta_i is at least the i-th eigenvalue of the operator (Courant-Fischer: the trial space lies in the form domain), to the arithmetic floor",
         source = "theorem", guarantee = "deterministic_bound", confidence = 1)
   r$add("target identity", "not_checked",
         "the upper bound pairs theta_i with lambda_i by rank; a lower bound is not computed",
@@ -229,7 +298,7 @@ cheb_galerkin_eigs <- function(P, k, args) {
                    iterations = fit$iterations, maxit = fit$maxit, rounds = fit$restarts,
                    converged = met, residuals = strong,
                    dispatch = list(requested = "galerkin", chosen = "galerkin",
-                                   reason = sprintf("weak form on phi_j = T_{j+2} - T_j, Lanczos in the mass inner product; %s basis functions",
+                                   reason = sprintf("weak form on a Chebyshev basis vanishing at the Dirichlet ends, Lanczos in the mass inner product; %s basis functions",
                                                     paste(widths, collapse = " -> ")),
                                    candidates = NULL),
                    engine = NULL)

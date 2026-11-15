@@ -80,23 +80,48 @@ cheb_mult <- function(a, c) {
 
 pad_to <- function(v, n) if (length(v) >= n) v else c(v, rep(0, n - length(v)))
 
-## L c in C^(p), exact and of finite length.
+## The derivative of a Chebyshev series, in Chebyshev coefficients:
+## c'_{k-1} = c'_{k+1} + 2 k c_k, halved at k = 1.
+cheb_dcoef <- function(cf) {
+  n <- length(cf)
+  if (n <= 1L) return(0)
+  d <- numeric(n + 1L)
+  for (k in (n - 1L):1L) d[k] <- d[k + 2L] + 2 * k * cf[k + 1L]
+  d[1L] <- d[1L] / 2
+  d[seq_len(n - 1L)]
+}
+
+cheb_dcoef_n <- function(cf, m) {
+  for (i in seq_len(m)) cf <- cheb_dcoef(cf)
+  cf
+}
+
+## The d-th derivative of a Chebyshev series at +-1.
+cheb_value_at <- function(cf, at, d = 0L) sum(cf * cheb_boundary_row(at, d, length(cf)))
+
+## L c in C^(p), exact and of finite length. A constant coefficient takes the
+## banded route, D_m then the conversions; a polynomial coefficient a_m(x) takes
+## the Chebyshev derivative, the Chebyshev product and the conversions from
+## C^(0), which is no longer banded but still maps a finitely supported vector to
+## one, so the residual on the untruncated system stays exact.
 cheb_apply_L <- function(P, c) {
   p <- P$args$order
   out <- numeric(0)
-  for (m in seq_along(P$args$coef) - 1L) {
-    cm <- P$args$coef[m + 1L]
-    if (cm == 0) next
-    term <- cm * cheb_convert_chain(cheb_diff(c, m), m, p)
-    n <- max(length(out), length(term))
-    out <- pad_to(out, n) + pad_to(term, n)
-  }
-  if (any(P$args$a != 0)) {
-    term <- cheb_convert_chain(cheb_mult(P$args$a, c), 0L, p)
+  for (m in seq_along(P$args$terms) - 1L) {
+    am <- P$args$terms[[m + 1L]]
+    if (all(am == 0)) next
+    term <- if (length(am) == 1L) am * cheb_convert_chain(cheb_diff(c, m), m, p)
+            else cheb_convert_chain(cheb_mult(am, cheb_dcoef_n(c, m)), 0L, p)
     n <- max(length(out), length(term))
     out <- pad_to(out, n) + pad_to(term, n)
   }
   out
+}
+
+trim_poly <- function(v) {
+  v <- as.numeric(v)
+  while (length(v) > 1L && v[length(v)] == 0) v <- v[-length(v)]
+  if (!length(v)) 0 else v
 }
 
 ## The N x N system on the first N coefficients: the boundary rows, then the
@@ -120,16 +145,24 @@ cheb_apply <- function(op, X, mode) {
                "  solve() and eigs() run on it directly and choose the number of coefficients."))
 }
 
+## derivative is constants c_0, c_1, ... or a list of Chebyshev coefficient
+## vectors a_0(x), a_1(x), ..., one per order; multiplier adds to a_0.
 new_chebyshev <- function(derivative, multiplier, boundary) {
-  coef <- derivative
-  while (length(coef) > 1L && coef[length(coef)] == 0) coef <- coef[-length(coef)]
-  p <- length(coef) - 1L
+  terms <- if (is.list(derivative)) lapply(derivative, trim_poly)
+           else lapply(as.numeric(derivative), trim_poly)
+  if (!length(terms)) terms <- list(0)
+  if (length(multiplier) && any(multiplier != 0)) {
+    n <- max(length(terms[[1L]]), length(multiplier))
+    terms[[1L]] <- trim_poly(pad_to(terms[[1L]], n) + pad_to(as.numeric(multiplier), n))
+  }
+  while (length(terms) > 1L && all(terms[[length(terms)]] == 0)) terms <- terms[-length(terms)]
+  p <- length(terms) - 1L
+  coef <- if (all(lengths(terms) == 1L)) unlist(terms) else NULL
   ## A term of a sum may come without boundary conditions, which belong to the
   ## problem; solve() and eigs() require them, one per order.
   if (!is.null(boundary)) boundary <- normalise_boundary(boundary)
   P <- new_linop("chebyshev", c(Inf, Inf), "double", new_caps(),
-                 list(coef = as.numeric(coef), order = p, a = as.numeric(multiplier),
-                      boundary = boundary,
+                 list(terms = terms, coef = coef, order = p, boundary = boundary,
                       domain = "chebyshev", range = sprintf("ultraspherical(%d)", p)),
                  cost = Inf)
   ## self-adjointness in L2 on the interval, NA without a full set of conditions

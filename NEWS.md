@@ -68,6 +68,11 @@ First development release. The finite object model and the expression graph.
   trigonometric polynomial. `eigs()` runs on it directly, chooses the
   truncation, and certifies against the operator on the circle with an exact
   truncation term; `finite_section()` truncates it by hand.
+* `linop_space("chebyshev")` takes polynomial coefficients on every derivative
+  term (`derivative = list(a_0, a_1, ...)` in Chebyshev coefficients); the
+  adjoint and self-adjointness follow with the coefficients' derivatives in
+  the boundary form. `method = "galerkin"` covers `-(k u')' + q u` with
+  Neumann and Robin conditions as well as Dirichlet.
 * `eigs()` finds every copy of a repeated eigenvalue among the `k` it returns:
   after the search it deflates what it found, searches again from a fresh
   direction, and swaps in any pair that ranks better. Lanczos, and Arnoldi on a
