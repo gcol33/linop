@@ -164,7 +164,7 @@ that declares nothing gets Arnoldi:</p>
 over:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="va">plain</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">dispatch</span><span class="op">$</span><span class="va">candidates</span></span>
-<span><span class="va">d</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">backend</span> <span class="op">!=</span> <span class="st">"primme"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"backend"</span>, <span class="st">"status"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">backend</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lanczos"</span>, <span class="st">"arnoldi"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"backend"</span>, <span class="st">"status"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;   backend   status</span></span>
 <span><span class="co">#&gt; 2 lanczos rejected</span></span>
 <span><span class="co">#&gt; 3 arnoldi selected</span></span>
@@ -346,11 +346,51 @@ the middle, where no amount of <code>ncv</code> will reach them
 directly.</p>
 </div>
 <div class="section level2">
+<h2 id="a-second-operator-on-the-right">A second operator on the right<a class="anchor" aria-label="anchor" href="#a-second-operator-on-the-right"></a>
+</h2>
+<p>A finite-element discretisation puts a mass matrix on the right-hand
+side, <code>K u = lambda M u</code>. For linear elements on the unit
+interval the stiffness is the Laplacian above and the mass is
+<code>tridiag(1, 4, 1) / 6</code>; the two share the sine eigenvectors,
+so the pencil’s eigenvalues are known in closed form,
+<code>6 (1 - cos t) / (2 + cos t)</code> with
+<code>t = j pi / (n + 1)</code>:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mass</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">(</span><span class="fl">4</span> <span class="op">*</span> <span class="va">X</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span>, <span class="fl">0</span><span class="op">)</span> <span class="op">+</span></span>
+<span>                     <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="va">n</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fl">6</span></span>
+<span><span class="va">M</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">mass</span>, adjoint <span class="op">=</span> <span class="va">mass</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span>,</span>
+<span>           properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>hermitian <span class="op">=</span> <span class="cn">TRUE</span>, positive_definite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">t_j</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span> <span class="op">*</span> <span class="va">pi</span> <span class="op">/</span> <span class="op">(</span><span class="va">n</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">pencil_truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fl">6</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">cos</a></span><span class="op">(</span><span class="va">t_j</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="op">(</span><span class="fl">2</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">cos</a></span><span class="op">(</span><span class="va">t_j</span><span class="op">)</span><span class="op">)</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">gen</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, B <span class="op">=</span> <span class="va">M</span>, ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span>
+<span><span class="va">gen</span><span class="op">$</span><span class="va">values</span> <span class="op">-</span> <span class="va">pencil_truth</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1]  1.776357e-15 -3.552714e-15  0.000000e+00</span></span></code></pre></div>
+<p><code>B</code> is the argument. With <code>A</code> hermitian and
+<code>B</code> hermitian positive definite, Lanczos runs on
+<code>B^-1 A</code> in the inner product <code>x^H B x</code>, where
+that operator is self-adjoint, so the projected problem stays real and
+symmetric. Each step solves with <code>B</code>, by the package’s own
+solvers, and <code>inner</code> carries that solve’s arguments as it
+does under a shift. The vectors come back orthonormal in the same inner
+product:</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">gen</span><span class="op">$</span><span class="va">vectors</span>, <span class="fu">mass</span><span class="op">(</span><span class="va">gen</span><span class="op">$</span><span class="va">vectors</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1.110223e-15</span></span></code></pre></div>
+<p>Without the two declarations on <code>B</code> the same call runs
+Arnoldi on <code>B^-1 A</code> and says why in the dispatch. The
+certificate measures each pair as <code>x^H A x / x^H B x</code> and
+perturbs both operators in its backward error,
+<code>||A x - theta B x|| / ((||A|| + |theta| ||B||) ||x||)</code>,
+since a pencil’s data is the pair. <code>sigma</code> with
+<code>B</code> runs on <code>(A - sigma B)^-1 B</code>.</p>
+</div>
+<div class="section level2">
 <h2 id="singular-values">Singular values<a class="anchor" aria-label="anchor" href="#singular-values"></a>
 </h2>
 <p><code><a href="../reference/svds.html">svds()</a></code> needs both the forward action and the adjoint,
 and requires nothing else:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span> <span class="op">*</span> <span class="fl">12</span><span class="op">)</span>, <span class="fl">60</span>, <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="va">R</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span></span>
@@ -360,7 +400,7 @@ and requires nothing else:</p>
 <span><span class="co">#&gt; computed    11.17144 10.08422</span></span>
 <span><span class="co">#&gt; closed_form 11.17144 10.08422</span></span></code></pre></div>
 <p>The triplets satisfy what they should:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>`A v - d u` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">G</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">sv</span><span class="op">$</span><span class="va">v</span> <span class="op">-</span> <span class="va">sv</span><span class="op">$</span><span class="va">u</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">d</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  `U orthonormal` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">u</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  `V orthonormal` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">v</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -382,7 +422,7 @@ separately.</p>
 the problem. A Krylov space reaches the largest singular values first,
 so the smallest need a subspace approaching the rank of the
 operator:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">small</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/svds.html">svds</a></span><span class="op">(</span><span class="va">R</span>, k <span class="op">=</span> <span class="fl">2</span>, which <span class="op">=</span> <span class="st">"smallest"</span>, ncv <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">small</span><span class="op">$</span><span class="va">d</span>, closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rev.html" class="external-link">rev</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/svd.html" class="external-link">svd</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span><span class="op">$</span><span class="va">d</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                 [,1]     [,2]</span></span>
@@ -396,7 +436,7 @@ certificate is where you find out whether it was enough.</p>
 </h2>
 <p>This is worth meeting once, because it looks like a hedge and is
 not:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span>, ncv <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">smallest</span><span class="op">$</span><span class="va">values</span>, closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">truth</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span></span>
@@ -408,7 +448,7 @@ not:</p>
 <p>Every value is right to the last printed digit and the certificate
 says <code>qualified</code>. The reason is in which row is
 qualified:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span><span class="op">$</span><span class="va">certificate</span></span>
 <span><span class="co">#&gt; solved by primme (hermitian operator, PRIMME with implicit restarting (highest priority))</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>

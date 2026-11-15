@@ -79,7 +79,7 @@ The values are right, and the dispatch says why Lanczos was passed over:
 ``` r
 
 d <- plain$certificate$dispatch$candidates
-d[d$backend != "primme", c("backend", "status")]
+d[d$backend %in% c("lanczos", "arnoldi"), c("backend", "status")]
 #>   backend   status
 #> 2 lanczos rejected
 #> 3 arnoldi selected
@@ -274,6 +274,49 @@ is available inside a spectral computation.
 A shift is expensive, because each Lanczos step now costs a full linear
 solve. It is the right tool when the eigenvalues wanted are in the
 middle, where no amount of `ncv` will reach them directly.
+
+## A second operator on the right
+
+A finite-element discretisation puts a mass matrix on the right-hand
+side, `K u = lambda M u`. For linear elements on the unit interval the
+stiffness is the Laplacian above and the mass is `tridiag(1, 4, 1) / 6`;
+the two share the sine eigenvectors, so the pencil’s eigenvalues are
+known in closed form, `6 (1 - cos t) / (2 + cos t)` with
+`t = j pi / (n + 1)`:
+
+``` r
+
+mass <- function(X) (4 * X + rbind(X[-1, , drop = FALSE], 0) +
+                     rbind(0, X[-n, , drop = FALSE])) / 6
+M <- linop(mass, adjoint = mass, dim = c(n, n),
+           properties = c(hermitian = TRUE, positive_definite = TRUE))
+t_j <- seq_len(n) * pi / (n + 1)
+pencil_truth <- sort(6 * (1 - cos(t_j)) / (2 + cos(t_j)), decreasing = TRUE)
+
+gen <- eigs(L, k = 3, which = "largest_algebraic", B = M, ncv = 60)
+gen$values - pencil_truth[1:3]
+#> [1]  1.776357e-15 -3.552714e-15  0.000000e+00
+```
+
+`B` is the argument. With `A` hermitian and `B` hermitian positive
+definite, Lanczos runs on `B^-1 A` in the inner product `x^H B x`, where
+that operator is self-adjoint, so the projected problem stays real and
+symmetric. Each step solves with `B`, by the package’s own solvers, and
+`inner` carries that solve’s arguments as it does under a shift. The
+vectors come back orthonormal in the same inner product:
+
+``` r
+
+max(abs(crossprod(gen$vectors, mass(gen$vectors)) - diag(3)))
+#> [1] 1.110223e-15
+```
+
+Without the two declarations on `B` the same call runs Arnoldi on
+`B^-1 A` and says why in the dispatch. The certificate measures each
+pair as `x^H A x / x^H B x` and perturbs both operators in its backward
+error, `||A x - theta B x|| / ((||A|| + |theta| ||B||) ||x||)`, since a
+pencil’s data is the pair. `sigma` with `B` runs on
+`(A - sigma B)^-1 B`.
 
 ## Singular values
 

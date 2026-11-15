@@ -61,8 +61,17 @@ eigs(
 
 - B:
 
-  Reserved for the generalized problem \`A x = lambda B x\`, which is
-  not in this version.
+  For the generalized problem \`A x = lambda B x\`: a square \`linop\`
+  or matrix of the same shape as \`A\`, or \`NULL\` for the standard
+  problem. With \`A\` established hermitian and \`B\` established
+  hermitian positive definite, Lanczos runs on \`B^-1 A\` in the \`B\`
+  inner product, the returned vectors are \`B\`-orthonormal and the
+  \`forward error\` row bounds each value; otherwise Arnoldi runs on
+  \`B^-1 A\`. A shift runs on \`(A - sigma B)^-1 B\`. Each step solves
+  with \`B\`, or with \`A - sigma B\`, through the package's own
+  solvers, and \`inner\` carries the arguments. Values are measured as
+  \`x^H A x / x^H B x\` and the backward error perturbs both operators,
+  \`\|\|A x - mu B x\|\| / ((\|\|A\|\| + \|mu\| \|\|B\|\|) \|\|x\|\|)\`.
 
 - tol:
 
@@ -101,22 +110,24 @@ eigs(
 
 - method:
 
-  \`"auto"\`, \`"lanczos"\`, \`"arnoldi"\` or \`"primme"\`.
-  \`"lanczos"\` is the reference implementation for a hermitian operator
-  and \`"arnoldi"\` for any square one. \`"primme"\` is the PRIMME
-  library, available for a hermitian operator when the \`linop.primme\`
-  package is installed, which restarts implicitly and so keeps a basis
-  of fixed small size. \`"auto"\` takes PRIMME when it is available and
-  the operator is established hermitian, Lanczos when only the second
-  holds, and Arnoldi otherwise; the certificate's \`dispatch\` records
-  every engine considered and why. Whichever runs, the reported values
-  are Rayleigh quotients measured on \`A\` and the certificate is the
-  same.
+  \`"auto"\`, \`"lanczos"\`, \`"arnoldi"\`, \`"primme"\` or
+  \`"rspectra"\`. \`"lanczos"\` is the reference implementation for a
+  hermitian operator and \`"arnoldi"\` for any square one. \`"primme"\`
+  is the PRIMME library, available for a hermitian operator when the
+  \`linop.primme\` package is installed, which restarts implicitly and
+  so keeps a basis of fixed small size. \`"rspectra"\` is the Spectra
+  library through the RSpectra package, for a real operator only, and
+  stops on its own convergence rule; \`"auto"\` never takes it.
+  \`"auto"\` takes PRIMME when it is available and the operator is
+  established hermitian, Lanczos when only the second holds, and Arnoldi
+  otherwise; the certificate's \`dispatch\` records every engine
+  considered and why. Whichever runs, the reported values are Rayleigh
+  quotients measured on \`A\` and the certificate is the same.
 
 - inner:
 
-  Arguments for the inner solve when \`sigma\` is given, such as
-  \`method\` or \`tol\`.
+  Arguments for the inner solve when \`sigma\` or \`B\` is given, such
+  as \`method\` or \`tol\`.
 
 - section:
 

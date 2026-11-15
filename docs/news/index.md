@@ -86,6 +86,23 @@ graph.
   why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the
   reference.
+- `eigs(B = )` solves the generalized problem `A x = lambda B x`. For
+  `A` hermitian and `B` hermitian positive definite it runs Lanczos on
+  `B^-1 A` in the `B` inner product and returns `B`-orthonormal vectors,
+  with a forward error bound through a solve with `B`; otherwise Arnoldi
+  on `B^-1 A`. A shift runs on `(A - sigma B)^-1 B`. The backward error
+  perturbs both operators,
+  `||A x - theta B x|| / ((||A|| + |theta| ||B||) ||x||)`.
+- `eigs(method = "rspectra")` and `svds(method = "rspectra")` run the
+  Spectra library through RSpectra, when it is installed, on a real
+  operator: its implicitly restarted Arnoldi, or Lanczos for an operator
+  established hermitian, and its largest singular values. A complex
+  operator is refused by name, because RSpectra would coerce it and
+  answer for `Re(A)`. A shift runs on
+  [`eigs()`](https://gillescolling.com/linop/reference/eigs.md)’s own
+  `(A - sigma I)^-1`. `maxit` counts applies for it as for every engine.
+  `method = "auto"` never takes it, since it stops on its own rule
+  rather than the certificate’s.
 - Every result carries a certificate: what residual was reached, what
   backward error it implies, and what argument establishes it.
   `target identity` is `not_checked`, because a residual does not say

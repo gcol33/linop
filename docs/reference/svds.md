@@ -68,14 +68,16 @@ svds(
 
 - method:
 
-  \`"auto"\`, \`"golub-kahan"\` or \`"primme"\`. \`"golub-kahan"\` is
-  the reference implementation in this package; \`"primme"\` is the
-  PRIMME library, available when the \`linop.primme\` package is
-  installed. \`"auto"\` takes PRIMME when it is available and
-  Golub-Kahan otherwise, and the certificate's \`dispatch\` records
-  every engine considered and why. The reported singular values are
-  Rayleigh quotients \`Re(u^H A v)\` of the returned unit vectors,
-  measured on \`A\`, whichever engine ran.
+  \`"auto"\`, \`"golub-kahan"\`, \`"primme"\` or \`"rspectra"\`.
+  \`"golub-kahan"\` is the reference implementation in this package;
+  \`"primme"\` is the PRIMME library, available when the
+  \`linop.primme\` package is installed; \`"rspectra"\` is the Spectra
+  library through the RSpectra package, for the largest singular values
+  of a real operator, and is never chosen by \`"auto"\`. \`"auto"\`
+  takes PRIMME when it is available and Golub-Kahan otherwise, and the
+  certificate's \`dispatch\` records every engine considered and why.
+  The reported singular values are Rayleigh quotients \`Re(u^H A v)\` of
+  the returned unit vectors, measured on \`A\`, whichever engine ran.
 
 - floor_const:
 
