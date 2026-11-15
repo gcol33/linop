@@ -26,6 +26,9 @@ make_view <- function(A, kind) {
       conjugate = linop_diag(Conj(d))))
   }
   if (inner == "identity") return(A)
+  ## a function-space operator's adjoint is an operator of the same kind, with
+  ## the adjoint domain where the space has boundaries
+  if (kind == "adjoint" && inner %in% SPACE_NODES) return(space_adjoint(A))
   new_view(A, kind)
 }
 

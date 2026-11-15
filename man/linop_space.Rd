@@ -25,7 +25,9 @@ coefficients `v_0, v_1, ...` of `V(x)` on the line and half line. A single
 number is a constant.}
 
 \item{boundary}{For `"chebyshev"`, a list with `at` (each `-1` or `1`),
-`derivative` and `value`, one entry per order of the operator.}
+`value`, and either `derivative` (one per condition) or `weights` (a list of
+weight vectors over `u, u', ...`, for mixed conditions), one condition per
+order of the operator. A term of a sum may omit it; the problem needs it.}
 }
 \value{
 A `linop` of dimension `Inf x Inf`.
@@ -58,7 +60,14 @@ gives one condition `u^(d)(+-1) = value` per order. [solve()] takes the
 Chebyshev coefficients of the right-hand side and returns those of the
 solution, and [eigs()] with `which = "smallest"` the eigenvalues of smallest
 magnitude; both choose the number of coefficients and certify the exact
-residual on the untruncated system.
+residual on the untruncated system. The boundary conditions define the
+operator's domain: [adjoint()] returns the adjoint operator with the adjoint
+domain, by integration by parts (mixed conditions where the boundary form
+requires them), and the operator records whether it is self-adjoint in L2.
+For `-c u'' + (c_0 + a) u` with homogeneous Dirichlet conditions,
+`eigs(..., method = "galerkin")` discretises the weak form on a basis that
+vanishes at both ends and returns upper bounds of the eigenvalues
+(Courant-Fischer), lifted back to Chebyshev coefficients.
 
 `kind = "hermite"` is the line, in the Hermite functions, where `x` and
 `d/dx` are tridiagonal: `sum_m c_m (d/dx)^m + V(x)` with `V` a polynomial given

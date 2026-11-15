@@ -26,6 +26,15 @@ cheb_boundary_row <- function(at, d, N) {
   v
 }
 
+## A condition sum_d w_d u^(d)(at) as a row on the first N coefficients. A
+## condition on one derivative is a unit weight; the adjoint of a problem has
+## mixed (Robin) conditions in general, which is why the weights are kept whole.
+bc_row <- function(at, w, N) {
+  row <- numeric(N)
+  for (d in seq_along(w) - 1L) if (w[d + 1L] != 0) row <- row + w[d + 1L] * cheb_boundary_row(at, d, N)
+  row
+}
+
 ## D_m c, in C^(m) coefficients.
 cheb_diff <- function(c, m) {
   if (m == 0L) return(c)
@@ -97,7 +106,7 @@ cheb_system <- function(P, N) {
   p <- P$args$order
   bc <- P$args$boundary
   A <- matrix(0, N, N)
-  for (i in seq_len(p)) A[i, ] <- cheb_boundary_row(bc$at[i], bc$derivative[i], N)
+  for (i in seq_len(p)) A[i, ] <- bc_row(bc$at[i], bc$weights[[i]], N)
   for (k in seq_len(N)) {
     e <- numeric(N); e[k] <- 1
     col <- pad_to(cheb_apply_L(P, e), N - p)
@@ -117,25 +126,39 @@ new_chebyshev <- function(derivative, multiplier, boundary) {
   p <- length(coef) - 1L
   ## A term of a sum may come without boundary conditions, which belong to the
   ## problem; solve() and eigs() require them, one per order.
-  if (!is.null(boundary)) {
-    if (!is.list(boundary) || !all(c("at", "derivative", "value") %in% names(boundary))) {
-      stopf("boundary is a list of at (each -1 or 1), derivative (whole numbers) and value")
-    }
-    nb <- length(boundary$at)
-    if (length(boundary$derivative) != nb || length(boundary$value) != nb) {
-      stopf("boundary needs at, derivative and value of the same length")
-    }
-    if (!all(boundary$at %in% c(-1, 1))) stopf("boundary conditions sit at -1 or 1")
-    if (any(boundary$derivative < 0)) stopf("boundary derivatives are whole numbers from 0")
-    boundary <- list(at = as.numeric(boundary$at),
-                     derivative = as.integer(boundary$derivative),
-                     value = as.numeric(boundary$value))
+  if (!is.null(boundary)) boundary <- normalise_boundary(boundary)
+  P <- new_linop("chebyshev", c(Inf, Inf), "double", new_caps(),
+                 list(coef = as.numeric(coef), order = p, a = as.numeric(multiplier),
+                      boundary = boundary,
+                      domain = "chebyshev", range = sprintf("ultraspherical(%d)", p)),
+                 cost = Inf)
+  ## self-adjointness in L2 on the interval, NA without a full set of conditions
+  P$args$self_adjoint <- cheb_self_adjoint(P)
+  P
+}
+
+## Conditions as given: at, value, and either derivative (one per condition) or
+## weights (a list of weight vectors over u, u', u'', ...).
+normalise_boundary <- function(boundary) {
+  if (!is.list(boundary) || !all(c("at", "value") %in% names(boundary)) ||
+      !any(c("derivative", "weights") %in% names(boundary))) {
+    stopf("boundary is a list of at (each -1 or 1), value, and derivative or weights")
   }
-  new_linop("chebyshev", c(Inf, Inf), "double", new_caps(),
-            list(coef = as.numeric(coef), order = p, a = as.numeric(multiplier),
-                 boundary = boundary,
-                 domain = "chebyshev", range = sprintf("ultraspherical(%d)", p)),
-            cost = Inf)
+  nb <- length(boundary$at)
+  weights <- boundary$weights
+  if (is.null(weights)) {
+    d <- boundary$derivative
+    if (length(d) != nb || any(d < 0) || any(d != trunc(d))) {
+      stopf("boundary derivatives are whole numbers from 0, one per condition")
+    }
+    weights <- lapply(d, function(k) c(numeric(k), 1))
+  }
+  if (!is.list(weights) || length(weights) != nb || length(boundary$value) != nb) {
+    stopf("boundary needs at, value and derivative (or weights) of the same length")
+  }
+  if (!all(boundary$at %in% c(-1, 1))) stopf("boundary conditions sit at -1 or 1")
+  list(at = as.numeric(boundary$at), weights = lapply(weights, as.numeric),
+       value = as.numeric(boundary$value))
 }
 
 ## What solve() and eigs() need before a system exists: a differential operator
@@ -149,7 +172,7 @@ cheb_check_problem <- function(P, verb) {
     stopf("%s() on an operator of order %d needs %d boundary conditions; it has %d",
           verb, p, p, nb)
   }
-  if (any(bc$derivative >= p)) {
+  if (any(lengths(bc$weights) > p)) {
     stopf("boundary derivatives run from 0 to %d for an operator of order %d", p - 1L, p)
   }
   invisible(TRUE)
@@ -171,7 +194,7 @@ cheb_measure <- function(P, c, F, values) {
   N <- length(c)
   bc <- P$args$boundary
   rb <- vapply(seq_len(p), function(i)
-    sum(cheb_boundary_row(bc$at[i], bc$derivative[i], N) * c) - values[i], numeric(1))
+    sum(bc_row(bc$at[i], bc$weights[[i]], N) * c) - values[i], numeric(1))
   Lc <- cheb_apply_L(P, c)
   n <- max(length(Lc), length(F))
   r <- pad_to(Lc, n) - pad_to(F, n)
@@ -243,6 +266,7 @@ cheb_solve_certificate <- function(m, tol, N, widths) {
 cheb_eigs <- function(A, k, control, args) {
   P <- A
   cheb_check_problem(P, "eigs")
+  if (identical(args$method, "galerkin")) return(cheb_galerkin_eigs(P, k, args))
   p <- P$args$order
   tol <- args$tol %||% 1e-10
   which <- args$which %||% "smallest"
@@ -272,7 +296,7 @@ cheb_eigs <- function(A, k, control, args) {
       n <- max(length(Lc), length(Sc))
       rr <- pad_to(Lc, n) - lam[i] * pad_to(Sc, n)
       bc <- P$args$boundary
-      rb <- vapply(seq_len(p), function(j) sum(cheb_boundary_row(bc$at[j], bc$derivative[j], N) * c),
+      rb <- vapply(seq_len(p), function(j) sum(bc_row(bc$at[j], bc$weights[[j]], N) * c),
                    numeric(1))
       kept <- seq_len(min(N - p, n))
       sc <- sqrt(sum(Mod(Sc)^2))
