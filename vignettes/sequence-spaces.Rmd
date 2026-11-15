@@ -319,6 +319,33 @@ hunt$widths
 hunt$certificate$dispatch$reason
 ```
 
+## Functions on the circle
+
+A function on the circle is its Fourier coefficients, a sequence on the
+integers, so an operator on such functions is an operator on a sequence space
+like the ones above. `linop_space("fourier", ...)` builds
+`-u'' + V u` from the coefficients of `V`; in that basis the derivative is the
+diagonal `k^2` and the multiplication is a band as wide as `V` has frequencies.
+With `V = a^2 sin^2 x - a cos x` the ground state is known exactly, `exp(a cos x)`
+at eigenvalue 0:
+
+```{r circle}
+a <- 2
+Hc <- linop_space("fourier", multiplier = c(-a^2 / 4, -a / 2, a^2 / 2, -a / 2, -a^2 / 4))
+gs <- eigs(Hc, k = 1, which = "smallest_algebraic")
+c(value = gs$values, width = gs$n)
+gs$certificate
+```
+
+The truncation row is exact here as it is for the Jacobi operator: cutting the
+band leaves a residual on the `d` frequencies each side that the band reaches,
+and those are computed rather than estimated. The diagonal grows without bound,
+so the operator's spectrum is discrete and the `forward error` row is a distance
+to an eigenvalue of the operator on the circle. Every nonzero eigenvalue of the
+free operator `-d^2/dx^2` is double, and a Krylov method started from one vector
+can return one copy of a double eigenvalue; `target identity` is `not_checked`
+for that reason.
+
 ## Where to next
 
 - `vignette("certificates")` covers the fifth certificate shape beside the other

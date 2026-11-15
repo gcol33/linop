@@ -47,12 +47,15 @@ mode_transposes <- function(mode) mode %in% c("T", "C")
 #'   what says a node on a sequence space can be made computable at all; the
 #'   node type owns how, since choosing a truncation is a statement about its own
 #'   mathematics rather than about the eigensolver.
+#' @param section `function(A, n)` returning the truncation of an operator of
+#'   this type to the indices `-n` to `n`, or `NULL` when [finite_section()]
+#'   should refuse it. The truncation is a node of its own, holding this one.
 #' @param overwrite Replace an existing registration.
 #' @return Invisibly, the node name.
 #' @noRd
 linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
                                 certify = NULL, spectrum = NULL,
-                                overwrite = FALSE) {
+                                section = NULL, overwrite = FALSE) {
   if (!is_scalar_string(node)) stopf("node must be a single string")
   if (!is.function(apply)) stopf("apply must be a function(op, X, mode)")
   if (!overwrite && !is.null(.linop_nodes[[node]])) {
@@ -61,6 +64,7 @@ linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
   .linop_nodes[[node]] <- list(
     node = node, apply = apply,
     materialize = materialize, certify = certify, spectrum = spectrum,
+    section = section,
     cost = cost %||% function(op) prod(op$dim))
   invisible(node)
 }

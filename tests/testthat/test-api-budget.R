@@ -55,6 +55,12 @@ BUDGET <- list(
   structured = c("linop_kron", "linop_blockdiag", "linop_lowrank", "linop_perm",
                  "linop_power"),
 
+  ## Phase 6's one front door to operators on function spaces, decided
+  ## 2026-11-15 with the cap raised from 30 to 31: every space is a kind of it,
+  ## so later spaces add arguments rather than names
+  ## (dev_notes/phase6-function-spaces-design.md).
+  function_space = "linop_space",
+
   advanced = c("preconditioner", "as_preconditioner", "as_preconditioner_inverse",
                "collapse", "explain", "as_sparse"),
 
@@ -92,10 +98,11 @@ test_that("the budget stays small", {
   expect_lte(length(BUDGET$common), 6L)
   ## The whole surface, so a slow drift upward is visible in the diff. The cap
   ## came down from 32 with the eleven names the one-package redesign removed,
-  ## then went to 30 for the five structured constructors, and all 30 are spent.
+  ## then went to 30 for the five structured constructors and to 31 for the one
+  ## function-space front door, and all 31 are spent.
   ## The next name is a decision with a note behind it, in either direction.
-  expect_lte(length(unlist(BUDGET, use.names = FALSE)), 30L)
-  expect_equal(length(unlist(BUDGET, use.names = FALSE)), 30L)
+  expect_lte(length(unlist(BUDGET, use.names = FALSE)), 31L)
+  expect_equal(length(unlist(BUDGET, use.names = FALSE)), 31L)
 })
 
 test_that("R's own generics work without being exported", {

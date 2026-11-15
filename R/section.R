@@ -43,7 +43,8 @@ section_materialize <- function(op) {
 #' free recurrence, and every closed form in the certificate reads the tail that
 #' way; a truncation that cuts through the perturbation has none of them.
 #'
-#' @param A An operator on a sequence space, from [linop_jacobi()].
+#' @param A An operator on a sequence space, from [linop_jacobi()] or
+#'   [linop_space()].
 #' @param n Half-width of the window. The result is `2n + 1` by `2n + 1`.
 #' @return A `linop`.
 #' @examples
@@ -53,14 +54,23 @@ section_materialize <- function(op) {
 #' print(F)
 #' @export
 finite_section <- function(A, n) {
-  P <- jacobi_of(A, "finite_section")
-  if (!identical(A, P)) {
-    stopf(paste0("finite_section() takes the operator on the sequence space, not a section of it.\n",
-                 "  Truncating a truncation is an ordinary submatrix and says nothing further\n",
-                 "  about the operator underneath; call finite_section() on the operator itself."))
+  if (!is_linop(A)) stopf("finite_section() expects a linop")
+  make <- get_node(A$node)$section
+  if (is.null(make)) {
+    if (!is.null(get_node(A$node)$certify)) {
+      stopf(paste0("finite_section() takes the operator on the sequence space, not a section of it.\n",
+                   "  Truncating a truncation is an ordinary submatrix and says nothing further\n",
+                   "  about the operator underneath; call finite_section() on the operator itself."))
+    }
+    stopf(paste0("finite_section() takes an operator on a sequence space, from linop_jacobi()\n",
+                 "  or linop_space(); a %s node has no truncation rule."), A$node)
   }
   n <- as.integer(n)
   if (is.na(n) || length(n) != 1L) stopf("n must be a single whole number")
+  make(A, n)
+}
+
+jacobi_section <- function(P, n) {
   if (n <= P$args$radius) {
     stopf(paste0("n = %d cuts through the window; it has to exceed %d.\n",
                  "  Outside the window the coefficients are at their limits and the eigenvalue\n",
@@ -372,32 +382,37 @@ section_eigs <- function(A, k, control, args) {
   }
 
   want <- section_target(P, args$tol)
-  ## Half the tolerance rather than all of it, because the residual term is
-  ## added in quadrature with this one and answers to a different knob. A search
-  ## that stopped at exactly the tolerance would leave the truncation binding.
-  accept <- want / 2
-  widths <- integer(0)
-  prev <- Inf
+  width_search(P, n, n_max, k, args, accept = want / 2,
+               predict = function(v, history) {
+                 rate <- is.finite(v$decay) & v$decay < 1 & v$truncation > 0
+                 if (!any(rate)) return(2L * history$n[nrow(history)])
+                 as.integer(ceiling(max(
+                   v$n + log(want * SECTION_N_AIM / v$truncation[rate]) / log(v$decay[rate]))))
+               })
+}
 
+## The loop every node type on a sequence space shares: solve at a width, read
+## the truncation term the certificate measured, stop or predict the next width.
+## What differs between node types is only the prediction, which is the decay law
+## of their eigenvectors. accept, a level or a function of the certificate's
+## values when the target depends on the pair, is half the tolerance rather than all of it,
+## because the residual term is added in quadrature with this one and answers to
+## a different knob; a search that stopped at exactly the tolerance would leave
+## the truncation binding.
+width_search <- function(P, n, n_max, k, args, accept, predict) {
+  history <- data.frame(n = integer(0), eta = numeric(0))
   repeat {
-    widths <- c(widths, n)
     fit <- do.call(eigs, c(list(A = finite_section(P, n), k = k), args))
     v <- fit$certificate$values
     eta <- max(v$truncation)
-    if (eta <= accept) { why <- "the tail is below half the tolerance"; break }
+    prev <- if (nrow(history)) history$eta[nrow(history)] else Inf
+    history <- rbind(history, data.frame(n = n, eta = eta))
+    if (eta <= (if (is.function(accept)) accept(v) else accept)) { why <- "the tail is below half the tolerance"; break }
     if (n >= n_max) { why <- sprintf("n_max = %d", n_max); break }
     if (eta >= prev) { why <- "widening stopped shrinking the tail"; break }
-    prev <- eta
-    rate <- is.finite(v$decay) & v$decay < 1 & v$truncation > 0
-    n <- if (any(rate)) {
-      max(n + 1L, as.integer(ceiling(max(
-        v$n + log(want * SECTION_N_AIM / v$truncation[rate]) / log(v$decay[rate])))))
-    } else {
-      2L * n
-    }
-    n <- min(n, n_max)
+    n <- min(max(n + 1L, predict(v, history)), n_max)
   }
-
+  widths <- history$n
   fit$method <- paste(fit$method, "on a finite section")
   fit$n <- widths[length(widths)]
   fit$widths <- widths

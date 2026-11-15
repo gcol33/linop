@@ -4,5 +4,6 @@
   register_jacobi_node()
   register_section_node()
   register_structured_nodes()
+  register_fourier_nodes()
   invisible(NULL)
 }

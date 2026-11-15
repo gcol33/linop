@@ -7,7 +7,8 @@
 finite_section(A, n)
 }
 \arguments{
-\item{A}{An operator on a sequence space, from [linop_jacobi()].}
+\item{A}{An operator on a sequence space, from [linop_jacobi()] or
+[linop_space()].}
 
 \item{n}{Half-width of the window. The result is `2n + 1` by `2n + 1`.}
 }

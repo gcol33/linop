@@ -71,6 +71,7 @@ reference:
     An operator whose index set is infinite, the truncation that makes it computable, and the rate its eigenvectors decay at. What comes back from the truncation is an ordinary operator, and what comes back from a spectral computation on it is a statement about the operator underneath.
   contents:
   - linop_jacobi
+  - linop_space
   - finite_section
   - decay_rate
 - title: Views

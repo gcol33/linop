@@ -62,6 +62,12 @@ First development release. The finite object model and the expression graph.
   `A` and the certificate is the same whichever engine ran; its `dispatch`
   lists every engine considered and why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the reference.
+* `linop_space("fourier", derivative, multiplier)` is an operator on functions
+  on the circle, held as a banded operator on their Fourier coefficients: a
+  constant-coefficient differential operator plus multiplication by a
+  trigonometric polynomial. `eigs()` runs on it directly, chooses the
+  truncation, and certifies against the operator on the circle with an exact
+  truncation term; `finite_section()` truncates it by hand.
 * `linop()` takes a `DelayedMatrix` (DelayedArray, and so HDF5-backed matrices
   from HDF5Array), a two-dimensional `torch_tensor` of type float64 or
   complex128, and a `big.matrix` (bigmemory, file-backed or not), applied by
