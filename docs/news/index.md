@@ -95,6 +95,16 @@ graph.
   operator on the circle with an exact truncation term;
   [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
   truncates it by hand.
+- The domain of a `linop_space("chebyshev")` operator is its boundary
+  conditions, which may be mixed (`weights =`).
+  [`adjoint()`](https://gillescolling.com/linop/reference/adjoint.md)
+  returns the adjoint operator with the adjoint domain, by integration
+  by parts, and the operator records whether it is self-adjoint in L2.
+  [`adjoint()`](https://gillescolling.com/linop/reference/adjoint.md) on
+  Fourier, Hermite and Laguerre operators returns the adjoint operator
+  too. `eigs(method = "galerkin")` discretises the weak form of a
+  self-adjoint second-order Dirichlet problem and returns
+  Courant-Fischer upper bounds, lifted to Chebyshev coefficients.
 - `+` and scalar `*` on function-space operators of one kind merge them
   into one operator, whose order and range space are the larger of the
   terms’; a Chebyshev term may be built without boundary conditions, and
