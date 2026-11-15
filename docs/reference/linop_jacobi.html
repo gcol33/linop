@@ -114,12 +114,17 @@ origin.</p></dd>
 
 
 <dt id="arg-diagonal-limit">diagonal_limit<a class="anchor" aria-label="anchor" href="#arg-diagonal-limit"></a></dt>
-<dd><p>The value the diagonal takes outside the window.</p></dd>
+<dd><p>The value the diagonal takes outside the window, or one
+period of values: outside the window `a_j = diagonal_limit[(j mod P) + 1]`.
+With periodic limits the essential spectrum is a union of bands with gaps
+between them, and the certificate measures isolation against the nearest
+band.</p></dd>
 
 
 <dt id="arg-offdiagonal-limit">offdiagonal_limit<a class="anchor" aria-label="anchor" href="#arg-offdiagonal-limit"></a></dt>
-<dd><p>The value the off-diagonal takes outside the window.
-Defaults to `offdiagonal` when that is a single number.</p></dd>
+<dd><p>The value the off-diagonal takes outside the window,
+or one period of values, anchored the same way. Defaults to `offdiagonal`
+when that is a single number.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -195,7 +195,7 @@
 <p>The time of one application of each operator, and the peak memory R used over the whole run, with R version 4.6.0 (2026-04-24 ucrt):</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co">#&gt;                     operator seconds</span></span>
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; 1                       Blur   0.008</span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; 2 crossprod(Blur) + 1e-3 * I   0.016</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; 2 crossprod(Blur) + 1e-3 * I   0.014</span></span>
 <span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; Peak R memory: 99 MB</span></span></code></pre></div>
 <p>The expression is applied one block at a time, so the memory figure is set by the block you hand it and by the operator’s own working set. Wrapping a callback costs 200 ns per apply, which is 0.13% or less of one application of an operator with 1e5 elements or more.</p>
 <p><a href="https://gillescolling.com/linop/articles/expressions.html">The expression graph</a> covers the simplification rules, the cost model, <code><a href="reference/collapse.html">collapse()</a></code> and materialisation.</p>

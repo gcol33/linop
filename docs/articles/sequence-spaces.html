@@ -465,6 +465,41 @@ reports that:</p>
 <span><span class="co">#&gt; [1] "operator on l^2(Z); width 41 -&gt; 82 -&gt; 164 -&gt; 200, stopped because n_max = 200"</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="a-gap-and-a-point-that-is-not-there">A gap, and a point that is not there<a class="anchor" aria-label="anchor" href="#a-gap-and-a-point-that-is-not-there"></a>
+</h2>
+<p>With periodic limits the essential spectrum is several bands with
+gaps between them. Couplings alternating <code>1</code> and
+<code>0.4</code> give two bands and the gap <code>(-0.6, 0.6)</code>,
+and the operator itself has no eigenvalue at all. Every finite section
+of it has one anyway, at 0, with its eigenvector sitting at the cut. A
+computation on the section cannot tell that point from a real one; the
+truncation term, which is the residual on the infinite operator,
+can:</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">gapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_jacobi.html">linop_jacobi</a></span><span class="op">(</span>diagonal <span class="op">=</span> <span class="fl">0</span>, offdiagonal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.4</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>                       offdiagonal_limit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">invented</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="fu"><a href="../reference/finite_section.html">finite_section</a></span><span class="op">(</span><span class="va">gapped</span>, <span class="fl">20</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>value <span class="op">=</span> <span class="va">invented</span><span class="op">$</span><span class="va">values</span>, truncation <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">invented</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">values</span><span class="op">$</span><span class="va">truncation</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         value    truncation </span></span>
+<span><span class="co">#&gt; -4.420400e-27  9.165151e-01</span></span>
+<span><span class="va">invented</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">overall</span></span>
+<span><span class="co">#&gt; [1] "fail"</span></span></code></pre></div>
+<p>A defect at the origin puts a genuine eigenvalue in the gap, and that
+one certifies:</p>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">defect</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_jacobi.html">linop_jacobi</a></span><span class="op">(</span>diagonal <span class="op">=</span> <span class="fl">0.3</span>, offdiagonal <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.4</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>                       offdiagonal_limit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">real</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">defect</span>, k <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="op">-</span><span class="fl">0.58</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>value <span class="op">=</span> <span class="va">real</span><span class="op">$</span><span class="va">values</span>, truncation <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">real</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">values</span><span class="op">$</span><span class="va">truncation</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         value    truncation </span></span>
+<span><span class="co">#&gt; -5.839872e-01  1.998656e-11</span></span>
+<span><span class="va">real</span><span class="op">$</span><span class="va">certificate</span><span class="op">$</span><span class="va">overall</span></span>
+<span><span class="co">#&gt; [1] "qualified"</span></span></code></pre></div>
+<p>The invented point is not refused; it comes back with a
+<code>fail</code> on the rows that are about the operator underneath,
+which is the information a refusal would have thrown away.</p>
+</div>
+<div class="section level2">
 <h2 id="functions-on-the-circle">Functions on the circle<a class="anchor" aria-label="anchor" href="#functions-on-the-circle"></a>
 </h2>
 <p>A function on the circle is its Fourier coefficients, a sequence on
@@ -476,7 +511,7 @@ the diagonal <code>k^2</code> and the multiplication is a band as wide
 as <code>V</code> has frequencies. With
 <code>V = a^2 sin^2 x - a cos x</code> the ground state is known
 exactly, <code>exp(a cos x)</code> at eigenvalue 0:</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fl">2</span></span>
 <span><span class="va">Hc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"fourier"</span>, multiplier <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">gs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">Hc</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span></span>

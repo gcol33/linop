@@ -37,12 +37,17 @@ linop_jacobi(
 
 - diagonal_limit:
 
-  The value the diagonal takes outside the window.
+  The value the diagonal takes outside the window, or one period of
+  values: outside the window \`a_j = diagonal_limit\[(j mod P) + 1\]\`.
+  With periodic limits the essential spectrum is a union of bands with
+  gaps between them, and the certificate measures isolation against the
+  nearest band.
 
 - offdiagonal_limit:
 
-  The value the off-diagonal takes outside the window. Defaults to
-  \`offdiagonal\` when that is a single number.
+  The value the off-diagonal takes outside the window, or one period of
+  values, anchored the same way. Defaults to \`offdiagonal\` when that
+  is a single number.
 
 ## Value
 
