@@ -88,10 +88,12 @@ graph.
   reference.
 - [`linop()`](https://gillescolling.com/linop/reference/linop.md) takes
   a `DelayedMatrix` (DelayedArray, and so HDF5-backed matrices from
-  HDF5Array) and a two-dimensional `torch_tensor` of type float64 or
-  complex128, applied by their own block-processed or on-device
-  products. A single-precision tensor is refused, since its apply error
-  is below nothing the certificates can see.
+  HDF5Array), a two-dimensional `torch_tensor` of type float64 or
+  complex128, and a `big.matrix` (bigmemory, file-backed or not),
+  applied by their own block-processed or on-device products, or for a
+  `big.matrix` a block of rows at a time. A single-precision tensor is
+  refused, since its apply error is below nothing the certificates can
+  see.
 - A dense real symmetric leaf of order up to 200 proves positive
   definiteness by a verified Cholesky factorisation (Rump’s approach,
   Higham’s backward error bound), so `solve(method = "auto")` reaches CG

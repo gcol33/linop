@@ -87,6 +87,9 @@ Third-party packages implement `linop.myclass()` and nothing else.</p>
 <span><span class="co"># S3 method for class 'torch_tensor'</span></span>
 <span><span class="fu">linop</span><span class="op">(</span><span class="va">x</span>, properties <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># S3 method for class 'big.matrix'</span></span>
+<span><span class="fu">linop</span><span class="op">(</span><span class="va">x</span>, properties <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">linop</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'linop'</span></span>
@@ -164,6 +167,9 @@ the conjugate transpose.</p></dd>
   device and back. Only `float64` and `complex128` tensors are taken: a
   single-precision apply carries an error near 1e-7 that the certificates'
   arithmetic floor, written for double precision, would not see.</p>
+<p>A `big.matrix` (bigmemory, including a file-backed, memory-mapped
+  one) becomes a callback leaf that reads it a block of rows at a time, so at
+  most one block is in memory. bigmemory stores real numbers only.</p>
 <p>A `linop` behaves like a matrix: use ordinary matrix operations.</p>
     </div>
 
