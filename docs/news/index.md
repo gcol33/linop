@@ -95,6 +95,18 @@ graph.
   operator on the circle with an exact truncation term;
   [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
   truncates it by hand.
+- `linop_space("chebyshev")` takes polynomial coefficients on every
+  derivative term (`derivative = list(a_0, a_1, ...)` in Chebyshev
+  coefficients); the adjoint and self-adjointness follow with the
+  coefficients’ derivatives in the boundary form. `method = "galerkin"`
+  covers `-(k u')' + q u` with Neumann and Robin conditions as well as
+  Dirichlet.
+- [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) finds
+  every copy of a repeated eigenvalue among the `k` it returns: after
+  the search it deflates what it found, searches again from a fresh
+  direction, and swaps in any pair that ranks better. Lanczos, and
+  Arnoldi on a hermitian operator. It costs about one more converged
+  pair.
 - The domain of a `linop_space("chebyshev")` operator is its boundary
   conditions, which may be mixed (`weights =`).
   [`adjoint()`](https://gillescolling.com/linop/reference/adjoint.md)

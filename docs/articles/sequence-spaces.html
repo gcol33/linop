@@ -543,10 +543,13 @@ each side that the band reaches, and those are computed rather than
 estimated. The diagonal grows without bound, so the operator’s spectrum
 is discrete and the <code>forward error</code> row is a distance to an
 eigenvalue of the operator on the circle. Every nonzero eigenvalue of
-the free operator <code>-d^2/dx^2</code> is double, and a Krylov method
-started from one vector can return one copy of a double eigenvalue;
-<code>target identity</code> is <code>not_checked</code> for that
-reason.</p>
+the free operator <code>-d^2/dx^2</code> is double. A Krylov method
+started from one vector reaches one copy of each, so after its search
+<code><a href="../reference/eigs.html">eigs()</a></code> deflates what it found, starts again from a fresh
+direction, and swaps in any pair that ranks better:</p>
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"fourier"</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">5</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 4.700446e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="where-to-next">Where to next<a class="anchor" aria-label="anchor" href="#where-to-next"></a>

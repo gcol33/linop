@@ -551,9 +551,17 @@ the band reaches, and those are computed rather than estimated. The
 diagonal grows without bound, so the operator’s spectrum is discrete and
 the `forward error` row is a distance to an eigenvalue of the operator
 on the circle. Every nonzero eigenvalue of the free operator `-d^2/dx^2`
-is double, and a Krylov method started from one vector can return one
-copy of a double eigenvalue; `target identity` is `not_checked` for that
-reason.
+is double. A Krylov method started from one vector reaches one copy of
+each, so after its search
+[`eigs()`](https://gillescolling.com/linop/reference/eigs.md) deflates
+what it found, starts again from a fresh direction, and swaps in any
+pair that ranks better:
+
+``` r
+
+sort(eigs(linop_space("fourier"), k = 5, which = "smallest_algebraic")$values)
+#> [1] 4.700446e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00
+```
 
 ## Where to next
 

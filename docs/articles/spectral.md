@@ -41,7 +41,7 @@ truth <- 2 - 2 * cos(seq_len(n) * pi / (n + 1))
 fit <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos", ncv = 60)
 fit
 #> <lanczos> 3 of 3 requested eigenpairs converged, which = 'largest_algebraic'
-#>   240 iterations of at most 4000, 6 restarts
+#>   450 iterations of at most 4000, 12 restarts
 #>   values: 3.999756  3.999023  3.997802
 #>   certificate: qualified
 ```
@@ -209,10 +209,10 @@ ladder <- t(vapply(c(20, 30, 40, 60), function(nc) {
 }, numeric(4)))
 ladder
 #>      ncv        error converged applies
-#> [1,]  20 8.881784e-16         3     378
-#> [2,]  30 4.440892e-16         3     283
-#> [3,]  40 4.440892e-16         3     260
-#> [4,]  60 8.881784e-16         3     240
+#> [1,]  20 8.881784e-16         3     618
+#> [2,]  30 4.440892e-16         3     493
+#> [3,]  40 4.440892e-16         3     460
+#> [4,]  60 8.881784e-16         3     450
 ```
 
 The top of the Laplacian’s spectrum is tightly clustered, which is what
@@ -231,7 +231,7 @@ Lanczos takes 1.6 `n` for the three largest here and 6 `n` at
 dflt <- eigs(L, k = 3, which = "largest_algebraic", method = "lanczos")
 c(converged = dflt$nconv, applies = dflt$iterations, budget = dflt$maxit)
 #> converged   applies    budget 
-#>         3       322      4000
+#>         3       549      4000
 ```
 
 A run that stops improving ends before the budget does and says so, so a

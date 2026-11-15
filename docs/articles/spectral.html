@@ -135,7 +135,7 @@ fixture to check against:</p>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, method <span class="op">=</span> <span class="st">"lanczos"</span>, ncv <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; &lt;lanczos&gt; 3 of 3 requested eigenpairs converged, which = 'largest_algebraic'</span></span>
-<span><span class="co">#&gt;   240 iterations of at most 4000, 6 restarts</span></span>
+<span><span class="co">#&gt;   450 iterations of at most 4000, 12 restarts</span></span>
 <span><span class="co">#&gt;   values: 3.999756  3.999023  3.997802</span></span>
 <span><span class="co">#&gt;   certificate: qualified</span></span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -279,10 +279,10 @@ tolerance:</p>
 <span><span class="op">}</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">ladder</span></span>
 <span><span class="co">#&gt;      ncv        error converged applies</span></span>
-<span><span class="co">#&gt; [1,]  20 8.881784e-16         3     378</span></span>
-<span><span class="co">#&gt; [2,]  30 4.440892e-16         3     283</span></span>
-<span><span class="co">#&gt; [3,]  40 4.440892e-16         3     260</span></span>
-<span><span class="co">#&gt; [4,]  60 8.881784e-16         3     240</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,]  20 8.881784e-16         3     618</span></span>
+<span><span class="co">#&gt; [2,]  30 4.440892e-16         3     493</span></span>
+<span><span class="co">#&gt; [3,]  40 4.440892e-16         3     460</span></span>
+<span><span class="co">#&gt; [4,]  60 8.881784e-16         3     450</span></span></code></pre></div>
 <p>The top of the Laplacian’s spectrum is tightly clustered, which is
 what makes a small subspace slow here. A well-separated spectrum needs
 far fewer applies.</p>
@@ -298,7 +298,7 @@ it:</p>
 <code class="sourceCode R"><span><span class="va">dflt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"largest_algebraic"</span>, method <span class="op">=</span> <span class="st">"lanczos"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>converged <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">nconv</span>, applies <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">iterations</span>, budget <span class="op">=</span> <span class="va">dflt</span><span class="op">$</span><span class="va">maxit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; converged   applies    budget </span></span>
-<span><span class="co">#&gt;         3       322      4000</span></span></code></pre></div>
+<span><span class="co">#&gt;         3       549      4000</span></span></code></pre></div>
 <p>A run that stops improving ends before the budget does and says so,
 so a larger default costs time only on a run that is still converging.
 The far end of a spectrum spread over many decades is the case it does
