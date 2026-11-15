@@ -95,6 +95,10 @@ graph.
   operator on the circle with an exact truncation term;
   [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
   truncates it by hand.
+- `+` and scalar `*` on function-space operators of one kind merge them
+  into one operator, whose order and range space are the larger of the
+  terms’; a Chebyshev term may be built without boundary conditions, and
+  the sum carries the problem’s.
 - `linop_space("hermite")` and `linop_space("laguerre")`: operators on
   the line in Hermite functions and on the half line in Laguerre
   functions, banded because `x` is tridiagonal in both, with

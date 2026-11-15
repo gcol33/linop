@@ -104,6 +104,8 @@
 <li>
 <code>linop_space("fourier", derivative, multiplier)</code> is an operator on functions on the circle, held as a banded operator on their Fourier coefficients: a constant-coefficient differential operator plus multiplication by a trigonometric polynomial. <code><a href="../reference/eigs.html">eigs()</a></code> runs on it directly, chooses the truncation, and certifies against the operator on the circle with an exact truncation term; <code><a href="../reference/finite_section.html">finite_section()</a></code> truncates it by hand.</li>
 <li>
+<code>+</code> and scalar <code>*</code> on function-space operators of one kind merge them into one operator, whose order and range space are the larger of the terms’; a Chebyshev term may be built without boundary conditions, and the sum carries the problem’s.</li>
+<li>
 <code>linop_space("hermite")</code> and <code>linop_space("laguerre")</code>: operators on the line in Hermite functions and on the half line in Laguerre functions, banded because <code>x</code> is tridiagonal in both, with <code>-d^2/dx^2 + V</code> (<code>V</code> a polynomial) and the Laguerre operator <code>-(x u')' + x u / 4</code> respectively. Truncated and certified like the circle’s.</li>
 <li>
 <code><a href="../reference/linop_jacobi.html">linop_jacobi()</a></code> takes periodic limits: <code>diagonal_limit</code> and <code>offdiagonal_limit</code> may be one period of values, the essential spectrum is then a union of bands, and the certificate measures isolation against the nearest band. A point a finite section invents in a gap comes back with a failing truncation row, since its eigenvector sits at the cut; a genuine gap eigenvalue certifies.</li>
