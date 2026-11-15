@@ -40,8 +40,11 @@
 ## eigenvalues are real is decided by the count LAPACK's real driver returns, so
 ## no threshold on an imaginary part enters.
 
+## For a generalized problem Op is B^-1 A or (A - sigma B)^-1 B, whose
+## eigenvectors are the pencil's, and the iteration runs on it in the ordinary
+## inner product; B enters the measurement and the stopping rule.
 arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
-                         hermitian = FALSE) {
+                         hermitian = FALSE, B = NULL) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
 
@@ -64,6 +67,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
   steps <- 0L
   rounds <- 0L
   anorm_lb <- 0
+  bnorm_lb <- if (is.null(B)) NULL else 0
   ## Every expansion step computes ||A v_j|| for a unit v_j, a lower bound on
   ## ||A|| that costs nothing, and the stopping rule's floor scales with that
   ## bound. Measured pairs alone give a poor one at an end of the spectrum near
@@ -141,11 +145,13 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     }
     Xr <- scale_cols(Xr, 1 / col_norms(Xr))
 
-    meas <- eigen_measure(A, Xr, hermitian = hermitian)
+    meas <- eigen_measure(A, Xr, hermitian = hermitian, B = B)
     mu <- meas$mu
     rr <- meas$rr
     anorm_lb <- max(anorm_lb, meas$anorm_lb)
-    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const)$converged
+    if (!is.null(B)) bnorm_lb <- max(bnorm_lb, meas$bnorm_lb)
+    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const,
+                              bnorm_lb, meas$bx)$converged
     ## A conjugate pair locks together or not at all.
     pq <- partner[seq_len(q)]
     has <- !is.na(pq) & pq <= q
@@ -270,7 +276,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
   ord <- ritz_order(thetas, sel)
   list(values = values[ord], vectors = vectors[, ord, drop = FALSE],
        residuals = residuals[ord], steps = steps, rounds = rounds,
-       anorm_lb = anorm_lb, stop_reason = stop_reason)
+       anorm_lb = anorm_lb, bnorm_lb = bnorm_lb, stop_reason = stop_reason)
 }
 
 ## One expansion of the Krylov decomposition from size p to at most m, spending

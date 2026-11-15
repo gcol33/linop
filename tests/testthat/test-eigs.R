@@ -393,7 +393,7 @@ test_that("eigs refuses what it is not defined for", {
   expect_error(eigs(linop(rmat(6, 4)), k = 2), "square")
   expect_error(eigs(linop(rmat(5, 5)), k = 2, method = "lanczos"),
                "requires the operator to be hermitian")
-  expect_error(eigs(herm, k = 2, B = linop_eye(n)), "does not take B")
+  expect_error(eigs(herm, k = 2, B = linop_eye(n + 1)), "the two the same shape")
   expect_error(eigs(herm, k = 2, sigma = 1, which = "smallest"), "cannot both be given")
   expect_error(eigs(herm, k = 2, sigma = 1i, method = "lanczos"), "complex shift")
   expect_error(eigs(herm, k = 2, sigma = c(1, 2)), "single finite number")

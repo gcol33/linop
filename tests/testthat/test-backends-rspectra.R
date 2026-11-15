@@ -125,3 +125,8 @@ test_that("singular triplets, the largest only, and the refusals that follow", {
     expect_lte(svds(A, k = 3, method = "rspectra", maxit = maxit)$iterations, maxit)
   }
 })
+
+test_that("a generalized problem is refused by name", {
+  expect_error(eigs(laplacian_1d(20), k = 2, B = linop_eye(20), method = "rspectra"),
+               "does not take B")
+})

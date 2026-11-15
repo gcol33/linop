@@ -48,6 +48,7 @@ rspectra_symmetric <- function(A, request) {
 }
 
 rspectra_eigs_supports <- function(A, request) {
+  if (!is.null(request$B)) return("it does not take B")
   if (is.complex(request$sigma)) {
     return("a complex shift makes the operator complex, and it computes in real arithmetic")
   }

@@ -42,8 +42,16 @@ own solvers: MINRES for a hermitian operator and a real shift, GMRES
 otherwise. A complex shift is accepted for any operator and runs Arnoldi.
 `which` does not apply and passing both is an error.}
 
-\item{B}{Reserved for the generalized problem `A x = lambda B x`, which is not
-in this version.}
+\item{B}{For the generalized problem `A x = lambda B x`: a square `linop` or
+matrix of the same shape as `A`, or `NULL` for the standard problem. With
+`A` established hermitian and `B` established hermitian positive definite,
+Lanczos runs on `B^-1 A` in the `B` inner product, the returned vectors are
+`B`-orthonormal and the `forward error` row bounds each value; otherwise
+Arnoldi runs on `B^-1 A`. A shift runs on `(A - sigma B)^-1 B`. Each step
+solves with `B`, or with `A - sigma B`, through the package's own solvers,
+and `inner` carries the arguments. Values are measured as
+`x^H A x / x^H B x` and the backward error perturbs both operators,
+`||A x - mu B x|| / ((||A|| + |mu| ||B||) ||x||)`.}
 
 \item{tol}{Convergence tolerance. Every method holds each pair, measured on
 `A`, to the backward error `||A x - mu x|| / (||A|| ||x||)` and to the
@@ -82,8 +90,8 @@ records every engine considered and why. Whichever runs, the reported
 values are Rayleigh quotients measured on `A` and the certificate is the
 same.}
 
-\item{inner}{Arguments for the inner solve when `sigma` is given, such as
-`method` or `tol`.}
+\item{inner}{Arguments for the inner solve when `sigma` or `B` is given,
+such as `method` or `tol`.}
 
 \item{section}{Arguments for the truncation, when `A` is an operator on a
 sequence space and has no matrix: `n_start` for how much free tail the first

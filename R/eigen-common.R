@@ -78,21 +78,28 @@ ritz_order <- function(theta, which) {
 ##
 ## The mask is exact, so a column that did not need the second pass has an exact
 ## zero multiple subtracted from it and is left bit for bit as it was.
-orth_project <- function(Q, W) {
+##
+## In the B inner product <x, y>_B = x^H B y of a generalized problem the basis
+## is B-orthonormal and BQ = B Q is stored beside it, so the coefficients are
+## (B Q)^H W at no apply. Whether a column needs the second pass is still read
+## from Euclidean norms: the test asks whether the first pass cancelled, and
+## cancellation in W is what it has to see.
+orth_project <- function(Q, W, BQ = NULL) {
   if (is.null(Q) || !ncol(Q)) return(list(W = W, h = NULL))
+  BQ <- BQ %||% Q
   w0 <- col_norms(W)
-  h <- cross_adjoint(Q, W)
+  h <- cross_adjoint(BQ, W)
   W <- W - Q %*% h
   again <- col_norms(W) < REORTH_ETA * w0
   if (any(again)) {
-    h2 <- scale_cols(cross_adjoint(Q, W), as.numeric(again))
+    h2 <- scale_cols(cross_adjoint(BQ, W), as.numeric(again))
     W <- W - Q %*% h2
     h <- h + h2
   }
   list(W = W, h = h)
 }
 
-orth_against <- function(Q, W) orth_project(Q, W)$W
+orth_against <- function(Q, W, BQ = NULL) orth_project(Q, W, BQ)$W
 
 ## A unit starting vector, in the storage mode the operator implies. Random
 ## unless the caller supplied one, and seeded either way so a report is
@@ -152,13 +159,35 @@ SECTION_NCV_MIN <- 40L
 ## For a hermitian operator the quotient is real and its computed imaginary part
 ## is rounding, so only the real part is formed. Otherwise the whole quotient is
 ## the minimiser of ||A x - mu x|| over complex mu.
-eigen_measure <- function(A, X, hermitian = TRUE) {
+##
+## For a generalized problem A x = lambda B x the residual is A x - mu B x. For a
+## definite pencil (hermitian is then TRUE) mu is x^H A x / x^H B x, real, the
+## minimiser in the B^-1 norm and the value the B inner product's Weyl bound is
+## about. Otherwise it is (B x)^H A x / ||B x||^2, the minimiser of the reported
+## residual itself; x^H A x / x^H B x is not usable there, since a complex
+## eigenvalue of a hermitian pencil with B indefinite has x^H B x = 0 and
+## x^H A x = 0 on its eigenvector. |mu| bounds nothing about ||A|| either way, so
+## the bound on ||A|| is ||A x|| / ||x|| alone, and ||B x|| / ||x|| bounds ||B||
+## from below the same way; bx is that ratio per pair, the scale the residual
+## row reads the pair against.
+eigen_measure <- function(A, X, hermitian = TRUE, B = NULL) {
   AX <- linop_apply(A, X, "N")
   xn <- col_norms(X)
   scale_x <- ifelse(xn > 0, xn, 1)
-  mu <- (if (hermitian) col_dot(X, AX) else col_cdot(X, AX)) / scale_x^2
-  rr <- col_norms(AX - scale_cols(X, mu)) / scale_x
-  list(mu = mu, rr = rr, anorm_lb = max(col_norms(AX) / scale_x, abs(mu)))
+  dot <- if (hermitian) col_dot else col_cdot
+  if (is.null(B)) {
+    mu <- dot(X, AX) / scale_x^2
+    rr <- col_norms(AX - scale_cols(X, mu)) / scale_x
+    return(list(mu = mu, rr = rr, anorm_lb = max(col_norms(AX) / scale_x, abs(mu)),
+                bx = rep(1, length(mu)), bnorm_lb = 1))
+  }
+  BX <- linop_apply(B, X, "N")
+  mu <- if (hermitian) col_dot(X, AX) / col_dot(X, BX)
+        else col_cdot(BX, AX) / col_norms(BX)^2
+  rr <- col_norms(AX - scale_cols(BX, mu)) / scale_x
+  bx <- col_norms(BX) / scale_x
+  list(mu = mu, rr = rr, anorm_lb = max(col_norms(AX) / scale_x), bx = bx,
+       bnorm_lb = max(bx))
 }
 
 ## Whether a restart round moved the wanted pairs, for the rule that ends a run

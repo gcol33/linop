@@ -171,14 +171,27 @@ hermitian_shift_supports <- function(request) {
   } else TRUE
 }
 
+## A pencil reaches the hermitian recurrence only in the B inner product, which
+## is an inner product only for B hermitian positive definite.
+definite_pencil_supports <- function(request) {
+  B <- request$B
+  if (is.null(B)) return(TRUE)
+  why <- capability_refusal(B, "hermitian") %||% capability_refusal(B, "positive_definite")
+  if (is.null(why)) TRUE
+  else paste0("the B inner product ", sub("the operator", "B", why, fixed = TRUE))
+}
+
 register_backend("lanczos", "eigs", priority = 0,
                  provides_label = "Lanczos with full reorthogonalisation",
                  targets = c("LM", "SM", "LA", "SA"), capabilities = "hermitian",
                  default_ncv = function(A, k) default_ncv(A, k),
-                 supports = function(A, request) hermitian_shift_supports(request),
+                 supports = function(A, request) {
+                   s <- hermitian_shift_supports(request)
+                   if (isTRUE(s)) definite_pencil_supports(request) else s
+                 },
                  run = function(Op, A, ctl, engine)
                    lanczos_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                                ctl$v0, ctl$seed, ctl$floor_const))
+                                ctl$v0, ctl$seed, ctl$floor_const, B = ctl$B))
 
 ## Below the reference Lanczos, so that a hermitian operator keeps the method
 ## whose projected problem is real and symmetric; above nothing, because nothing
@@ -190,7 +203,9 @@ register_backend("arnoldi", "eigs", priority = -10,
                  run = function(Op, A, ctl, engine)
                    arnoldi_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
                                 ctl$v0, ctl$seed, ctl$floor_const,
-                                hermitian = isTRUE(capv(A, "hermitian"))))
+                                hermitian = isTRUE(capv(A, "hermitian")) &&
+                                  isTRUE(definite_pencil_supports(list(B = ctl$B))),
+                                B = ctl$B))
 
 register_backend("golub-kahan", "svds", priority = 0,
                  provides_label = "Golub-Kahan-Lanczos with full reorthogonalisation",
@@ -204,6 +219,7 @@ register_backend("primme", "eigs", priority = 100,
                  info_fn = "primme_engine", targets = c("LM", "SM", "LA", "SA"),
                  capabilities = "hermitian",
                  supports = function(A, request) {
+                   if (!is.null(request$B)) return("it does not take B")
                    s <- hermitian_shift_supports(request)
                    if (isTRUE(s)) primme_supports(request) else s
                  },

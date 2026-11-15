@@ -84,8 +84,16 @@ SHIFT_INVERT_RESTART <- 100L
 #'   own solvers: MINRES for a hermitian operator and a real shift, GMRES
 #'   otherwise. A complex shift is accepted for any operator and runs Arnoldi.
 #'   `which` does not apply and passing both is an error.
-#' @param B Reserved for the generalized problem `A x = lambda B x`, which is not
-#'   in this version.
+#' @param B For the generalized problem `A x = lambda B x`: a square `linop` or
+#'   matrix of the same shape as `A`, or `NULL` for the standard problem. With
+#'   `A` established hermitian and `B` established hermitian positive definite,
+#'   Lanczos runs on `B^-1 A` in the `B` inner product, the returned vectors are
+#'   `B`-orthonormal and the `forward error` row bounds each value; otherwise
+#'   Arnoldi runs on `B^-1 A`. A shift runs on `(A - sigma B)^-1 B`. Each step
+#'   solves with `B`, or with `A - sigma B`, through the package's own solvers,
+#'   and `inner` carries the arguments. Values are measured as
+#'   `x^H A x / x^H B x` and the backward error perturbs both operators,
+#'   `||A x - mu B x|| / ((||A|| + |mu| ||B||) ||x||)`.
 #' @param tol Convergence tolerance. Every method holds each pair, measured on
 #'   `A`, to the backward error `||A x - mu x|| / (||A|| ||x||)` and to the
 #'   relative residual `||A x - mu x|| / (|mu| ||x||)` wherever `|mu|` is above
@@ -117,8 +125,8 @@ SHIFT_INVERT_RESTART <- 100L
 #'   records every engine considered and why. Whichever runs, the reported
 #'   values are Rayleigh quotients measured on `A` and the certificate is the
 #'   same.
-#' @param inner Arguments for the inner solve when `sigma` is given, such as
-#'   `method` or `tol`.
+#' @param inner Arguments for the inner solve when `sigma` or `B` is given,
+#'   such as `method` or `tol`.
 #' @param section Arguments for the truncation, when `A` is an operator on a
 #'   sequence space and has no matrix: `n_start` for how much free tail the first
 #'   section leaves beyond the window, and `n_max` for the widest section the
@@ -159,6 +167,15 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                  floor_const = SOLVE_FLOOR_CONST, norm_control = list()) {
   if (!is_linop(A)) stopf("eigs() expects a linop")
   if (!is.list(section)) stopf("section must be a list")
+  if (!is.null(B)) {
+    if (is.matrix(B) || inherits(B, "Matrix")) B <- linop(B)
+    if (!is_linop(B)) stopf("B must be a linop or a matrix")
+    if (!is_finite_dim(A)) {
+      stopf(paste0("eigs() takes B for an operator of finite dimension; this one is %s.\n",
+                   "  A generalized problem on a sequence space has no truncation rule here."),
+            fmt_dim(A$dim))
+    }
+  }
   ## An operator with no matrix is not refused where its node type knows how to
   ## make one. Everything the caller supplied is forwarded unchanged, because the
   ## width is the only thing they did not supply and so the only thing chosen
@@ -185,17 +202,26 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
           fmt_dim(A$dim))
   }
   if (!is.null(B)) {
-    stopf(paste0("eigs() does not take B in this version.\n",
-                 "  A x = lambda B x is Lanczos in the B inner product, which is a different\n",
-                 "  recurrence rather than a flag on this one: every inner product changes and a\n",
-                 "  solve against B enters each step."))
+    require_finite_dim(B, "eigs")
+    if (!identical(as.numeric(B$dim), as.numeric(A$dim))) {
+      stopf("B is %s and A is %s; a pencil needs the two the same shape",
+            fmt_dim(B$dim), fmt_dim(A$dim))
+    }
+    if (!is.null(get_node(A$node)$certify)) {
+      stopf("eigs() takes B for an operator certified as an eigenproblem of its own; a %s node certifies its own rows",
+            A$node)
+    }
   }
   herm <- isTRUE(capv(A, "hermitian"))
+  definite <- !is.null(B) && isTRUE(capv(B, "hermitian")) &&
+              isTRUE(capv(B, "positive_definite"))
+  real_spectrum <- herm && (is.null(B) || definite)
   which_code <- normalise_which(which, EIGEN_WHICH, "eigs")
-  if (herm && which_code %in% c("LI", "SI")) {
-    stopf(paste0("which = '%s' orders by imaginary part, and this operator is established\n",
-                 "  hermitian, so every eigenvalue is real and every imaginary part is zero."),
-          which)
+  if (real_spectrum && which_code %in% c("LI", "SI")) {
+    stopf(paste0("which = '%s' orders by imaginary part, and this %s is established\n",
+                 "  hermitian%s, so every eigenvalue is real and every imaginary part is zero."),
+          which, if (is.null(B)) "operator" else "pencil",
+          if (is.null(B)) "" else " with B positive definite")
   }
   s <- eigen_setup(A, k, maxit, "eigs", n)
   k <- s$k; maxit <- s$maxit
@@ -224,19 +250,24 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   ## pairs with their Rayleigh quotients and residuals measured on A, so nothing
   ## below this line knows which one ran.
   pick <- select_backend("eigs", A,
-                         list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv, maxit = maxit,
+                         list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv, maxit = maxit, B = B,
                               interior = sel %in% c("LM", "SM")),
                          method, "eigs")
   ## The shift-invert operator is the hermitian one exactly when the engine
   ## requires a hermitian operator, since that engine runs on it.
   herm_engine <- "hermitian" %in% pick$backend$capabilities
-  Op <- if (is.null(sigma)) A else shift_invert_operator(A, sigma, inner, herm_engine)
+  Op <- if (!is.null(sigma)) shift_invert_operator(A, sigma, inner, herm_engine, B)
+        else if (!is.null(B)) generalized_operator(A, B, inner)
+        else A
   ncv <- eigen_ncv(ncv %||% pick$backend$default_ncv(A, k), k, n)
   run <- pick$backend$run(Op, A, list(k = k, sel = sel, tol = tol, maxit = maxit,
                                       ncv = ncv, v0 = v0, seed = seed,
-                                      floor_const = floor_const), pick$engine)
-  label <- if (is.null(sigma)) pick$backend$label
-           else sprintf("%s on (A - %s I)^-1", pick$backend$label, format(sigma))
+                                      floor_const = floor_const, B = B), pick$engine)
+  label <- if (is.null(sigma)) {
+             if (is.null(B)) pick$backend$label
+             else sprintf("%s on B^-1 A", pick$backend$label)
+           } else sprintf("%s on (A - %s %s)^-1%s", pick$backend$label, format(sigma),
+                          if (is.null(B)) "I" else "B", if (is.null(B)) "" else " B")
   chosen <- if (is.null(sigma)) pick$backend$name
             else paste(pick$backend$name, "shift-invert")
 
@@ -246,7 +277,8 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   ctx <- list(A = A, values = run$values, vectors = run$vectors, tol = tol,
               iterations = run$steps, maxit = maxit, floor_const = floor_const,
               norm_control = norm_control, norm_lower_bound = run$anorm_lb,
-              requested = k, stop_reason = run$stop_reason)
+              requested = k, stop_reason = run$stop_reason, B = B,
+              norm_lower_bound_B = run$bnorm_lb %||% 0)
   cert <- (get_node(A$node)$certify %||% eigen_certify)(ctx)
 
   new_eigen_result(values = run$values, vectors = run$vectors,
@@ -254,8 +286,12 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                    iterations = run$steps, maxit = maxit, rounds = run$rounds,
                    converged = cert$values$converged, residuals = run$residuals,
                    dispatch = backend_dispatch(method, pick, paste0(
-                     if (herm) "hermitian operator, "
-                     else "operator not established hermitian, ", label)),
+                     if (is.null(B)) {
+                       if (herm) "hermitian operator, "
+                       else "operator not established hermitian, "
+                     } else if (real_spectrum) "hermitian pencil with B positive definite, "
+                     else "pencil not established hermitian with B positive definite, ",
+                     label)),
                    engine = run$engine)
 }
 
@@ -264,16 +300,28 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
 ## certifying its own results may know the norm in closed form and have no use for
 ## a power iteration.
 eigen_certify <- function(ctx) {
-  norm_est <- do.call(norm2, c(list(A = ctx$A), ctx$norm_control))
-  eigen_certificate(ctx$A, ctx$values, ctx$vectors, tol = ctx$tol,
+  A <- ctx$A; B <- ctx$B
+  norm_est <- do.call(norm2, c(list(A = A), ctx$norm_control))
+  ## The forward bound and the orthogonality row rest on A being hermitian, and
+  ## for a pencil on B being hermitian positive definite as well; that evidence
+  ## goes under the row with the theorem.
+  definite <- is.null(B) || (isTRUE(capv(B, "hermitian")) &&
+                             isTRUE(capv(B, "positive_definite")))
+  herm_ev <- if (isTRUE(capv(A, "hermitian")) && definite) cape(A, "hermitian")
+  eigen_certificate(A, ctx$values, ctx$vectors, tol = ctx$tol,
                     norm_estimate = norm_est,
                     iterations = ctx$iterations, maxit = ctx$maxit,
                     floor_const = ctx$floor_const,
                     norm_lower_bound = ctx$norm_lower_bound,
-                    hermitian_evidence = if (isTRUE(capv(ctx$A, "hermitian")))
-                                           cape(ctx$A, "hermitian"),
+                    hermitian_evidence = herm_ev,
                     requested = ctx$requested,
-                    stop_reason = ctx$stop_reason, subject = "eigen")
+                    stop_reason = ctx$stop_reason, subject = "eigen",
+                    B = B,
+                    norm_estimate_B = if (!is.null(B))
+                      do.call(norm2, c(list(A = B), ctx$norm_control)),
+                    norm_lower_bound_B = ctx$norm_lower_bound_B %||% 0,
+                    definite_evidence = if (!is.null(B) && !is.null(herm_ev))
+                      list(cape(B, "hermitian"), cape(B, "positive_definite")))
 }
 
 ## (A - sigma I)^-1 as an operator, built out of the package's own solvers.
@@ -291,14 +339,21 @@ eigen_certify <- function(ctx) {
 ## iteration for nothing. For Arnoldi nothing is declared and nothing is needed:
 ## the inner method is GMRES, and no adjoint is supplied because Arnoldi applies
 ## only mode "N". A complex shift makes the operator complex whatever A is.
-shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE) {
+##
+## For a pencil the operator is (A - sigma B)^-1 B, whose eigenvalues are
+## 1 / (lambda - sigma) on the pencil's eigenvectors (ARPACK's mode 3). It is
+## self-adjoint in the B inner product rather than the ordinary one, so nothing
+## is declared about it; the inner solve is MINRES when A - sigma B is
+## hermitian, which a hermitian engine has required of both.
+shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE, B = NULL) {
   n <- A$dim[1L]
   if (hermitian && is.complex(sigma)) {
     stopf(paste0("sigma must be real for a hermitian engine.\n",
                  "  A complex shift leaves A - sigma I non-hermitian; method = 'arnoldi' takes it."))
   }
-  dtype <- if (is.complex(sigma)) "complex" else A$dtype
-  shifted <- A - sigma * linop_eye(n, dtype)
+  dtype <- if (is.complex(sigma) || (!is.null(B) && B$dtype == "complex")) "complex"
+           else A$dtype
+  shifted <- A - sigma * (B %||% linop_eye(n, dtype))
   ## Tighter than the outer tolerance by default: what the inner solve leaves
   ## behind is amplified by the transformation, and the outer loop can only
   ## report it, not remove it.
@@ -312,11 +367,12 @@ shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE) {
                         control = list(restart = min(n, SHIFT_INVERT_RESTART)))
   args <- utils::modifyList(defaults, inner)
   apply_inverse <- function(X) {
+    if (!is.null(B)) X <- linop_apply(B, X, "N")
     z <- do.call(solve, c(list(shifted, X), args))
     attr(z, "certificate") <- NULL
     z
   }
-  if (!hermitian) {
+  if (!hermitian || !is.null(B)) {
     return(new_linop("fun", c(n, n), dtype, new_caps(),
                      list(apply = apply_inverse, adjoint = NULL)))
   }
@@ -326,6 +382,31 @@ shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE) {
                 depends_on = Filter(Negate(is.null),
                                     list(cape(shifted, "hermitian"))))))),
             list(apply = apply_inverse, adjoint = apply_inverse))
+}
+
+## B^-1 A as an operator, for a pencil with no shift (ARPACK's mode 2): its
+## eigenpairs are the pencil's, and each apply is one apply of A and one solve
+## with B by the package's own solvers. inner carries that solve's arguments.
+##
+## The solve's error is absolute at the scale of ||B^-1 A v||, set by the large
+## end of the spectrum, and lands on every eigencomponent, so the small end sees
+## it relative to its own eigenvalue. On the linear-element mass matrix pencil of
+## laplacian_1d(100), three smallest (lambda near 1e-3, the largest near 12), an
+## inner tolerance of 1e-12 plateaus the residual row at 6.1e-10 and converges
+## none in 1691 applies; 1e-14 converges all three in 310. Hence the tighter
+## default here than under a shift, where the transformation favours the wanted
+## end instead.
+generalized_operator <- function(A, B, inner) {
+  n <- A$dim[1L]
+  dtype <- if (A$dtype == "complex" || B$dtype == "complex") "complex" else "double"
+  args <- utils::modifyList(list(tol = 1e-14), inner)
+  apply_solve <- function(X) {
+    z <- do.call(solve, c(list(B, linop_apply(A, X, "N")), args))
+    attr(z, "certificate") <- NULL
+    z
+  }
+  new_linop("fun", c(n, n), dtype, new_caps(),
+            list(apply = apply_solve, adjoint = NULL))
 }
 
 ## The outer loop. A round builds a subspace, extracts, measures on A, locks what
@@ -354,11 +435,14 @@ shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE) {
 ## Where a request fits in one round there is no restart to differ over and the
 ## two agree to the last digit, which is the control that confines the difference
 ## to this block; dev_notes/spikes/restart-comparison.R runs both.
-lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) {
+lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
+                         B = NULL) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
+  metric <- !is.null(B)
 
   Qv <- NULL
+  BQv <- NULL
   lock_theta <- numeric(0)
   lock_value <- numeric(0)
   lock_res <- numeric(0)
@@ -368,6 +452,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
   steps <- 0L
   rounds <- 0L
   anorm_lb <- 0
+  bnorm_lb <- if (metric) 0 else NULL
   op_is_a <- identical(Op, A)
   stop_reason <- NULL
   progress <- NULL
@@ -393,6 +478,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     if (!is.null(keep)) {
       p <- min(ncol(keep$Y), m - 2L)
       keep <- if (p >= 1L) list(Y = keep$Y[, seq_len(p), drop = FALSE],
+                                BY = if (metric) keep$BY[, seq_len(p), drop = FALSE],
                                 H = keep$H[seq_len(p), seq_len(p), drop = FALSE])
               else NULL
     }
@@ -400,22 +486,24 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     ## The start of a round lives in the complement of what is locked. A start
     ## that lies entirely inside the locked space carries no new direction, and a
     ## fresh random one does.
-    v <- orth_against(Qv, v)
-    if (!is.null(keep)) v <- orth_against(keep$Y, v)
+    v <- orth_against(Qv, v, BQv)
+    if (!is.null(keep)) v <- orth_against(keep$Y, v, keep$BY)
     nv <- col_norms(v)
     if (nv <= eps * sqrt(n)) {
       v <- eigen_random_vector(n, Op$dtype, seed, rounds)
-      v <- orth_against(Qv, v)
-      if (!is.null(keep)) v <- orth_against(keep$Y, v)
+      v <- orth_against(Qv, v, BQv)
+      if (!is.null(keep)) v <- orth_against(keep$Y, v, keep$BY)
       nv <- col_norms(v)
       if (nv <= eps * sqrt(n)) {
         stop_reason <- "no direction left outside the locked subspace"
         break
       }
     }
+    ## Unit in the inner product the basis is orthonormal in.
+    if (metric) nv <- sqrt(col_dot(v, linop_apply(B, v, "N")))
     v <- v / nv
 
-    run <- lanczos_run(Op, v, Qv, m, maxit - steps, keep)
+    run <- lanczos_run(Op, v, Qv, m, maxit - steps, keep, B, BQv)
     steps <- steps + run$applies
     if (run$applies == 0L) { stop_reason <- "the recurrence made no step"; break }
     ## Each step's ||A v_j|| for a unit v_j is a lower bound on ||A|| at no cost,
@@ -429,22 +517,26 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     take <- ord[seq_len(min(want, run$size))]
     theta <- ee$values[take]
     Xr <- run$V %*% ee$vectors[, take, drop = FALSE]
+    BXr <- if (metric) run$BV %*% ee$vectors[, take, drop = FALSE]
 
     ## Measured on A, in every case. Under a shift the recurrence has been
     ## working on a different operator entirely, and this is where that stops
     ## mattering.
-    meas <- eigen_measure(A, Xr)
+    meas <- eigen_measure(A, Xr, B = B)
     mu <- meas$mu
     rr <- meas$rr
     anorm_lb <- max(anorm_lb, meas$anorm_lb)
+    if (metric) bnorm_lb <- max(bnorm_lb, meas$bnorm_lb)
 
     ## A pair locks when it meets both rows of the certificate it will be read
     ## by, the backward error and the residual, each with the arithmetic floor.
     ## The backward error alone lets a pair with |mu| well below ||A|| lock and
     ## then fail the residual row.
-    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const)$converged
+    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const,
+                              bnorm_lb, meas$bx)$converged
     if (any(conv)) {
       Qv <- cbind(Qv, Xr[, conv, drop = FALSE])
+      if (metric) BQv <- cbind(BQv, BXr[, conv, drop = FALSE])
       lock_theta <- c(lock_theta, theta[conv])
       lock_value <- c(lock_value, mu[conv])
       lock_res <- c(lock_res, rr[conv])
@@ -486,7 +578,8 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     } else {
       Z <- ee$vectors[, avail[seq_len(p)], drop = FALSE]
       H <- cross_adjoint(Z, run$Tm %*% Z)
-      keep <- list(Y = run$V %*% Z, H = (H + t(Conj(H))) / 2)
+      keep <- list(Y = run$V %*% Z, BY = if (metric) run$BV %*% Z,
+                   H = (H + t(Conj(H))) / 2)
       v <- run$vnext
     }
   }
@@ -513,7 +606,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
   ord <- ritz_order(thetas, sel)
   list(values = values[ord], vectors = vectors[, ord, drop = FALSE],
        residuals = residuals[ord], steps = steps, rounds = rounds,
-       anorm_lb = anorm_lb, stop_reason = stop_reason)
+       anorm_lb = anorm_lb, bnorm_lb = bnorm_lb, stop_reason = stop_reason)
 }
 
 ## One run of the recurrence, from a unit v orthogonal to the locked set Q and to
@@ -538,20 +631,28 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
 ## from a lower start; an exact eigenvector evaluates to 0.5 eps ||A|| on the same
 ## rows. The reorthogonalisation computes the coefficients either way, so keeping
 ## them costs no apply.
-lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
+lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL, B = NULL, BQ = NULL) {
   n <- nrow(v)
   eps <- .Machine$double.eps
+  metric <- !is.null(B)
   p <- if (is.null(keep)) 0L else ncol(keep$Y)
   cplx <- is.complex(v) || (!is.null(keep) && is.complex(keep$Y)) ||
-          Op$dtype == "complex"
+          Op$dtype == "complex" || (metric && B$dtype == "complex")
   zero <- if (cplx) complex(1) else 0
   V <- matrix(zero, n, m)
   Tm <- matrix(zero, m, m)
+  ## In the B inner product of a generalized problem, B V beside V, so that every
+  ## coefficient is (B v_i)^H w with one apply of B per step, as ARPACK does for
+  ## bmat = "G".
+  BV <- if (metric) matrix(zero, n, m)
   if (p > 0L) {
     V[, seq_len(p)] <- keep$Y
+    if (metric) BV[, seq_len(p)] <- keep$BY
     Tm[seq_len(p), seq_len(p)] <- keep$H
   }
   V[, p + 1L] <- v
+  if (metric) BV[, p + 1L] <- linop_apply(B, v, "N")
+  bcols <- function(j) if (metric) BV[, j, drop = FALSE] else V[, j, drop = FALSE]
 
   i <- p
   applies <- 0L
@@ -573,11 +674,12 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
     ## The three-term part is subtracted first, so that the projection against
     ## the whole basis removes only what rounding and the retained block left;
     ## what it removes is added back into the column.
-    a <- col_dot(V[, i, drop = FALSE], W)
+    a <- col_dot(bcols(i), W)
     W <- W - scale_cols(V[, i, drop = FALSE], a)
     if (i > p + 1L) W <- W - scale_cols(V[, i - 1L, drop = FALSE], b)
-    W <- orth_against(Q, W)
-    h <- orth_project(V[, seq_len(i), drop = FALSE], W)
+    W <- orth_against(Q, W, BQ)
+    h <- orth_project(V[, seq_len(i), drop = FALSE], W,
+                      if (metric) BV[, seq_len(i), drop = FALSE])
     W <- h$W
     h <- h$h[, 1L]
     h[i] <- h[i] + a
@@ -589,18 +691,24 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
     Tm[i, i] <- Re(h[i])
 
     b <- col_norms(W)
-    beta_last <- b
     ## An invariant subspace, which is convergence rather than failure: every
     ## Ritz pair of it is an exact eigenpair of the operator restricted to it.
     ## There is no direction left to restart from either, and vnext says so.
-    if (b <= eps * w0) break
+    if (b <= eps * w0) { beta_last <- b; break }
+    if (metric) {
+      BW <- linop_apply(B, W, "N")
+      b <- sqrt(col_dot(W, BW))
+    }
+    beta_last <- b
     if (i >= m || applies >= max_applies) { vnext <- W / b; break }
     V[, i + 1L] <- W / b
+    if (metric) BV[, i + 1L] <- BW / b
   }
 
   Tm <- Tm[seq_len(i), seq_len(i), drop = FALSE]
   if (!cplx) Tm <- Re(Tm)
-  list(V = V[, seq_len(i), drop = FALSE], Tm = Tm,
+  list(V = V[, seq_len(i), drop = FALSE],
+       BV = if (metric) BV[, seq_len(i), drop = FALSE], Tm = Tm,
        size = i, applies = applies, vnext = vnext, beta_last = beta_last,
        apply_norm = apply_norm)
 }

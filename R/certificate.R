@@ -256,16 +256,27 @@ cert_level <- function(value, target, floor) {
 ## product of length n carries a rounding error of about n eps for unit
 ## arguments, which is the level a reorthogonalised basis is entitled to reach and
 ## no better.
-cert_add_orthogonality <- function(r, X, floor_const) {
+## With BX = B X the vectors are measured in the B inner product, where the
+## eigenvectors of a definite pencil are orthogonal, each scaled to unit B-norm
+## first.
+cert_add_orthogonality <- function(r, X, floor_const, BX = NULL) {
   eps <- .Machine$double.eps
   k <- ncol(X)
-  orth <- max(Mod(cross_adjoint(X, X) - diag(1, k)))
+  if (is.null(BX)) {
+    orth <- max(Mod(cross_adjoint(X, X) - diag(1, k)))
+    what <- "||X^H X - I||_max"
+  } else {
+    G <- cross_adjoint(X, BX)
+    d <- sqrt(Re(diag(G)))
+    orth <- max(Mod(G / outer(d, d) - diag(1, k)))
+    what <- "||X^H B X - I||_max over B-unit columns"
+  }
   orth_floor <- floor_const * eps * nrow(X)
   r$add("orthogonality",
         if (orth <= orth_floor) "pass"
         else if (orth <= sqrt(eps)) "qualified" else "fail",
-        sprintf("||X^H X - I||_max = %.3e against the dot-product floor %.3e",
-                orth, orth_floor))
+        sprintf("%s = %.3e against the dot-product floor %.3e",
+                what, orth, orth_floor))
   orth
 }
 
@@ -525,10 +536,38 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
 ## growing with nA, and a smaller nA waives the residual for fewer pairs. A
 ## stopping rule that holds a pair to them against a lower bound on ||A|| has
 ## therefore met them against any larger estimate the certificate later uses.
+##
+## A generalized problem A x = theta B x perturbs both operators. The backward
+## error with each perturbation measured against its own operator is
+## ||r|| / ((||A|| + |theta| ||B||) ||x||) (Higham and Higham, SIAM J. Matrix
+## Anal. Appl. 20, 1998), exhibited by perturbations along r x^H; the computed
+## residual's rounding bound has the same denominator, and the residual row reads
+## r against the term it has to cancel, |theta| ||B x||, where scale_bx is
+## ||B x||. Both are monotone in nA and nB as before. With nB NULL it is the
+## standard problem, where B = I is not perturbed.
 ## @noRd
-eigen_pair_bounds <- function(rn, theta, nA, scale_x, tol, floor_const) {
+eigen_pair_bounds <- function(rn, theta, nA, scale_x, tol, floor_const,
+                              nB = NULL, scale_bx = scale_x) {
   eps <- .Machine$double.eps
   if (!is.finite(nA) || nA <= 0) nA <- 1
+  if (!is.null(nB)) {
+    if (!is.finite(nB) || nB <= 0) nB <- 1
+    denom <- (nA + abs(theta) * nB) * scale_x
+    floor_abs <- floor_const * eps * denom
+    backward <- rn / denom
+    backward_floor <- floor_abs / denom
+    against <- abs(theta) * scale_bx
+    meaningful <- against > floor_const * eps * nA * scale_x
+    residual <- ifelse(meaningful, rn / against, NA_real_)
+    residual_floor <- ifelse(meaningful, floor_abs / against, NA_real_)
+    backward_met <- backward <= tol + backward_floor
+    residual_met <- !meaningful | residual <= tol + residual_floor
+    return(list(norm = nA, norm_B = nB, backward = backward,
+                backward_floor = backward_floor, backward_met = backward_met,
+                meaningful = meaningful, residual = residual,
+                residual_floor = residual_floor, residual_met = residual_met,
+                converged = backward_met & residual_met))
+  }
   floor_abs <- floor_const * eps * (nA + abs(theta)) * scale_x
   backward <- rn / (nA * scale_x)
   backward_floor <- floor_abs / (nA * scale_x)
@@ -585,7 +624,9 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
                               floor_const = SOLVE_FLOOR_CONST,
                               norm_lower_bound = 0,
                               hermitian_evidence = NULL, requested = NULL,
-                              stop_reason = NULL, subject = "eigen") {
+                              stop_reason = NULL, subject = "eigen",
+                              B = NULL, norm_estimate_B = NULL,
+                              norm_lower_bound_B = 0, definite_evidence = NULL) {
   r <- cert_rows()
   eps <- .Machine$double.eps
   X <- as_block(vectors)
@@ -605,27 +646,35 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   ## The true residual, recomputed here and not taken from the iteration, for the
   ## reason the solve certificate recomputes b - A x: what a recurrence believes
   ## about itself drifts, and it drifts where the answer is most converged.
-  R <- linop_apply(A, X, "N") - scale_cols(X, theta)
+  gen <- !is.null(B)
+  BX <- if (gen) linop_apply(B, X, "N") else X
+  R <- linop_apply(A, X, "N") - scale_cols(BX, theta)
   rn <- col_norms(R)
   xn <- col_norms(X)
   scale_x <- ifelse(xn > 0, xn, 1)
 
-  norm_is_exact <- evidence_satisfies(norm_estimate$evidence,
-                                      requirement(guarantees = "identity"))
-  nA <- if (norm_is_exact) norm_estimate$value
+  exact <- function(est) evidence_satisfies(est$evidence, requirement(guarantees = "identity"))
+  norm_is_exact <- exact(norm_estimate) && (!gen || exact(norm_estimate_B))
+  nA <- if (exact(norm_estimate)) norm_estimate$value
         else max(norm_estimate$value, norm_lower_bound)
+  nB <- if (!gen) NULL
+        else if (exact(norm_estimate_B)) norm_estimate_B$value
+        else max(norm_estimate_B$value, norm_lower_bound_B)
   norm_guarantee <- if (norm_is_exact) "identity" else "estimate"
   norm_conf <- if (norm_is_exact) 1 else NA_real_
-  b <- eigen_pair_bounds(rn, theta, nA, scale_x, tol, floor_const)
+  b <- eigen_pair_bounds(rn, theta, nA, scale_x, tol, floor_const, nB, col_norms(BX))
   nA <- b$norm
+  nB <- b$norm_B
   bw <- b$backward; bw_floor <- b$backward_floor; met <- b$backward_met
   meaningful <- b$meaningful
   rel <- b$residual; rel_floor <- b$residual_floor; met_r <- b$residual_met
 
   ## ------------------------------------------------------------- floor row --
   r$add("arithmetic floor", "pass",
-        sprintf("||A|| ~ %.4g by %s; c = %g, eps = %.3g, worst backward floor %.3e",
-                nA, norm_estimate$method, floor_const, eps, max(bw_floor)),
+        sprintf("||A|| ~ %.4g by %s%s; c = %g, eps = %.3g, worst backward floor %.3e",
+                nA, norm_estimate$method,
+                if (gen) sprintf(", ||B|| ~ %.4g by %s", nB, norm_estimate_B$method) else "",
+                floor_const, eps, max(bw_floor)),
         source = norm_estimate$evidence$source,
         guarantee = norm_guarantee, confidence = norm_conf)
 
@@ -637,7 +686,9 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         else if (floored) "qualified"
         else if (all(met_r) && all(met)) "not_checked"
         else "fail",
-        sprintf("worst ||A x - theta x|| / (|theta| ||x||) = %.3e against tol %.3e%s",
+        sprintf("worst %s = %.3e against tol %.3e%s",
+                if (gen) "||A x - theta B x|| / (|theta| ||B x||)"
+                else "||A x - theta x|| / (|theta| ||x||)",
                 if (any(meaningful)) max(rel[meaningful]) else NA_real_, tol,
                 if (clean) ""
                 else if (!all(meaningful))
@@ -656,10 +707,11 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   if (is.null(hermitian_evidence)) {
     orth <- NA_real_
     r$add("orthogonality", "not_checked",
-          "the operator is not established hermitian, and the eigenvectors of a non-normal operator are not orthogonal",
+          if (gen) "the pencil is not established hermitian with B positive definite, and only then are its eigenvectors B-orthogonal"
+          else "the operator is not established hermitian, and the eigenvectors of a non-normal operator are not orthogonal",
           source = "computation", guarantee = "identity", confidence = NA_real_)
   } else {
-    orth <- cert_add_orthogonality(r, X, floor_const)
+    orth <- cert_add_orthogonality(r, X, floor_const, if (gen) BX)
   }
 
   ## ---------------------------------------------------- backward error row --
@@ -673,7 +725,9 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   bfloored <- all(met)
   r$add("backward error",
         if (bclean) "pass" else if (bfloored) "qualified" else "fail",
-        sprintf("worst ||A x - theta x|| / (||A|| ||x||) = %.3e against tol %.3e",
+        sprintf("worst %s = %.3e against tol %.3e",
+                if (gen) "||A x - theta B x|| / ((||A|| + |theta| ||B||) ||x||)"
+                else "||A x - theta x|| / (||A|| ||x||)",
                 max(bw), tol),
         guarantee = if (bclean) norm_guarantee else "estimate",
         confidence = if (bclean) norm_conf else NA_real_)
@@ -697,6 +751,16 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
   ## The one line in the package that carries a theorem rather than a
   ## measurement, and it carries the declaration it rests on with it.
   fwd_abs <- rn / scale_x
+  if (gen) {
+    fwd <- eigen_forward_generalized(r, A, B, X, BX, R, theta, tol, nA, nB,
+                                     hermitian_evidence, definite_evidence)
+    return(build_certificate(r$collect(), subject = subject,
+                             values = list(residual = rel, backward_error = bw,
+                                           forward_bound = fwd, orthogonality = orth,
+                                           norm = nA, norm_B = nB, floor = bw_floor,
+                                           converged = b$converged),
+                             evidence = r$collect_evidence()))
+  }
   ## Without the hermitian declaration the exhibited E still makes theta an
   ## exact eigenvalue of A + E, which puts theta in the ||r||/||x||
   ## pseudospectrum of A. How far that set reaches from the spectrum is the
@@ -748,4 +812,42 @@ eigen_certificate_empty <- function(r, requested, iterations, maxit,
                                   norm = NA_real_, floor = numeric(0),
                                   converged = logical(0)),
                     evidence = r$collect_evidence())
+}
+
+## The forward row of a generalized problem. For A hermitian and B hermitian
+## positive definite the pencil is a hermitian operator in the B inner product,
+## and Weyl's argument there gives
+##
+##     min_j |theta - lambda_j| <= ||r||_{B^-1} / ||x||_B
+##
+## (Parlett, The Symmetric Eigenvalue Problem, ch. 15). ||r||_{B^-1} needs
+## r^H B^-1 r, a solve with B per pair, so the row is the theorem's bound
+## through an inner solve: an estimate, held against the eigenvalue change a
+## backward error of tol allows on a pencil with ||B^-1|| near 1/||B||,
+## tol (||A|| / ||B|| + |theta|). Without definiteness the residual places theta
+## in a pseudospectrum of the pencil and no distance is claimed.
+eigen_forward_generalized <- function(r, A, B, X, BX, R, theta, tol, nA, nB,
+                                      hermitian_evidence, definite_evidence) {
+  if (is.null(hermitian_evidence)) {
+    rn <- col_norms(R) / pmax(col_norms(X), .Machine$double.xmin)
+    r$add("forward error", "not_checked",
+          sprintf(paste0("theta lies in the %.3e-pseudospectrum of the pencil (A, B); a distance to an eigenvalue ",
+                         "needs A hermitian and B hermitian positive definite, or an eigenvector condition number"),
+                  max(rn)),
+          source = "computation", guarantee = "identity", confidence = NA_real_)
+    return(rn)
+  }
+  Z <- solve(B, R, tol = min(1e-12, tol * 1e-2))
+  attr(Z, "certificate") <- NULL
+  rB <- sqrt(pmax(col_dot(R, Z), 0))
+  xB <- sqrt(pmax(col_dot(X, BX), .Machine$double.xmin))
+  bound <- rB / xB
+  allowed <- tol * (nA / nB + abs(theta))
+  r$add("forward error", if (all(bound <= allowed)) "pass" else "fail",
+        sprintf(paste0("min_j |theta - lambda_j(A, B)| <= ||r||_{B^-1} / ||x||_B = %.3e, against %.3e; ",
+                       "the B^-1 norm is from an inner solve with B"),
+                max(bound), max(allowed)),
+        evidence = evidence("theorem", "estimate", NA_real_,
+                            depends_on = c(list(hermitian_evidence), definite_evidence)))
+  bound
 }
