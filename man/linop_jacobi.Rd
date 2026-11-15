@@ -23,10 +23,15 @@ allowed as the limiting value.}
 \item{from}{The index of `diagonal[1]`. The default centres the window on the
 origin.}
 
-\item{diagonal_limit}{The value the diagonal takes outside the window.}
+\item{diagonal_limit}{The value the diagonal takes outside the window, or one
+period of values: outside the window `a_j = diagonal_limit[(j mod P) + 1]`.
+With periodic limits the essential spectrum is a union of bands with gaps
+between them, and the certificate measures isolation against the nearest
+band.}
 
-\item{offdiagonal_limit}{The value the off-diagonal takes outside the window.
-Defaults to `offdiagonal` when that is a single number.}
+\item{offdiagonal_limit}{The value the off-diagonal takes outside the window,
+or one period of values, anchored the same way. Defaults to `offdiagonal`
+when that is a single number.}
 }
 \value{
 A `linop` of dimension `Inf x Inf`.

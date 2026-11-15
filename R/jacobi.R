@@ -28,9 +28,14 @@
 ## Where the coefficients sit. b_j couples j and j+1, so the couplings incident to
 ## a diagonal window [first, last] run from b_{first-1} to b_{last}: one more than
 ## there are diagonal entries, which is the alignment linop_jacobi() documents.
+##
+## The limits may be periodic: a_j = a_inf[(j mod P) + 1] outside the window, and
+## likewise b_j, anchored to the absolute index so that the window and the tail
+## agree about which period they are in.
 jacobi_a <- function(A, j) {
   lo <- A$args$first
-  out <- rep(A$args$a_inf, length(j))
+  lim <- A$args$a_inf
+  out <- lim[(j %% length(lim)) + 1L]
   inw <- j >= lo & j <= lo + length(A$args$a) - 1L
   out[inw] <- A$args$a[j[inw] - lo + 1L]
   out
@@ -38,15 +43,45 @@ jacobi_a <- function(A, j) {
 
 jacobi_b <- function(A, j) {
   lo <- A$args$first - 1L
-  out <- rep(A$args$b_inf, length(j))
+  lim <- A$args$b_inf
+  out <- lim[(j %% length(lim)) + 1L]
   inw <- j >= lo & j <= lo + length(A$args$b) - 1L
   out[inw] <- A$args$b[j[inw] - lo + 1L]
   out
 }
 
-## The essential spectrum, exact. See the file header.
+## The essential spectrum, exact for constant limits. For period-P limits it is
+## the union of P bands, and by Floquet theory band k runs between the k-th
+## eigenvalues of the P x P Bloch matrices at theta = 0 and theta = pi (the band
+## functions are monotone on [0, pi]), so the edges are eigenvalues of two small
+## matrices: computed, to rounding. One row per band.
+jacobi_bands <- function(A) {
+  a <- A$args$a_inf; b <- A$args$b_inf
+  P <- length(a)
+  if (P == 1L) return(matrix(a + c(-2, 2) * abs(b), 1L))
+  bloch <- function(theta) {
+    H <- matrix(0i, P, P)
+    diag(H) <- a
+    for (j in seq_len(P - 1L)) { H[j, j + 1L] <- b[j]; H[j + 1L, j] <- b[j] }
+    w <- b[P] * exp(1i * theta)
+    H[P, 1L] <- H[P, 1L] + w; H[1L, P] <- H[1L, P] + Conj(w)
+    sort(Re(eigen(H, symmetric = TRUE, only.values = TRUE)$values))
+  }
+  e0 <- bloch(0); epi <- bloch(pi)
+  cbind(pmin(e0, epi), pmax(e0, epi))
+}
+
+## The hull of the essential spectrum, its lowest and highest point.
 jacobi_band <- function(A) {
-  A$args$a_inf + c(-2, 2) * abs(A$args$b_inf)
+  B <- jacobi_bands(A)
+  c(min(B[, 1L]), max(B[, 2L]))
+}
+
+## The signed distance from each value to the essential spectrum: positive
+## outside every band, negative inside one.
+jacobi_band_gap <- function(A, q) {
+  B <- jacobi_bands(A)
+  vapply(q, function(x) min(pmax(x - B[, 2L], B[, 1L] - x)), numeric(1))
 }
 
 ## An upper bound on ||H||, closed form. H is self-adjoint, so its spectral radius
@@ -62,9 +97,10 @@ jacobi_band <- function(A) {
 ## safe direction is the other one.
 jacobi_norm_bound <- function(A) {
   lo <- A$args$first - 1L
-  j <- seq.int(lo, lo + length(A$args$b))
-  max(abs(jacobi_a(A, j)) + abs(jacobi_b(A, j - 1L)) + abs(jacobi_b(A, j)),
-      abs(A$args$a_inf) + 2 * abs(A$args$b_inf))
+  P <- length(A$args$a_inf) * length(A$args$b_inf)
+  ## the window, and one whole period of the limits beyond it on each side
+  j <- seq.int(lo - P, lo + length(A$args$b) + P)
+  max(abs(jacobi_a(A, j)) + abs(jacobi_b(A, j - 1L)) + abs(jacobi_b(A, j)))
 }
 
 ## The operator has no block to act on, so nothing routes here through
@@ -104,9 +140,14 @@ jacobi_apply <- function(op, X, mode) {
 #'   allowed as the limiting value.
 #' @param from The index of `diagonal[1]`. The default centres the window on the
 #'   origin.
-#' @param diagonal_limit The value the diagonal takes outside the window.
-#' @param offdiagonal_limit The value the off-diagonal takes outside the window.
-#'   Defaults to `offdiagonal` when that is a single number.
+#' @param diagonal_limit The value the diagonal takes outside the window, or one
+#'   period of values: outside the window `a_j = diagonal_limit[(j mod P) + 1]`.
+#'   With periodic limits the essential spectrum is a union of bands with gaps
+#'   between them, and the certificate measures isolation against the nearest
+#'   band.
+#' @param offdiagonal_limit The value the off-diagonal takes outside the window,
+#'   or one period of values, anchored the same way. Defaults to `offdiagonal`
+#'   when that is a single number.
 #' @return A `linop` of dimension `Inf x Inf`.
 #' @examples
 #' ## the potential v at the origin, whose top eigenvalue is sign(v) sqrt(v^2 + 4)
@@ -137,17 +178,22 @@ linop_jacobi <- function(diagonal, offdiagonal = 1, from = NULL,
   }
   offdiagonal_limit <- offdiagonal_limit %||%
     (if (length(offdiagonal) == 1L) offdiagonal else 1)
-  if (!is.numeric(offdiagonal_limit) || length(offdiagonal_limit) != 1L ||
-      !is.finite(offdiagonal_limit) || offdiagonal_limit == 0) {
-    stopf(paste0("offdiagonal_limit must be a single nonzero real number.\n",
+  if (!is.numeric(offdiagonal_limit) || !length(offdiagonal_limit) ||
+      !all(is.finite(offdiagonal_limit)) || any(offdiagonal_limit == 0)) {
+    stopf(paste0("offdiagonal_limit must be nonzero real numbers, one period of them.\n",
                  "  At zero the operator has no coupling outside the window at all, so it is a\n",
                  "  direct sum of a finite matrix and a multiplication operator rather than a\n",
                  "  Jacobi operator, and its essential spectrum is a set of points."))
   }
-  if (!is.numeric(diagonal_limit) || length(diagonal_limit) != 1L ||
-      !is.finite(diagonal_limit)) {
-    stopf("diagonal_limit must be a single finite real number")
+  if (!is.numeric(diagonal_limit) || !length(diagonal_limit) ||
+      !all(is.finite(diagonal_limit))) {
+    stopf("diagonal_limit must be finite real numbers, one period of them")
   }
+  ## one period for both, of the length both divide
+  per <- length(diagonal_limit) * length(offdiagonal_limit) /
+    gcd_int(length(diagonal_limit), length(offdiagonal_limit))
+  diagonal_limit <- rep_len(as.numeric(diagonal_limit), per)
+  offdiagonal_limit <- rep_len(as.numeric(offdiagonal_limit), per)
   from <- as.integer(from %||% -((L - 1L) %/% 2L))
   if (is.na(from)) stopf("from must be a single whole number")
   b <- if (length(offdiagonal) == 1L) rep(offdiagonal, L + 1L) else offdiagonal
@@ -195,6 +241,7 @@ decay_rate <- function(A, lambda) {
   if (!is.numeric(lambda) || !length(lambda)) {
     stopf("lambda must be a real vector of at least one value")
   }
+  if (length(P$args$a_inf) > 1L) return(periodic_decay_rate(P, lambda))
   ## Written as the reciprocal of the growing root rather than as the difference
   ## of two nearly equal numbers: |mu|/2 - sqrt((mu/2)^2 - 1) cancels to nothing
   ## for a well separated eigenvalue, which is the case this is most used on.
@@ -202,6 +249,31 @@ decay_rate <- function(A, lambda) {
   s <- sqrt(pmax(h^2 - 1, 0))
   ifelse(h > 1, 1 / (h + s), NA_real_)
 }
+
+## Periodic limits: the free recurrence b_j u_{j+1} = (lambda - a_j) u_j -
+## b_{j-1} u_{j-1} over one period is a 2 x 2 transfer matrix M of determinant 1,
+## so its eigenvalues are reciprocal; outside the bands |tr M| > 2 and the
+## smaller one, per period, is the decay. Per site it is that to the power 1/P,
+## which the width search divides by; within a period the tail oscillates about
+## that rate rather than following it exactly.
+periodic_decay_rate <- function(P, lambda) {
+  a <- P$args$a_inf; b <- P$args$b_inf
+  per <- length(a)
+  vapply(lambda, function(l) {
+    M <- diag(2)
+    for (j in seq_len(per)) {
+      bprev <- b[((j - 2L) %% per) + 1L]
+      Tj <- matrix(c((l - a[j]) / b[j], 1, -bprev / b[j], 0), 2L)
+      M <- Tj %*% M
+    }
+    tr <- M[1, 1] + M[2, 2]
+    if (abs(tr) <= 2) return(NA_real_)
+    h <- abs(tr) / 2
+    (1 / (h + sqrt(h^2 - 1)))^(1 / per)
+  }, numeric(1))
+}
+
+gcd_int <- function(x, y) if (y == 0L) x else gcd_int(y, x %% y)
 
 ## The Jacobi operator behind whatever was handed in, so decay_rate() and the
 ## certificate read the same argument off a section as off the operator itself.

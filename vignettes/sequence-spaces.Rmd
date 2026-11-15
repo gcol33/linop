@@ -319,6 +319,38 @@ hunt$widths
 hunt$certificate$dispatch$reason
 ```
 
+## A gap, and a point that is not there
+
+With periodic limits the essential spectrum is several bands with gaps between
+them. Couplings alternating `1` and `0.4` give two bands and the gap
+`(-0.6, 0.6)`, and the operator itself has no eigenvalue at all. Every finite
+section of it has one anyway, at 0, with its eigenvector sitting at the cut.
+A computation on the section cannot tell that point from a real one; the
+truncation term, which is the residual on the infinite operator, can:
+
+```{r pollution}
+gapped <- linop_jacobi(diagonal = 0, offdiagonal = c(0.4, 1),
+                       offdiagonal_limit = c(1, 0.4))
+invented <- eigs(finite_section(gapped, 20), k = 1, sigma = 0.1)
+c(value = invented$values, truncation = max(invented$certificate$values$truncation))
+invented$certificate$overall
+```
+
+A defect at the origin puts a genuine eigenvalue in the gap, and that one
+certifies:
+
+```{r pollution-real}
+defect <- linop_jacobi(diagonal = 0.3, offdiagonal = c(0.4, 1),
+                       offdiagonal_limit = c(1, 0.4))
+real <- eigs(defect, k = 1, sigma = -0.58)
+c(value = real$values, truncation = max(real$certificate$values$truncation))
+real$certificate$overall
+```
+
+The invented point is not refused; it comes back with a `fail` on the rows that
+are about the operator underneath, which is the information a refusal would
+have thrown away.
+
 ## Functions on the circle
 
 A function on the circle is its Fourier coefficients, a sequence on the

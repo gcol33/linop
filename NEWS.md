@@ -68,6 +68,12 @@ First development release. The finite object model and the expression graph.
   trigonometric polynomial. `eigs()` runs on it directly, chooses the
   truncation, and certifies against the operator on the circle with an exact
   truncation term; `finite_section()` truncates it by hand.
+* `linop_jacobi()` takes periodic limits: `diagonal_limit` and
+  `offdiagonal_limit` may be one period of values, the essential spectrum is
+  then a union of bands, and the certificate measures isolation against the
+  nearest band. A point a finite section invents in a gap comes back with a
+  failing truncation row, since its eigenvector sits at the cut; a genuine gap
+  eigenvalue certifies.
 * `linop_space("chebyshev", derivative, multiplier, boundary)` is a
   differential operator on `[-1, 1]` with polynomial coefficients and boundary
   conditions, held in the ultraspherical method: banded from Chebyshev

@@ -111,9 +111,10 @@ section_target <- function(P, tol) tol * jacobi_norm_bound(P)
 ##
 ##     r_{n+1} = b_n u_n,      r_{-(n+1)} = b_{-(n+1)} u_{-n},
 ##
-## and both coefficients are b_inf, since n exceeds the window. So
+## and both coefficients are limits, since n exceeds the window: b_inf itself for
+## constant limits, the period's entry at the cut for periodic ones. So
 ##
-##     ||(H - q) u~||^2 = ||(H_n - q) u||^2 + b_inf^2 (u_n^2 + u_{-n}^2)
+##     ||(H - q) u~||^2 = ||(H_n - q) u||^2 + b_n^2 u_n^2 + b_{-(n+1)}^2 u_{-n}^2
 ##
 ## exactly. The two terms are separately reportable and separately actionable: the
 ## first is what the eigensolve left behind and answers to tol and ncv, the second
@@ -148,7 +149,10 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
 
   hn <- jacobi_norm_bound(P)
   band <- jacobi_band(P)
-  b_inf <- abs(P$args$b_inf)
+  bands <- jacobi_bands(P)
+  ## the two couplings the truncation cut, b_n and b_{-(n+1)}: the limit for
+  ## constant limits, the period's entry at the cut for periodic ones
+  b_cut <- abs(jacobi_b(P, c(-n - 1L, n)))
   flr <- floor_const * eps * hn
   want <- section_target(P, tol)
 
@@ -158,7 +162,7 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
   xn <- col_norms(X)
   sx <- ifelse(xn > 0, xn, 1)
   res <- col_norms(linop_apply(A, X, "N") - scale_cols(X, q)) / sx
-  trunc <- b_inf * sqrt(Mod(X[1L, ])^2 + Mod(X[m, ])^2) / sx
+  trunc <- sqrt(b_cut[1L]^2 * Mod(X[1L, ])^2 + b_cut[2L]^2 * Mod(X[m, ])^2) / sx
   total <- sqrt(res^2 + trunc^2)
   bound <- total + flr
   met <- bound <= want
@@ -201,11 +205,12 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
   ## spectrum within `bound` of it has shown a genuine eigenvalue only if that
   ## whole neighbourhood clears the band; inside it, the finite section is
   ## resolving continuous spectrum and there is no eigenvalue to certify.
-  gap <- pmax(q - band[2L], band[1L] - q)
+  gap <- jacobi_band_gap(P, q)
   isolated <- gap > bound
   r$add("isolation", if (all(isolated)) "pass" else "fail",
-        sprintf("sigma_ess(H) = [%.6g, %.6g] by Weyl; the closest value clears it by %.3e against the error bound %.3e%s",
-                band[1L], band[2L], min(gap), max(bound),
+        sprintf("sigma_ess(H) = %s by Weyl; the closest value clears it by %.3e against the error bound %.3e%s",
+                paste(sprintf("[%.6g, %.6g]", bands[, 1L], bands[, 2L]), collapse = " u "),
+                min(gap), max(bound),
                 if (all(isolated)) ""
                 else sprintf("; %d of %d values have not separated from the continuum",
                              sum(!isolated), k)),
@@ -233,18 +238,23 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
   ## last bit is not one a certificate may state. The Temple end is an inequality
   ## about the same computed q, so it carries the floor as well: at n = 40 and
   ## v = 1 the half-width is 2.8e-17 and q sits 4.4e-16 below sqrt(5).
+  ## The bracket's free end is the variational principle, which holds only for a
+  ## value beyond every band, so a value in an interior gap of periodic limits
+  ## gets no bracket.
   above <- q > band[2L]
+  outside <- q > band[2L] | q < band[1L]
   adjacent <- vapply(seq_len(k), function(i) {
-    if (!isolated[i]) return(FALSE)
+    if (!isolated[i] || !outside[i]) return(FALSE)
     others <- seq_len(k) != i & isolated & above == above[i]
     if (above[i]) !any(others & q < q[i]) else !any(others & q > q[i])
   }, logical(1))
   if (!any(adjacent)) {
     r$add("enclosure", "not_checked",
-          "no value has separated from the essential spectrum, so there is no isolated eigenvalue to bracket",
+          "no value beyond every band has separated from the essential spectrum, so there is no extreme isolated eigenvalue to bracket",
           source = "theorem", guarantee = "estimate", confidence = NA_real_)
   } else {
-    half <- ifelse(adjacent, bound^2 / gap, NA_real_)
+    edge_gap <- pmax(q - band[2L], band[1L] - q)
+    half <- ifelse(adjacent, bound^2 / edge_gap, NA_real_)
     lo <- ifelse(above, q - flr, q - half - flr)
     hi <- ifelse(above, q + half + flr, q + flr)
     r$add("enclosure", cert_level(max(half[adjacent]), want, flr),
@@ -311,9 +321,10 @@ register_section_node <- function() {
 ## exactly geometric rather than asymptotically so. The certificate's truncation
 ## term
 ##
-##     eta(n) = |b_inf| sqrt(u_{-n}^2 + u_n^2) / ||u||
+##     eta(n) = sqrt(b_{-(n+1)}^2 u_{-n}^2 + b_n^2 u_n^2) / ||u||
 ##
-## therefore satisfies eta(n') = eta(n) rho^(n' - n), and the width that brings
+## therefore satisfies eta(n') = eta(n) rho^(n' - n) for constant limits (and
+## about it, oscillating within a period, for periodic ones), and the width that brings
 ## it to a target is
 ##
 ##     n' = n + log(target / eta(n)) / log(rho),
@@ -384,10 +395,20 @@ section_eigs <- function(A, k, control, args) {
   want <- section_target(P, args$tol)
   width_search(P, n, n_max, k, args, accept = want / 2,
                predict = function(v, history) {
+                 n_now <- history$n[nrow(history)]
                  rate <- is.finite(v$decay) & v$decay < 1 & v$truncation > 0
-                 if (!any(rate)) return(2L * history$n[nrow(history)])
-                 as.integer(ceiling(max(
+                 if (!any(rate)) return(2L * n_now)
+                 pred <- as.integer(ceiling(max(
                    v$n + log(want * SECTION_N_AIM / v$truncation[rate]) / log(v$decay[rate]))))
+                 ## With constant limits the rate is exact and the division is
+                 ## trusted. With periodic ones a value in a gap may be a point
+                 ## the truncation invented, whose tail is pinned to the cut and
+                 ## never shrinks; its rate still divides, and asks for n_max at
+                 ## once, a shift-invert solve on 20001 columns to learn what the
+                 ## next modest width would show. So the step is at most four
+                 ## times the width there.
+                 if (length(P$args$a_inf) > 1L) pred <- min(pred, 4L * n_now)
+                 pred
                })
 }
 
@@ -409,7 +430,12 @@ width_search <- function(P, n, n_max, k, args, accept, predict) {
     history <- rbind(history, data.frame(n = n, eta = eta))
     if (eta <= (if (is.function(accept)) accept(v) else accept)) { why <- "the tail is below half the tolerance"; break }
     if (n >= n_max) { why <- sprintf("n_max = %d", n_max); break }
-    if (eta >= prev) { why <- "widening stopped shrinking the tail"; break }
+    ## Not shrinking means not by more than one part in a million: a tail pinned
+    ## to the cut is constant in exact arithmetic (0.916515138991168 at widths 41
+    ## to 203 for the point a section of a gapped periodic operator invents) and
+    ## carries the eigensolver's tolerance-level noise here, while a geometric
+    ## tail falls by at least rho per added index.
+    if (eta >= prev * (1 - 1e-6)) { why <- "widening stopped shrinking the tail"; break }
     n <- min(max(n + 1L, predict(v, history)), n_max)
   }
   widths <- history$n
