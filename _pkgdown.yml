@@ -57,6 +57,15 @@ reference:
   - linop_scaling
   - is_linop
   - dtype
+- title: Structured operators
+  desc: |
+    Operators built from others whose structure is kept as a node, so it applies matrix-free and its capabilities follow from the parts. cbind() and rbind() stack operators, and solve(a) with no right-hand side is the exact inverse where one exists.
+  contents:
+  - linop_kron
+  - linop_blockdiag
+  - linop_lowrank
+  - linop_perm
+  - linop_power
 - title: Operators on a sequence space
   desc: |
     An operator whose index set is infinite, the truncation that makes it computable, and the rate its eigenvectors decay at. What comes back from the truncation is an ordinary operator, and what comes back from a spectral computation on it is a statement about the operator underneath.

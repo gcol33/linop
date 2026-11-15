@@ -120,8 +120,17 @@ diag_solve <- function(A, b, tol, floor_const, norm_control) {
 #' the package runs. Either way the result records which happened, what residual
 #' was reached, and what argument establishes it.
 #'
+#' With `b` missing, `solve(a)` returns the inverse as a `linop`, but only where
+#' it is exact and fixed before any vector is seen: a stored matrix inverted
+#' once, or a structure whose inverse is known (identity, nonzero diagonal,
+#' permutation, unitary, scale, transpose and adjoint, and products, Kronecker
+#' products, block diagonals and powers of those). An iterative solve is not a
+#' linear operator, since what it applies depends on the vector it is given, so
+#' anything else is refused with `solve(a, b)` named.
+#'
 #' @param a A `linop`.
-#' @param b A vector or block of right-hand sides.
+#' @param b A vector or block of right-hand sides, or missing for the exact
+#'   inverse.
 #' @param method `"auto"`, or one of `"cg"`, `"minres"`, `"gmres"`, `"fgmres"`,
 #'   `"bicgstab"`, `"lsqr"`, `"lsmr"`. Naming a method is the caller asserting
 #'   their own declaration and is not filtered by evidence; `"auto"` is the
@@ -145,9 +154,8 @@ solve.linop <- function(a, b, method = "auto", preconditioner = NULL,
                         tol = 1e-8, maxit = NULL, x0 = NULL, details = FALSE,
                         control = list(), ...) {
   if (missing(b)) {
-    stopf(paste0("solve() on a linop needs a right-hand side.\n",
-                 "  solve(a) would be the inverse, which is not formed here: a linop is defined by\n",
-                 "  its action, and an explicit inverse is the one thing that is never available."))
+    require_finite_dim(a, "solve")
+    return(exact_inverse(a))
   }
   if (!is_scalar_string(method)) stopf("method must be a single string")
   if (!method %in% c("auto", SOLVE_METHODS)) {

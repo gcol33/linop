@@ -55,18 +55,19 @@ test_that("the registry refuses a duplicate without overwrite", {
                                             overwrite = TRUE))
 })
 
-test_that("all v0.1 node types are registered and none of the deferred ones are", {
+test_that("every node type of section 5.7 is registered, and zero is not a node", {
   have <- linop:::linop_nodes()
   v01 <- c("dense", "sparse", "fun", "identity", "diag",
            "transpose", "adjoint", "conjugate", "scale", "sum", "product")
   expect_true(all(v01 %in% have))
-
-  ## Section 5.7 defers these until an external adapter has exercised the
-  ## registry. If one appears, it was added from inside, which is what the
-  ## deferral exists to prevent.
-  deferred <- c("lowrank", "perm", "zero", "power", "inverse",
-                "hstack", "vstack", "blockdiag", "kron")
-  expect_equal(intersect(deferred, have), character(0))
+  ## The deferral of section 5.7 waited for an external engine to exercise the
+  ## registry; RSpectra and PRIMME have, and these landed together.
+  structured <- c("lowrank", "perm", "power", "inverse", "hstack", "vstack",
+                  "blockdiag", "kron")
+  expect_true(all(structured %in% have))
+  ## A rank-zero lowrank is the zero operator, so zero needs no node of its own.
+  expect_false("zero" %in% have)
+  expect_equal(max(abs(as.matrix(linop_lowrank(matrix(0, 3, 0), matrix(0, 2, 0))))), 0)
 })
 
 test_that("a node returning the wrong shape is caught", {

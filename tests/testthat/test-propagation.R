@@ -137,3 +137,102 @@ test_that("a Gram product is definite only on the side where full rank means inj
   G <- as.matrix(adjoint(wide) %*% wide)
   expect_lt(min(eigen(G, symmetric = TRUE, only.values = TRUE)$values), 1e-10)
 })
+
+## ---------------------------------------------------------- structured nodes --
+
+is_psd <- function(M) {
+  is_herm(M) && min(eigen((M + Conj(t(M))) / 2, symmetric = TRUE, only.values = TRUE)$values) > -1e-8
+}
+is_pd <- function(M) {
+  is_herm(M) && min(eigen((M + Conj(t(M))) / 2, symmetric = TRUE, only.values = TRUE)$values) > 1e-10
+}
+is_unitary <- function(M) isTRUE(all.equal(Conj(t(M)) %*% M, diag(ncol(M)), check.attributes = FALSE))
+full_rank_of <- function(M) qr(M)$rank == min(dim(M))
+
+## Every capability the lattice claims on a structured node, checked against its
+## materialisation, over operands with a mix of established, declared and
+## unknown capabilities.
+expect_structured_sound <- function(A, label) {
+  expect_sound(A, label)
+  M <- as.matrix(A)
+  if (isTRUE(capv(A, "positive_definite"))) expect_true(is_pd(M), info = paste(label, "pd"))
+  if (isTRUE(capv(A, "positive_semidefinite"))) expect_true(is_psd(M), info = paste(label, "psd"))
+  if (isTRUE(capv(A, "unitary"))) expect_true(is_unitary(M), info = paste(label, "unitary"))
+  if (isTRUE(capv(A, "full_rank"))) expect_true(full_rank_of(M), info = paste(label, "full rank"))
+  if (isTRUE(capv(A, "triangular_upper"))) expect_true(all(M[lower.tri(M)] == 0), info = paste(label, "upper"))
+}
+
+operand_pool <- function(seed) {
+  set.seed(seed)
+  H <- crossprod(rmat(3, 3)) + diag(3)
+  Z <- zmat(3, 3); Hz <- Conj(t(Z)) %*% Z + diag(3)
+  list(
+    hpd = linop(H, properties = c(positive_definite = TRUE)),
+    hpdz = linop(Hz, properties = c(positive_definite = TRUE)),
+    sym_indef = linop(H - 3 * diag(3)),
+    general = linop(rmat(3, 3)),
+    complex = linop(zmat(3, 3)),
+    tall = linop(rmat(4, 2), properties = c(full_rank = TRUE)),
+    wide = linop(rmat(2, 4), properties = c(full_rank = TRUE)),
+    upper = linop(upper.tri(diag(3), diag = TRUE) * rmat(3, 3),
+                  properties = c(triangular_upper = TRUE)),
+    perm = linop_perm(c(2, 3, 1)),
+    involution = linop_perm(c(3, 2, 1)),
+    eye = linop_eye(3),
+    diag = linop_scaling(c(1, -2, 3)))
+}
+
+test_that("the structured nodes claim nothing their materialisation contradicts", {
+  for (seed in 1:5) {
+    pool <- operand_pool(seed)
+    nm <- names(pool)
+    for (i in nm) for (j in nm) {
+      A <- pool[[i]]; B <- pool[[j]]
+      expect_structured_sound(linop_kron(A, B), paste("kron", i, j, seed))
+      expect_structured_sound(linop_blockdiag(A, B), paste("blockdiag", i, j, seed))
+      if (A$dim[1L] == B$dim[1L]) expect_structured_sound(cbind(A, B), paste("cbind", i, j, seed))
+      if (A$dim[2L] == B$dim[2L]) expect_structured_sound(rbind(A, B), paste("rbind", i, j, seed))
+    }
+    for (i in nm) {
+      A <- pool[[i]]
+      if (A$dim[1L] != A$dim[2L]) next
+      for (k in 0:3) expect_structured_sound(linop_power(A, k), paste("power", i, k, seed))
+      if (i %in% c("hpd", "hpdz", "general", "complex", "upper", "perm", "involution", "eye", "diag")) {
+        expect_structured_sound(solve(A), paste("inverse", i, seed))
+      }
+    }
+  }
+})
+
+test_that("the structured rules fire where they should", {
+  pool <- operand_pool(1)
+  expect_true(isTRUE(capv(linop_kron(pool$hpd, pool$hpdz), "positive_definite")))
+  expect_true(isTRUE(capv(linop_blockdiag(pool$hpd, pool$eye), "positive_definite")))
+  expect_true(isTRUE(capv(linop_power(pool$sym_indef, 2), "positive_semidefinite")))
+  expect_true(isTRUE(capv(linop_kron(pool$perm, pool$involution), "unitary")))
+  expect_true(isTRUE(capv(pool$involution, "symmetric")))
+  expect_false(isTRUE(capv(pool$perm, "symmetric")))
+  expect_true(isTRUE(capv(solve(pool$upper), "triangular_upper")))
+  ## a tall and a wide factor of full rank give no full rank: 4 x 2 (x) 2 x 4 is
+  ## 8 x 8 of rank 4
+  expect_true(is.na(capv(linop_kron(pool$tall, pool$wide), "full_rank")))
+  expect_false(full_rank_of(as.matrix(linop_kron(pool$tall, pool$wide))))
+  expect_true(isTRUE(capv(cbind(pool$wide, linop(rmat(2, 3))), "full_rank")))
+  expect_true(isTRUE(capv(rbind(pool$tall, linop(rmat(3, 2))), "full_rank")))
+  expect_true(isTRUE(capv(linop_lowrank(rmat(5, 2), d = c(2, 1)), "positive_semidefinite")))
+  expect_true(is.na(capv(linop_lowrank(rmat(5, 2), d = c(2, -1)), "positive_semidefinite")))
+})
+
+test_that("a bare declaration under a structured node stays visible at the top", {
+  ## section 5.3's laundering case through the new rules
+  d1 <- linop(function(X) 2 * X, dim = c(3, 3),
+              properties = c(hermitian = TRUE, positive_definite = TRUE))
+  strict <- requirement(sources = c("construction", "computation", "theorem"),
+                        guarantees = "identity")
+  for (A in list(linop_kron(d1, linop_eye(2)), linop_blockdiag(d1, linop_eye(2)),
+                 linop_power(d1, 3))) {
+    ev <- linop:::cape(A, "positive_definite")
+    expect_equal(ev$source, "construction")
+    expect_false(evidence_satisfies(ev, strict))
+  }
+})

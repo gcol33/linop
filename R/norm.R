@@ -84,6 +84,46 @@ norm2 <- function(A, tol = 1e-2, maxit = 20L, seed = 1L, exact_max = 1e5,
                    paste0(A$node, " preserves the spectral norm; [%s]")))
   }
 
+  if (A$node == "perm") {
+    return(new_norm_estimate(1, ev_construction(), "structure",
+                             "every singular value of a permutation is 1"))
+  }
+  ## The singular values of A (x) B are the products of the factors' and those
+  ## of a block diagonal operator are the union of the blocks', so the norm is
+  ## the product and the maximum. Each is monotone, so lower bounds below stay
+  ## lower bounds and their evidence goes underneath.
+  if (A$node %in% c("kron", "blockdiag")) {
+    inner <- lapply(A$args$ops, function(B) do.call(norm2, c(list(A = B), args)))
+    vals <- vapply(inner, function(e) e$value, numeric(1))
+    combine <- if (A$node == "kron") prod else max
+    return(new_norm_estimate(combine(vals),
+                             ev_construction(depends_on = lapply(inner, function(e) e$evidence)),
+                             paste(unique(vapply(inner, function(e) e$method, character(1))),
+                                   collapse = "+"),
+                             sprintf("%s of the factors' norms", if (A$node == "kron") "product" else "largest")))
+  }
+  ## ||U diag(d) V^H|| = ||R_U diag(d) R_V^H|| for the triangular factors of thin
+  ## QR decompositions, an r x r problem.
+  if (A$node == "lowrank") {
+    r <- ncol(A$args$U)
+    if (!r) return(new_norm_estimate(0, ev_construction(), "structure", "rank zero"))
+    RU <- qr.R(qr(A$args$U)); RV <- qr.R(qr(A$args$V))
+    s <- svd(RU %*% (A$args$d * t(Conj(RV))), nu = 0L, nv = 0L)$d
+    return(new_norm_estimate(s[1L], evidence("computation", "identity", 1), "svd",
+                             sprintf("largest singular value of the rank-%d core", r)))
+  }
+  ## ||A^k|| = ||A||^k for a normal A, and a hermitian one is normal.
+  if (A$node == "power" && isTRUE(capv(A$args$A, "hermitian"))) {
+    k <- A$args$k
+    inner <- do.call(norm2, c(list(A = A$args$A), args))
+    return(new_norm_estimate(inner$value^k,
+                             ev_construction(depends_on = list(inner$evidence,
+                                                               cape(A$args$A, "hermitian"))),
+                             inner$method,
+                             sprintf("the %d-th power of a hermitian operator's norm; [%s]",
+                                     k, inner$detail)))
+  }
+
   if (A$node %in% c("dense", "sparse") && prod(as.numeric(A$dim)) <= exact_max) {
     M <- as.matrix(linop_materialize(A))
     s <- svd(M, nu = 0L, nv = 0L)$d

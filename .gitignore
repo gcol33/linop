@@ -16,3 +16,4 @@
 dev_notes/spikes/results/*.done
 
 .run*
+tests/testthat/_problems/

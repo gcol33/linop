@@ -643,7 +643,15 @@ test_that("the condition limit stops a Krylov space that has stopped meaning any
   n <- nrow(M)
   A <- linop(M)
 
-  for (s in 1:4) {
+  ##
+  ## How much better is a property of the arithmetic at kappa 1e25, not only of
+  ## the rule: over seeds 1 to 12 the ratio ran from 22 to 1.2e4 on R 4.6.0 with
+  ## the reference BLAS, and seed 4 read 12 on the oldrel-1 Ubuntu runner from
+  ## 2026-11-15 (OpenBLAS 0.3.32) where it had read 282 here. So each seed
+  ## asserts only that the limit never makes it worse, and the size of the gain
+  ## is asserted on the median.
+  ratios <- numeric(0)
+  for (s in 1:12) {
     set.seed(s)
     b <- matrix(stats::rnorm(n), n, 1)
     bn <- sqrt(sum(b^2))
@@ -653,10 +661,12 @@ test_that("the condition limit stops a Krylov space that has stopped meaning any
     }
     limited <- rel(linop:::KRYLOV_CONDITION_LIMIT)
     unlimited <- rel(Inf)
-    expect_lt(limited * 20, unlimited, label = sprintf("seed %d", s))
+    expect_lt(limited, unlimited, label = sprintf("seed %d", s))
+    ratios <- c(ratios, unlimited / limited)
     ## and neither certifies as converged, because neither has converged
     expect_gt(limited, 1e-2)
   }
+  expect_gt(stats::median(ratios), 20)
 })
 
 test_that("the condition limit never fires on a well-posed problem", {

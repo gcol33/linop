@@ -30,6 +30,14 @@ node_label <- function(op) {
     jacobi = sprintf("jacobi on l^2(Z), sigma_ess [%.6g, %.6g]",
                      jacobi_band(op)[1L], jacobi_band(op)[2L]),
     section = sprintf("section |j| <= %d", op$args$n),
+    kron = "kron",
+    blockdiag = sprintf("blockdiag of %d", length(op$args$ops)),
+    hstack = sprintf("cbind of %d", length(op$args$ops)),
+    vstack = sprintf("rbind of %d", length(op$args$ops)),
+    lowrank = sprintf("lowrank[%s], rank %d", fmt_dim(op$dim), ncol(op$args$U)),
+    perm = sprintf("perm[%d]", op$dim[1L]),
+    power = sprintf("power %d", op$args$k),
+    inverse = sprintf("inverse of a stored %s matrix", fmt_dim(op$dim)),
     op$node)
   base
 }

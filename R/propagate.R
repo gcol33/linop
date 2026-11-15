@@ -18,8 +18,13 @@ same_operator <- function(A, B) {
                identical(A$args$adjoint, B$args$adjoint),
     transpose = , adjoint = , conjugate = same_operator(A$args$A, B$args$A),
     scale    = identical(A$args$a, B$args$a) && same_operator(A$args$A, B$args$A),
-    sum      = ,
-    product  = length(A$args$ops) == length(B$args$ops) &&
+    perm     = identical(A$args$p, B$args$p),
+    lowrank  = identical(A$args$U, B$args$U) && identical(A$args$V, B$args$V) &&
+               identical(A$args$d, B$args$d),
+    power    = identical(A$args$k, B$args$k) && same_operator(A$args$A, B$args$A),
+    inverse  = same_operator(A$args$A, B$args$A),
+    sum      = , product = , kron = , blockdiag = , hstack = ,
+    vstack   = length(A$args$ops) == length(B$args$ops) &&
                all(vapply(seq_along(A$args$ops),
                           function(i) same_operator(A$args$ops[[i]], B$args$ops[[i]]),
                           logical(1))),
@@ -44,27 +49,26 @@ is_transpose_of <- function(B, A) {
   FALSE
 }
 
+## A capability every operand holds, with all their evidence underneath it, or
+## NULL. The closure rule of a sum, a product, a Kronecker product or a block
+## diagonal is this test and nothing more.
+cap_all <- function(ops, nm) {
+  vals <- lapply(ops, function(A) cap(A, nm))
+  if (!isTRUE(tv_all(lapply(vals, cap_value)))) return(NULL)
+  capability(TRUE, ev_construction(
+    depends_on = Filter(Negate(is.null), lapply(vals, function(c) c$evidence))))
+}
+
 ## ------------------------------------------------------------------- sum ----
 
 caps_sum <- function(ops) {
   caps <- list()
   for (nm in c("hermitian", "symmetric", "positive_definite", "positive_semidefinite", "real")) {
-    vals <- lapply(ops, function(A) cap(A, nm))
-    v <- tv_all(lapply(vals, cap_value))
-    if (isTRUE(v)) {
-      caps[[nm]] <- capability(TRUE, ev_construction(
-        depends_on = Filter(Negate(is.null), lapply(vals, function(c) c$evidence))))
-    } else {
-      caps[[nm]] <- cap_unknown()
-    }
+    caps[[nm]] <- cap_all(ops, nm) %||% cap_unknown()
   }
   ## Diagonal is closed under addition; triangularity likewise.
   for (nm in c("diagonal", "triangular_upper", "triangular_lower")) {
-    vals <- lapply(ops, function(A) cap(A, nm))
-    if (isTRUE(tv_all(lapply(vals, cap_value)))) {
-      caps[[nm]] <- capability(TRUE, ev_construction(
-        depends_on = Filter(Negate(is.null), lapply(vals, function(c) c$evidence))))
-    }
+    caps[[nm]] <- cap_all(ops, nm)
   }
   caps
 }
@@ -199,11 +203,102 @@ caps_product <- function(ops) {
   }
   ## Structural closures that survive any product.
   for (nm in c("diagonal", "triangular_upper", "triangular_lower", "unitary", "real")) {
-    vals <- lapply(ops, function(A) cap(A, nm))
-    if (isTRUE(tv_all(lapply(vals, cap_value)))) {
-      caps[[nm]] <- capability(TRUE, ev_construction(
-        depends_on = Filter(Negate(is.null), lapply(vals, function(c) c$evidence))))
+    caps[[nm]] <- cap_all(ops, nm)
+  }
+  caps
+}
+
+## ------------------------------------------------------ Kronecker product ---
+
+## The eigenvalues of A (x) B are the products lambda_i mu_j and its singular
+## values the products sigma_i tau_j, (A (x) B)^H = A^H (x) B^H, and the block
+## structure keeps diagonal and triangular shapes. So every capability below
+## holds when it holds for both factors. Full rank needs both factors square or
+## both tall or both wide: a 1 x 2 and a 2 x 1 of full rank give a 2 x 2 of
+## rank 1.
+caps_kron <- function(ops) {
+  caps <- list()
+  for (nm in c("hermitian", "symmetric", "positive_definite", "positive_semidefinite",
+               "unitary", "diagonal", "triangular_upper", "triangular_lower", "real")) {
+    caps[[nm]] <- cap_all(ops, nm)
+  }
+  if (same_orientation(ops)) caps$full_rank <- cap_all(ops, "full_rank")
+  caps
+}
+
+same_orientation <- function(ops) {
+  tall <- vapply(ops, function(A) A$dim[1L] >= A$dim[2L], logical(1))
+  wide <- vapply(ops, function(A) A$dim[1L] <= A$dim[2L], logical(1))
+  all(tall) || all(wide)
+}
+
+## ---------------------------------------------------------- block diagonal ---
+
+## A block diagonal operator acts on each block separately, so its spectrum,
+## singular values, adjoint and shape are those of the blocks. Full rank under
+## the same orientation condition as the Kronecker product.
+caps_blockdiag <- function(ops) caps_kron(ops)
+
+## ------------------------------------------------------------------ stacks ---
+
+## [A_1 ... A_k] has the sum of the ranges as its range, so one block of full
+## row rank (full rank and no taller than wide) makes a wide stack of full rank.
+## Stacking rows is the transpose of that. Nothing about symmetry follows.
+caps_stack <- function(ops, direction) {
+  caps <- list(real = cap_all(ops, "real"))
+  rows <- vapply(ops, function(A) A$dim[1L], numeric(1))
+  cols <- vapply(ops, function(A) A$dim[2L], numeric(1))
+  m <- if (direction == "h") rows[1L] else sum(rows)
+  n <- if (direction == "h") sum(cols) else cols[1L]
+  if ((direction == "h" && m <= n) || (direction == "v" && m >= n)) {
+    for (A in ops) {
+      fits <- if (direction == "h") A$dim[1L] <= A$dim[2L] else A$dim[1L] >= A$dim[2L]
+      fr <- cap(A, "full_rank")
+      if (fits && isTRUE(cap_value(fr))) {
+        caps$full_rank <- capability(TRUE, ev_construction(list(fr$evidence)))
+        break
+      }
     }
   }
+  caps
+}
+
+## ------------------------------------------------------------------- power ---
+
+## A^k for k >= 1: hermitian, symmetric, unitary, diagonal, triangular, real and
+## full rank survive any power, and a positive definite operator stays so. A
+## hermitian operator to an even power is positive semidefinite, and definite
+## when it is also of full rank, since its eigenvalues are lambda^k.
+caps_power <- function(A, k) {
+  caps <- list()
+  for (nm in c("hermitian", "symmetric", "positive_definite", "positive_semidefinite",
+               "unitary", "diagonal", "triangular_upper", "triangular_lower",
+               "full_rank", "real")) {
+    caps[[nm]] <- cap_all(list(A), nm)
+  }
+  h <- cap(A, "hermitian")
+  if (k %% 2L == 0L && isTRUE(cap_value(h))) {
+    caps$positive_semidefinite <- capability(TRUE, ev_construction(list(h$evidence)))
+    fr <- cap(A, "full_rank")
+    if (isTRUE(cap_value(fr))) {
+      caps$positive_definite <- capability(TRUE, ev_construction(
+        list(h$evidence, fr$evidence)))
+    }
+  }
+  caps
+}
+
+## ----------------------------------------------------------------- inverse ---
+
+## A^-1 inherits every shape and symmetry A has: the inverse of a triangular,
+## diagonal, unitary, hermitian or positive definite matrix is one. It is of
+## full rank by existing, and that evidence is the factorisation that showed it.
+caps_inverse <- function(A, invertible_evidence) {
+  caps <- list()
+  for (nm in c("hermitian", "symmetric", "positive_definite", "positive_semidefinite",
+               "unitary", "diagonal", "triangular_upper", "triangular_lower", "real")) {
+    caps[[nm]] <- cap_all(list(A), nm)
+  }
+  caps$full_rank <- capability(TRUE, invertible_evidence)
   caps
 }

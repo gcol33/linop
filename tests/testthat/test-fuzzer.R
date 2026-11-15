@@ -24,8 +24,62 @@ gen_expr <- function(m, n, depth, cplx) {
   }
   if (depth <= 0) return(leaf())
 
-  op <- sample(c("leaf", "sum", "product", "transpose", "adjoint", "conjugate", "scale"), 1)
+  op <- sample(c("leaf", "sum", "product", "transpose", "adjoint", "conjugate", "scale",
+                 "kron", "blockdiag", "hstack", "vstack", "lowrank", "perm", "power",
+                 "inverse"), 1)
+  ## the structured nodes need a shape they can split, or fall back to a leaf
+  if (op == "blockdiag" && (m < 2 || n < 2)) op <- "leaf"
+  if (op == "hstack" && n < 2) op <- "leaf"
+  if (op == "vstack" && m < 2) op <- "leaf"
+  if (op %in% c("perm", "power", "inverse") && m != n) op <- "leaf"
+  divisors <- function(x) which(x %% seq_len(x) == 0)
+  pick <- function(x) x[sample.int(length(x), 1L)]
   switch(op,
+    kron = {
+      m1 <- pick(divisors(m)); n1 <- pick(divisors(n))
+      a <- gen_expr(m1, n1, depth - 1L, cplx); b <- gen_expr(m / m1, n / n1, depth - 1L, cplx)
+      list(A = linop_kron(a$A, b$A), M = kronecker(a$M, b$M))
+    },
+    blockdiag = {
+      m1 <- sample.int(m - 1L, 1L); n1 <- sample.int(n - 1L, 1L)
+      a <- gen_expr(m1, n1, depth - 1L, cplx); b <- gen_expr(m - m1, n - n1, depth - 1L, cplx)
+      M <- matrix(if (cplx) 0i else 0, m, n)
+      M[seq_len(m1), seq_len(n1)] <- a$M
+      M[m1 + seq_len(m - m1), n1 + seq_len(n - n1)] <- b$M
+      list(A = linop_blockdiag(a$A, b$A), M = M)
+    },
+    hstack = {
+      n1 <- sample.int(n - 1L, 1L)
+      a <- gen_expr(m, n1, depth - 1L, cplx); b <- gen_expr(m, n - n1, depth - 1L, cplx)
+      list(A = cbind(a$A, b$A), M = cbind(a$M, b$M))
+    },
+    vstack = {
+      m1 <- sample.int(m - 1L, 1L)
+      a <- gen_expr(m1, n, depth - 1L, cplx); b <- gen_expr(m - m1, n, depth - 1L, cplx)
+      list(A = rbind(a$A, b$A), M = rbind(a$M, b$M))
+    },
+    lowrank = {
+      r <- sample(0:2, 1)
+      U <- if (cplx) zmat(m, r) else rmat(m, r); V <- if (cplx) zmat(n, r) else rmat(n, r)
+      d <- rnorm(r)
+      list(A = linop_lowrank(U, V, d), M = U %*% (d * t(Conj(V))))
+    },
+    perm = {
+      p <- sample.int(m)
+      list(A = linop_perm(p), M = diag(1, m)[p, , drop = FALSE])
+    },
+    power = {
+      k <- sample(0:3, 1)
+      a <- gen_expr(m, m, depth - 1L, cplx)
+      P <- diag(1, m)
+      for (i in seq_len(k)) P <- P %*% a$M
+      list(A = linop_power(a$A, k), M = P)
+    },
+    inverse = {
+      ## diagonally dominant, so the reference inverse is well conditioned
+      M <- (if (cplx) zmat(m, m) else rmat(m, m)) + diag(3 * m, m)
+      list(A = solve(linop(M)), M = solve(M))
+    },
     leaf = leaf(),
     sum = {
       a <- gen_expr(m, n, depth - 1L, cplx); b <- gen_expr(m, n, depth - 1L, cplx)
@@ -89,7 +143,9 @@ test_that("the fuzzer covers every composite node type", {
     e <- gen_expr(sample(1:3, 1), sample(1:3, 1), depth = 3L, cplx = runif(1) < 0.5)
     collect(e$A)
   }
-  for (nd in c("sum", "product", "transpose", "adjoint", "conjugate", "scale", "dense")) {
+  for (nd in c("sum", "product", "transpose", "adjoint", "conjugate", "scale", "dense",
+               "kron", "blockdiag", "hstack", "vstack", "lowrank", "perm", "power",
+               "inverse")) {
     expect_true(nd %in% seen, info = paste("fuzzer never produced node", nd))
   }
 })

@@ -62,6 +62,12 @@ First development release. The finite object model and the expression graph.
   `A` and the certificate is the same whichever engine ran; its `dispatch`
   lists every engine considered and why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the reference.
+* Structured operators: `linop_kron()`, `linop_blockdiag()`, `linop_lowrank()`,
+  `linop_perm()` and `linop_power()`, `cbind()` and `rbind()` on linops, and
+  `solve(a)` with no right-hand side for the exact inverse where one exists (a
+  stored matrix, or a structure whose inverse is known). Each is a node, applied
+  matrix-free, with capabilities propagated from its parts and its norm read off
+  the structure where that is exact.
 * `eigs(method = "auto")` acts on a hermitian capability only at computed,
   constructed or proven evidence, as `solve()` does for MINRES and CG: a bare
   `hermitian = TRUE` declaration on a callback now runs Arnoldi under auto, and

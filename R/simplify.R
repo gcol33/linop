@@ -72,3 +72,61 @@ make_product <- function(ops) {
 }
 
 is_zero_op <- function(A) isTRUE(A$node == "scale") && isTRUE(A$args$a == 0)
+
+## The structured nodes, by the same local rules: identities and diagonals
+## absorb what they can, nested nodes of one kind flatten, and an exponent of 0
+## or 1 is not a node.
+make_kron <- function(A, B) {
+  if (A$node == "identity" && B$node == "identity") {
+    return(linop_identity(A$dim[1L] * B$dim[1L], promote(A$dtype, B$dtype)))
+  }
+  if (A$node %in% c("diag", "identity") && B$node %in% c("diag", "identity")) {
+    return(linop_diag(kronecker(diag_entries(A), diag_entries(B))))
+  }
+  new_kron(A, B)
+}
+
+make_blockdiag <- function(ops) {
+  flat <- list()
+  for (A in ops) {
+    if (A$node == "blockdiag") flat <- c(flat, A$args$ops) else flat <- c(flat, list(A))
+  }
+  if (length(flat) == 1L) return(flat[[1L]])
+  if (all(vapply(flat, function(A) A$node %in% c("diag", "identity"), logical(1)))) {
+    if (all(vapply(flat, function(A) A$node == "identity", logical(1)))) {
+      return(linop_identity(sum(vapply(flat, function(A) A$dim[1L], numeric(1))),
+                            ops_dtype(flat)))
+    }
+    return(linop_diag(unlist(lapply(flat, diag_entries))))
+  }
+  new_blockdiag(flat)
+}
+
+make_stack <- function(ops, direction) {
+  kind <- if (direction == "h") "hstack" else "vstack"
+  flat <- list()
+  for (A in ops) {
+    if (A$node == kind) flat <- c(flat, A$args$ops) else flat <- c(flat, list(A))
+  }
+  if (length(flat) == 1L) return(flat[[1L]])
+  new_stack(flat, direction)
+}
+
+make_perm <- function(p) {
+  if (identical(p, seq_along(p))) return(linop_identity(length(p)))
+  new_perm(p)
+}
+
+make_power <- function(A, k) {
+  if (k < 0L) return(make_power(exact_inverse(A), -k))
+  if (k == 0L) return(linop_identity(A$dim[1L], A$dtype))
+  if (k == 1L || A$node == "identity") return(A)
+  if (A$node == "diag") return(linop_diag(A$args$d^k))
+  if (A$node == "power") return(make_power(A$args$A, A$args$k * k))
+  new_power(A, k)
+}
+
+diag_entries <- function(A) {
+  if (A$node == "identity") rep(if (A$dtype == "complex") 1 + 0i else 1, A$dim[1L])
+  else A$args$d
+}

@@ -20,7 +20,8 @@
 \arguments{
 \item{a}{A `linop`.}
 
-\item{b}{A vector or block of right-hand sides.}
+\item{b}{A vector or block of right-hand sides, or missing for the exact
+inverse.}
 
 \item{method}{`"auto"`, or one of `"cg"`, `"minres"`, `"gmres"`, `"fgmres"`,
 `"bicgstab"`, `"lsqr"`, `"lsmr"`. Naming a method is the caller asserting
@@ -55,4 +56,13 @@ Solves `a x = b`. If the operator declares a capability that makes a direct
 solve available, that is used; otherwise one of the seven Krylov methods of
 the package runs. Either way the result records which happened, what residual
 was reached, and what argument establishes it.
+}
+\details{
+With `b` missing, `solve(a)` returns the inverse as a `linop`, but only where
+it is exact and fixed before any vector is seen: a stored matrix inverted
+once, or a structure whose inverse is known (identity, nonzero diagonal,
+permutation, unitary, scale, transpose and adjoint, and products, Kronecker
+products, block diagonals and powers of those). An iterative solve is not a
+linear operator, since what it applies depends on the vector it is given, so
+anything else is refused with `solve(a, b)` named.
 }

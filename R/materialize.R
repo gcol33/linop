@@ -140,7 +140,8 @@ explain <- function(A) {
 
 node_children <- function(op) {
   switch(op$node,
-    sum = , product = op$args$ops,
-    transpose = , adjoint = , conjugate = , scale = , section = list(op$args$A),
+    sum = , product = , kron = , blockdiag = , hstack = , vstack = op$args$ops,
+    transpose = , adjoint = , conjugate = , scale = , section = , power = ,
+    inverse = list(op$args$A),
     list())
 }
