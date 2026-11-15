@@ -637,8 +637,15 @@ deflation_sweep <- function(core, run, k, sel, tol, maxit, seed) {
     LA = Re(a) > Re(b), SA = Re(a) < Re(b), LM = Mod(a) > Mod(b), SM = Mod(a) < Mod(b),
     LI = abs(Im(a)) > abs(Im(b)), SI = abs(Im(a)) < abs(Im(b)))
   found <- run$vectors
+  ## A check may spend what the search spent and no more. At the small end of a
+  ## spectrum the k = 1 request can stall on the residual row's plateau, and
+  ## uncapped it spent the whole remaining budget there on OpenBLAS (300 of 300
+  ## applies on laplacian_1d(60), against 120 with the reference BLAS); a check
+  ## that does not converge swaps nothing, which is the answer when nothing was
+  ## missed.
+  cap <- run$steps
   for (s in seq_len(k)) {
-    budget <- maxit - run$steps
+    budget <- min(maxit - run$steps, cap)
     if (budget <= 0L) break
     cand <- core(k = 1L, maxit = budget, seed = seed + 9973L * s,
                  prelocked = qr.Q(qr(found)))

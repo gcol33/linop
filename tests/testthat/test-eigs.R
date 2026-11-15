@@ -149,7 +149,8 @@ test_that("the thick restart is what makes a small subspace converge", {
   ## 5.1e-13 in 96. Measured in dev_notes/spikes/restart-comparison.R, which
   ## swaps only the block that chooses what the next round starts from. The
   ## count below also holds the check for missed copies (deflation_sweep()),
-  ## one further request for k = 1 that finds nothing better: 96 + 120.
+  ## one further request for k = 1 that finds nothing better, capped at what the
+  ## search spent: 96 + at most 96.
   n <- 60
   A <- laplacian_1d(n)
   fit <- eigs(A, k = 4, which = "smallest_algebraic", ncv = 24L, maxit = 300L)
