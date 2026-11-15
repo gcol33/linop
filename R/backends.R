@@ -60,11 +60,18 @@ backends_for <- function(family) {
 }
 
 ## The exported functions of an external engine, or a string saying why there
-## are none. The package name is data in the registry entry.
+## are none. The package name is data in the registry entry. An engine package
+## written for linop reports the contract it speaks through info_fn; a library
+## written for its own users has no such function, and its version is the record.
 backend_engine <- function(b) {
   if (is.null(b$package)) return(NULL)
   if (!requireNamespace(b$package, quietly = TRUE)) {
     return(sprintf("package %s is not installed", b$package))
+  }
+  if (is.null(b$info_fn)) {
+    ns <- asNamespace(b$package)
+    return(list(info = list(version = as.character(utils::packageVersion(b$package))),
+                fn = function(name) getExportedValue(ns, name)))
   }
   info <- getExportedValue(b$package, b$info_fn)()
   if (!identical(info$contract_version, b$contract_version)) {
@@ -213,3 +220,20 @@ register_backend("primme", "svds", priority = 100,
                    } else primme_supports(request)
                  },
                  run = function(A, ctl, engine) primme_svds_run(A, ctl, engine))
+
+## Reachable by name only: below Arnoldi, which takes every operator it takes.
+register_backend("rspectra", "eigs", priority = -20,
+                 provides_label = "RSpectra (Spectra's implicitly restarted Arnoldi and Lanczos)",
+                 package = "RSpectra", dtypes = "double",
+                 targets = c("LM", "SM", "LA", "SA", "LI", "SI"),
+                 default_ncv = function(A, k) default_ncv(A, k),
+                 supports = rspectra_eigs_supports,
+                 run = function(Op, A, ctl, engine) rspectra_eigs_run(Op, A, ctl, engine))
+
+register_backend("rspectra", "svds", priority = -20,
+                 provides_label = "RSpectra (Spectra's implicitly restarted Lanczos)",
+                 package = "RSpectra", dtypes = "double",
+                 requires = c("apply", "adjoint"), targets = "LM",
+                 default_ncv = function(A, k) default_ncv(A, k),
+                 supports = rspectra_svds_supports,
+                 run = function(A, ctl, engine) rspectra_svds_run(A, ctl, engine))

@@ -34,12 +34,12 @@ test_that("every engine is listed with its verdict, and the one that ran says so
   d <- fit$certificate$dispatch
   expect_equal(d$requested, "lanczos")
   expect_equal(d$chosen, "lanczos")
-  expect_setequal(d$candidates$backend, c("lanczos", "arnoldi", "primme"))
+  expect_setequal(d$candidates$backend, c("lanczos", "arnoldi", "primme", "rspectra"))
   expect_equal(d$candidates$status[d$candidates$backend == "lanczos"], "selected")
   expect_match(d$reason, "requested by name")
 
   s <- svds(linop(rmat(12, 8, seed = 1L)), k = 2, method = "golub-kahan")
-  expect_setequal(s$certificate$dispatch$candidates$backend, c("golub-kahan", "primme"))
+  expect_setequal(s$certificate$dispatch$candidates$backend, c("golub-kahan", "primme", "rspectra"))
   expect_equal(s$method, "golub-kahan")
 })
 
@@ -74,7 +74,7 @@ test_that("supports() returns a reason, and the reason is what the rejection rep
 
 test_that("a method that names no engine lists the ones there are", {
   expect_error(eigs(laplacian_1d(10), k = 2, method = "davidson"),
-               "method is one of 'auto', 'arnoldi', 'lanczos', 'primme'")
+               "method is one of 'auto', 'arnoldi', 'lanczos', 'primme', 'rspectra'")
 })
 
 ## -------------------------------------------------------- with the engine --

@@ -105,11 +105,13 @@ SHIFT_INVERT_RESTART <- 100L
 #' @param v0 Starting vector, or `NULL` for a seeded random one.
 #' @param seed Seed for the starting vector. The caller's random stream is
 #'   restored afterwards.
-#' @param method `"auto"`, `"lanczos"`, `"arnoldi"` or `"primme"`. `"lanczos"`
-#'   is the reference implementation for a hermitian operator and `"arnoldi"` for
-#'   any square one. `"primme"` is the PRIMME library, available for a hermitian
-#'   operator when the `linop.primme` package is installed, which restarts
-#'   implicitly and so keeps a basis of fixed small size. `"auto"` takes PRIMME
+#' @param method `"auto"`, `"lanczos"`, `"arnoldi"`, `"primme"` or `"rspectra"`.
+#'   `"lanczos"` is the reference implementation for a hermitian operator and
+#'   `"arnoldi"` for any square one. `"primme"` is the PRIMME library, available
+#'   for a hermitian operator when the `linop.primme` package is installed, which
+#'   restarts implicitly and so keeps a basis of fixed small size. `"rspectra"` is
+#'   the Spectra library through the RSpectra package, for a real operator only,
+#'   and stops on its own convergence rule; `"auto"` never takes it. `"auto"` takes PRIMME
 #'   when it is available and the operator is established hermitian, Lanczos when
 #'   only the second holds, and Arnoldi otherwise; the certificate's `dispatch`
 #'   records every engine considered and why. Whichever runs, the reported
@@ -222,7 +224,7 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   ## pairs with their Rayleigh quotients and residuals measured on A, so nothing
   ## below this line knows which one ran.
   pick <- select_backend("eigs", A,
-                         list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv,
+                         list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv, maxit = maxit,
                               interior = sel %in% c("LM", "SM")),
                          method, "eigs")
   ## The shift-invert operator is the hermitian one exactly when the engine
@@ -366,6 +368,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
   steps <- 0L
   rounds <- 0L
   anorm_lb <- 0
+  op_is_a <- identical(Op, A)
   stop_reason <- NULL
   progress <- NULL
 
@@ -415,6 +418,10 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const) 
     run <- lanczos_run(Op, v, Qv, m, maxit - steps, keep)
     steps <- steps + run$applies
     if (run$applies == 0L) { stop_reason <- "the recurrence made no step"; break }
+    ## Each step's ||A v_j|| for a unit v_j is a lower bound on ||A|| at no cost,
+    ## and at an end of the spectrum near zero the measured pairs alone give one
+    ## orders of magnitude short. Under a shift the step applies the solve.
+    if (op_is_a) anorm_lb <- max(anorm_lb, run$apply_norm)
 
     ## The projected problem, hermitian, and real for a real operator.
     ee <- eigen(run$Tm, symmetric = TRUE)
@@ -548,6 +555,7 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
 
   i <- p
   applies <- 0L
+  apply_norm <- 0
   beta_last <- 0
   vnext <- NULL
 
@@ -561,6 +569,7 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
     ## division, and normalising by a norm at rounding level would put an
     ## overflowed vector into the basis.
     w0 <- col_norms(W)
+    apply_norm <- max(apply_norm, w0)
     ## The three-term part is subtracted first, so that the projection against
     ## the whole basis removes only what rounding and the retained block left;
     ## what it removes is added back into the column.
@@ -592,5 +601,6 @@ lanczos_run <- function(Op, v, Q, m, max_applies, keep = NULL) {
   Tm <- Tm[seq_len(i), seq_len(i), drop = FALSE]
   if (!cplx) Tm <- Re(Tm)
   list(V = V[, seq_len(i), drop = FALSE], Tm = Tm,
-       size = i, applies = applies, vnext = vnext, beta_last = beta_last)
+       size = i, applies = applies, vnext = vnext, beta_last = beta_last,
+       apply_norm = apply_norm)
 }

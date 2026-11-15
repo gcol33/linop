@@ -12,7 +12,7 @@ Description: Linear operators defined by their action rather than their entries.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.4.0)
-Suggests: Matrix, testthat (>= 3.0.0), knitr, rmarkdown
+Suggests: Matrix, RSpectra, testthat (>= 3.0.0), knitr, rmarkdown
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 URL: https://github.com/gcol33/linop, https://gillescolling.com/linop/

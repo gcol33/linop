@@ -403,7 +403,7 @@ test_that("eigs refuses what it is not defined for", {
   expect_error(eigs(herm, k = 2, ncv = 2L), "must exceed k")
   expect_error(eigs(herm, k = 2, which = "biggest"), "does not take which")
   expect_error(eigs(herm, k = 2, method = "davidson"),
-               "method is one of 'auto', 'arnoldi', 'lanczos', 'primme'")
+               "method is one of 'auto', 'arnoldi', 'lanczos', 'primme', 'rspectra'")
   expect_error(eigs(herm, k = 2, v0 = rep(1, n + 1L)), "it has to be")
 })
 

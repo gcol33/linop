@@ -71,7 +71,7 @@ The values are right, and the dispatch says why Lanczos was passed over:
 
 ```{r no-declaration-why}
 d <- plain$certificate$dispatch$candidates
-d[d$backend != "primme", c("backend", "status")]
+d[d$backend %in% c("lanczos", "arnoldi"), c("backend", "status")]
 d$reason[d$backend == "lanczos"]
 ```
 

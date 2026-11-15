@@ -169,8 +169,8 @@ The time of one application of each operator, and the peak memory R used
 over the whole run, with R version 4.6.0 (2026-04-24 ucrt):
 
     #>                     operator seconds
-    #> 1                       Blur   0.008
-    #> 2 crossprod(Blur) + 1e-3 * I   0.022
+    #> 1                       Blur    0.01
+    #> 2 crossprod(Blur) + 1e-3 * I    0.02
     #> Peak R memory: 98 MB
 
 The expression is applied one block at a time, so the memory figure is
@@ -278,16 +278,18 @@ singular value solver. Each result carries a certificate, read with
 `certificate()`, with the operator-norm estimate its arithmetic floor
 rests on.
 
-`eigs()` and `svds()` have two engines. The reference engine in this
-package is a restarted Lanczos iteration with full reorthogonalisation,
-which holds its whole basis in each round. The
-[PRIMME](https://github.com/primme/primme) library restarts implicitly
-and keeps a basis of fixed small size; it is available when the
-companion package [linop.primme](https://github.com/gcol33/linop.primme)
-is installed, and the default `method = "auto"` then takes it. Whichever
-engine runs, the reported values are measured on the operator and the
-certificate is the same object, with a record of which engine ran and
-why.
+`eigs()` and `svds()` run on more than one engine. The reference engines
+in this package are restarted Lanczos, Arnoldi and Golub-Kahan
+iterations with full reorthogonalisation, which hold their whole basis
+in each round. The [PRIMME](https://github.com/primme/primme) library
+restarts implicitly and keeps a basis of fixed small size; it is
+available when the companion package `linop.primme` is installed, and
+the default `method = "auto"` then takes it. The Spectra library is
+reachable through
+[RSpectra](https://CRAN.R-project.org/package=RSpectra) as
+`method = "rspectra"` for a real operator. Whichever engine runs, the
+reported values are measured on the operator and the certificate is the
+same object, with a record of which engine ran and why.
 
 [Solving a
 system](https://gillescolling.com/linop/articles/solvers.html),

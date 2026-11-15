@@ -62,6 +62,14 @@ First development release. The finite object model and the expression graph.
   `A` and the certificate is the same whichever engine ran; its `dispatch`
   lists every engine considered and why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the reference.
+* `eigs(method = "rspectra")` and `svds(method = "rspectra")` run the Spectra
+  library through RSpectra, when it is installed, on a real operator: its
+  implicitly restarted Arnoldi, or Lanczos for an operator established
+  hermitian, and its largest singular values. A complex operator is refused by
+  name, because RSpectra would coerce it and answer for `Re(A)`. A shift runs
+  on `eigs()`'s own `(A - sigma I)^-1`. `maxit` counts applies for it as for
+  every engine. `method = "auto"` never takes it, since it stops on its own
+  rule rather than the certificate's.
 * Every result carries a certificate: what residual was reached, what backward
   error it implies, and what argument establishes it. `target identity` is
   `not_checked`, because a residual does not say which eigenvalue was found.

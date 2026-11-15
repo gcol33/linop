@@ -64,9 +64,12 @@
 #'   `"golub-kahan"` only.
 #' @param seed Seed for the starting vector. The caller's random stream is
 #'   restored afterwards.
-#' @param method `"auto"`, `"golub-kahan"` or `"primme"`. `"golub-kahan"` is the
-#'   reference implementation in this package; `"primme"` is the PRIMME library,
-#'   available when the `linop.primme` package is installed. `"auto"` takes
+#' @param method `"auto"`, `"golub-kahan"`, `"primme"` or `"rspectra"`.
+#'   `"golub-kahan"` is the reference implementation in this package; `"primme"`
+#'   is the PRIMME library, available when the `linop.primme` package is
+#'   installed; `"rspectra"` is the Spectra library through the RSpectra package,
+#'   for the largest singular values of a real operator, and is never chosen by
+#'   `"auto"`. `"auto"` takes
 #'   PRIMME when it is available and Golub-Kahan otherwise, and the
 #'   certificate's `dispatch` records every engine considered and why. The
 #'   reported singular values are Rayleigh quotients `Re(u^H A v)` of the
@@ -99,7 +102,7 @@ svds <- function(A, k, which = "largest", tol = 1e-10, maxit = NULL,
   k <- s$k; maxit <- s$maxit
 
   pick <- select_backend("svds", A, list(k = k, which = which_code, v0 = !is.null(v0),
-                                    tol = tol, ncv = ncv),
+                                    tol = tol, ncv = ncv, maxit = maxit),
                          method, "svds")
   ncv <- eigen_ncv(ncv %||% pick$backend$default_ncv(A, k), k, min(m, n))
   run <- pick$backend$run(A, list(k = k, sel = which_code, tol = tol, maxit = maxit,

@@ -69,11 +69,13 @@ takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"` and
 \item{seed}{Seed for the starting vector. The caller's random stream is
 restored afterwards.}
 
-\item{method}{`"auto"`, `"lanczos"`, `"arnoldi"` or `"primme"`. `"lanczos"`
-is the reference implementation for a hermitian operator and `"arnoldi"` for
-any square one. `"primme"` is the PRIMME library, available for a hermitian
-operator when the `linop.primme` package is installed, which restarts
-implicitly and so keeps a basis of fixed small size. `"auto"` takes PRIMME
+\item{method}{`"auto"`, `"lanczos"`, `"arnoldi"`, `"primme"` or `"rspectra"`.
+`"lanczos"` is the reference implementation for a hermitian operator and
+`"arnoldi"` for any square one. `"primme"` is the PRIMME library, available
+for a hermitian operator when the `linop.primme` package is installed, which
+restarts implicitly and so keeps a basis of fixed small size. `"rspectra"` is
+the Spectra library through the RSpectra package, for a real operator only,
+and stops on its own convergence rule; `"auto"` never takes it. `"auto"` takes PRIMME
 when it is available and the operator is established hermitian, Lanczos when
 only the second holds, and Arnoldi otherwise; the certificate's `dispatch`
 records every engine considered and why. Whichever runs, the reported
