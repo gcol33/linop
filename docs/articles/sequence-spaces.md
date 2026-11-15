@@ -465,6 +465,55 @@ hunt$certificate$dispatch$reason
 #> [1] "operator on l^2(Z); width 41 -> 82 -> 164 -> 200, stopped because n_max = 200"
 ```
 
+## Functions on the circle
+
+A function on the circle is its Fourier coefficients, a sequence on the
+integers, so an operator on such functions is an operator on a sequence
+space like the ones above. `linop_space("fourier", ...)` builds
+`-u'' + V u` from the coefficients of `V`; in that basis the derivative
+is the diagonal `k^2` and the multiplication is a band as wide as `V`
+has frequencies. With `V = a^2 sin^2 x - a cos x` the ground state is
+known exactly, `exp(a cos x)` at eigenvalue 0:
+
+``` r
+
+a <- 2
+Hc <- linop_space("fourier", multiplier = c(-a^2 / 4, -a / 2, a^2 / 2, -a / 2, -a^2 / 4))
+gs <- eigs(Hc, k = 1, which = "smallest_algebraic")
+c(value = gs$values, width = gs$n)
+#>         value         width 
+#> -4.516328e-17  1.600000e+01
+gs$certificate
+#> solved by primme on a finite section (operator on l^2(Z); width 16, stopped because the tail is below half the tolerance)
+#> ------------------------------------------------------------------------------------------
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> arithmetic floor               pass         construction     deterministic_bound   1
+#> finite residual                fail         computation      identity              1
+#> orthogonality                  pass         computation      identity              1
+#> truncation bound               pass         theorem          deterministic_bound   1
+#> target identity                not_checked  computation      identity              -
+#> convergence                    fail         computation      identity              1
+#> forward error                  fail         theorem          deterministic_bound   1
+#> ------------------------------------------------------------------------------------------
+#> overall                        fail   no deterministic bound on: target identity
+#> 
+#> failures:
+#>   finite residual: worst ||H_n u - q u|| / ||u|| = 1.553e-08 against 7.000e-10; 63 of 660 iterations
+#>   convergence: 0 of 1 requested pairs converged in 63 of at most 660 iterations; stopped early, the subspace had stopped improving
+#>   forward error: min_j |q - lambda_j(H)| <= 1.553e-08 = sqrt(1.553e-08^2 + 1.284e-11^2) + 2.345e-13 against 7.000e-10; the spectrum is discrete, so lambda_j is an eigenvalue
+```
+
+The truncation row is exact here as it is for the Jacobi operator:
+cutting the band leaves a residual on the `d` frequencies each side that
+the band reaches, and those are computed rather than estimated. The
+diagonal grows without bound, so the operator’s spectrum is discrete and
+the `forward error` row is a distance to an eigenvalue of the operator
+on the circle. Every nonzero eigenvalue of the free operator `-d^2/dx^2`
+is double, and a Krylov method started from one vector can return one
+copy of a double eigenvalue; `target identity` is `not_checked` for that
+reason.
+
 ## Where to next
 
 - [`vignette("certificates")`](https://gillescolling.com/linop/articles/certificates.md)

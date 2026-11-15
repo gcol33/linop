@@ -465,6 +465,55 @@ reports that:</p>
 <span><span class="co">#&gt; [1] "operator on l^2(Z); width 41 -&gt; 82 -&gt; 164 -&gt; 200, stopped because n_max = 200"</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="functions-on-the-circle">Functions on the circle<a class="anchor" aria-label="anchor" href="#functions-on-the-circle"></a>
+</h2>
+<p>A function on the circle is its Fourier coefficients, a sequence on
+the integers, so an operator on such functions is an operator on a
+sequence space like the ones above.
+<code>linop_space("fourier", ...)</code> builds <code>-u'' + V u</code>
+from the coefficients of <code>V</code>; in that basis the derivative is
+the diagonal <code>k^2</code> and the multiplication is a band as wide
+as <code>V</code> has frequencies. With
+<code>V = a^2 sin^2 x - a cos x</code> the ground state is known
+exactly, <code>exp(a cos x)</code> at eigenvalue 0:</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fl">2</span></span>
+<span><span class="va">Hc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"fourier"</span>, multiplier <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">gs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">Hc</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>value <span class="op">=</span> <span class="va">gs</span><span class="op">$</span><span class="va">values</span>, width <span class="op">=</span> <span class="va">gs</span><span class="op">$</span><span class="va">n</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         value         width </span></span>
+<span><span class="co">#&gt; -4.516328e-17  1.600000e+01</span></span>
+<span><span class="va">gs</span><span class="op">$</span><span class="va">certificate</span></span>
+<span><span class="co">#&gt; solved by primme on a finite section (operator on l^2(Z); width 16, stopped because the tail is below half the tolerance)</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; arithmetic floor               pass         construction     deterministic_bound   1</span></span>
+<span><span class="co">#&gt; finite residual                fail         computation      identity              1</span></span>
+<span><span class="co">#&gt; orthogonality                  pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; truncation bound               pass         theorem          deterministic_bound   1</span></span>
+<span><span class="co">#&gt; target identity                not_checked  computation      identity              -</span></span>
+<span><span class="co">#&gt; convergence                    fail         computation      identity              1</span></span>
+<span><span class="co">#&gt; forward error                  fail         theorem          deterministic_bound   1</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; overall                        fail   no deterministic bound on: target identity</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; failures:</span></span>
+<span><span class="co">#&gt;   finite residual: worst ||H_n u - q u|| / ||u|| = 1.553e-08 against 7.000e-10; 63 of 660 iterations</span></span>
+<span><span class="co">#&gt;   convergence: 0 of 1 requested pairs converged in 63 of at most 660 iterations; stopped early, the subspace had stopped improving</span></span>
+<span><span class="co">#&gt;   forward error: min_j |q - lambda_j(H)| &lt;= 1.553e-08 = sqrt(1.553e-08^2 + 1.284e-11^2) + 2.345e-13 against 7.000e-10; the spectrum is discrete, so lambda_j is an eigenvalue</span></span></code></pre></div>
+<p>The truncation row is exact here as it is for the Jacobi operator:
+cutting the band leaves a residual on the <code>d</code> frequencies
+each side that the band reaches, and those are computed rather than
+estimated. The diagonal grows without bound, so the operator’s spectrum
+is discrete and the <code>forward error</code> row is a distance to an
+eigenvalue of the operator on the circle. Every nonzero eigenvalue of
+the free operator <code>-d^2/dx^2</code> is double, and a Krylov method
+started from one vector can return one copy of a double eigenvalue;
+<code>target identity</code> is <code>not_checked</code> for that
+reason.</p>
+</div>
+<div class="section level2">
 <h2 id="where-to-next">Where to next<a class="anchor" aria-label="anchor" href="#where-to-next"></a>
 </h2>
 <ul>

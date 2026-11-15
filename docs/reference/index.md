@@ -43,6 +43,8 @@ spectral computation on it is a statement about the operator underneath.
 
 - [`linop_jacobi()`](https://gillescolling.com/linop/reference/linop_jacobi.md)
   : A Jacobi operator on the sequence space
+- [`linop_space()`](https://gillescolling.com/linop/reference/linop_space.md)
+  : An operator on a function space
 - [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
   : Truncate an operator on a sequence space
 - [`decay_rate()`](https://gillescolling.com/linop/reference/decay_rate.md)

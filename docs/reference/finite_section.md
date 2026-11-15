@@ -15,7 +15,8 @@ finite_section(A, n)
 
 - A:
 
-  An operator on a sequence space, from \[linop_jacobi()\].
+  An operator on a sequence space, from \[linop_jacobi()\] or
+  \[linop_space()\].
 
 - n:
 

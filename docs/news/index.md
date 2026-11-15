@@ -86,6 +86,15 @@ graph.
   why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the
   reference.
+- `linop_space("fourier", derivative, multiplier)` is an operator on
+  functions on the circle, held as a banded operator on their Fourier
+  coefficients: a constant-coefficient differential operator plus
+  multiplication by a trigonometric polynomial.
+  [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) runs on
+  it directly, chooses the truncation, and certifies against the
+  operator on the circle with an exact truncation term;
+  [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
+  truncates it by hand.
 - [`linop()`](https://gillescolling.com/linop/reference/linop.md) takes
   a `DelayedMatrix` (DelayedArray, and so HDF5-backed matrices from
   HDF5Array), a two-dimensional `torch_tensor` of type float64 or

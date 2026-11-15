@@ -176,8 +176,8 @@ over the whole run, with R version 4.6.0 (2026-04-24 ucrt):
 
 ``` R
 #>                     operator seconds
-#> 1                       Blur   0.010
-#> 2 crossprod(Blur) + 1e-3 * I   0.022
+#> 1                       Blur    0.01
+#> 2 crossprod(Blur) + 1e-3 * I    0.02
 #> Peak R memory: 99 MB
 ```
 
