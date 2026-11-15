@@ -115,27 +115,44 @@ new_chebyshev <- function(derivative, multiplier, boundary) {
   coef <- derivative
   while (length(coef) > 1L && coef[length(coef)] == 0) coef <- coef[-length(coef)]
   p <- length(coef) - 1L
-  if (p < 1L) stopf("a Chebyshev operator needs a derivative term; derivative = %s is order 0",
-                    deparse(derivative))
-  if (is.null(boundary) || !is.list(boundary) ||
-      !all(c("at", "derivative", "value") %in% names(boundary))) {
-    stopf("boundary is a list of at (each -1 or 1), derivative (whole numbers) and value")
-  }
-  nb <- length(boundary$at)
-  if (nb != p || length(boundary$derivative) != nb || length(boundary$value) != nb) {
-    stopf("an operator of order %d needs %d boundary conditions; got %d", p, p, nb)
-  }
-  if (!all(boundary$at %in% c(-1, 1))) stopf("boundary conditions sit at -1 or 1")
-  if (any(boundary$derivative < 0) || any(boundary$derivative >= p)) {
-    stopf("boundary derivatives run from 0 to %d for an operator of order %d", p - 1L, p)
+  ## A term of a sum may come without boundary conditions, which belong to the
+  ## problem; solve() and eigs() require them, one per order.
+  if (!is.null(boundary)) {
+    if (!is.list(boundary) || !all(c("at", "derivative", "value") %in% names(boundary))) {
+      stopf("boundary is a list of at (each -1 or 1), derivative (whole numbers) and value")
+    }
+    nb <- length(boundary$at)
+    if (length(boundary$derivative) != nb || length(boundary$value) != nb) {
+      stopf("boundary needs at, derivative and value of the same length")
+    }
+    if (!all(boundary$at %in% c(-1, 1))) stopf("boundary conditions sit at -1 or 1")
+    if (any(boundary$derivative < 0)) stopf("boundary derivatives are whole numbers from 0")
+    boundary <- list(at = as.numeric(boundary$at),
+                     derivative = as.integer(boundary$derivative),
+                     value = as.numeric(boundary$value))
   }
   new_linop("chebyshev", c(Inf, Inf), "double", new_caps(),
             list(coef = as.numeric(coef), order = p, a = as.numeric(multiplier),
-                 boundary = list(at = as.numeric(boundary$at),
-                                 derivative = as.integer(boundary$derivative),
-                                 value = as.numeric(boundary$value)),
+                 boundary = boundary,
                  domain = "chebyshev", range = sprintf("ultraspherical(%d)", p)),
             cost = Inf)
+}
+
+## What solve() and eigs() need before a system exists: a differential operator
+## with one condition per order, each on a derivative below the order.
+cheb_check_problem <- function(P, verb) {
+  p <- P$args$order
+  bc <- P$args$boundary
+  if (p < 1L) stopf("%s() needs a differential operator; this one is of order 0", verb)
+  nb <- if (is.null(bc)) 0L else length(bc$at)
+  if (nb != p) {
+    stopf("%s() on an operator of order %d needs %d boundary conditions; it has %d",
+          verb, p, p, nb)
+  }
+  if (any(bc$derivative >= p)) {
+    stopf("boundary derivatives run from 0 to %d for an operator of order %d", p - 1L, p)
+  }
+  invisible(TRUE)
 }
 
 ## ------------------------------------------------------------------ solve --
@@ -166,6 +183,7 @@ cheb_measure <- function(P, c, F, values) {
 
 cheb_solve <- function(A, b, args) {
   P <- A
+  cheb_check_problem(P, "solve")
   f <- as.numeric(b)
   if (!length(f) || anyNA(f)) stopf("b is the Chebyshev coefficients of the right-hand side")
   tol <- args$tol %||% 1e-10
@@ -224,6 +242,7 @@ cheb_solve_certificate <- function(m, tol, N, widths) {
 ## no distance to the spectrum: the forward row says so.
 cheb_eigs <- function(A, k, control, args) {
   P <- A
+  cheb_check_problem(P, "eigs")
   p <- P$args$order
   tol <- args$tol %||% 1e-10
   which <- args$which %||% "smallest"

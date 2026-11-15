@@ -79,14 +79,19 @@ test_that("the operator records its domain and range spaces", {
 })
 
 test_that("what the Chebyshev operator refuses", {
-  expect_error(linop_space("chebyshev", derivative = 1, boundary = dirichlet()), "order 0")
-  expect_error(linop_space("chebyshev", derivative = c(0, 0, 1),
-                           boundary = list(at = 1, derivative = 0, value = 0)),
-               "needs 2 boundary conditions")
+  ## a term without the problem's conditions is allowed; solving it is not
+  expect_error(solve(linop_space("chebyshev", derivative = 1, boundary = dirichlet()), 1),
+               "order 0")
+  expect_error(solve(linop_space("chebyshev", derivative = c(0, 0, 1),
+                                 boundary = list(at = 1, derivative = 0, value = 0)), 1),
+               "needs 2 boundary conditions; it has 1")
   expect_error(linop_space("chebyshev", derivative = c(0, 0, 1),
                            boundary = list(at = c(0, 1), derivative = c(0, 0), value = c(0, 0))),
                "sit at -1 or 1")
-  expect_error(linop_space("chebyshev", derivative = c(0, 0, 1)), "boundary is a list")
+  expect_error(solve(linop_space("chebyshev", derivative = c(0, 0, 1)), 1),
+               "needs 2 boundary conditions; it has 0")
+  expect_error(linop_space("chebyshev", derivative = c(0, 0, 1), boundary = "x"),
+               "boundary is a list")
   E <- linop_space("chebyshev", derivative = c(0, 0, -1), boundary = dirichlet())
   expect_error(eigs(E, k = 2), "smallest magnitude")
   expect_error(E %*% 1, "no block to act on|finite dimensions")

@@ -33,6 +33,7 @@ make_scale <- function(A, a) {
   if (a == 1) return(A)
   if (A$node == "scale") return(make_scale(A$args$A, a * A$args$a))
   if (A$node == "diag") return(linop_diag(a * A$args$d))
+  if (A$node %in% SPACE_NODES) return(space_scale(A, a))
   new_scale(A, a)
 }
 
@@ -45,7 +46,77 @@ make_sum <- function(ops) {
     if (A$node == "sum") flat <- c(flat, A$args$ops) else flat <- c(flat, list(A))
   }
   if (length(flat) == 1L) return(flat[[1L]])
+  merged <- space_sum(flat)
+  if (!is.null(merged)) return(merged)
   new_sum(flat)
+}
+
+## Function-space operators are held as coefficients from which the banded form
+## is built in the right range space, so a sum of two of one kind is the sum of
+## their coefficients, and its order, hence its range space, is the larger one:
+## the conversion ApproxFun inserts under + happens when the band is built.
+## Boundary conditions belong to the problem rather than to either term, so a
+## sum of Chebyshev operators needs them identical.
+SPACE_NODES <- c("fourier", "chebyshev", "basis")
+
+add_padded <- function(x, y) {
+  n <- max(length(x), length(y))
+  c(x, rep(0, n - length(x))) + c(y, rep(0, n - length(y)))
+}
+
+## Centred Fourier coefficients of different degrees, aligned at frequency 0.
+add_centred <- function(x, y) {
+  d <- max(length(x), length(y)) %/% 2L
+  pad <- function(v) { e <- d - length(v) %/% 2L; c(rep(0, e), v, rep(0, e)) }
+  pad(x) + pad(y)
+}
+
+space_sum <- function(ops) {
+  kinds <- vapply(ops, function(A) A$node, character(1))
+  if (!all(kinds %in% SPACE_NODES) || length(unique(kinds)) != 1L) return(NULL)
+  kind <- kinds[1L]
+  if (kind == "basis") {
+    bk <- unique(vapply(ops, function(A) A$args$kind, character(1)))
+    if (length(bk) != 1L) {
+      stopf("a sum of operators on %s needs one basis; got %s", "l^2(N)", paste(bk, collapse = " and "))
+    }
+  }
+  bc <- NULL
+  if (kind == "chebyshev") {
+    given <- Filter(Negate(is.null), lapply(ops, function(A) A$args$boundary))
+    if (length(given)) {
+      bc <- given[[1L]]
+      if (!all(vapply(given, function(g) identical(g, bc), logical(1)))) {
+        stopf(paste0("the terms of a sum of Chebyshev operators carry different boundary conditions;
+",
+                     "  they belong to the problem, so give them on one term or on none"))
+      }
+    }
+  }
+  coef <- Reduce(add_padded, lapply(ops, function(A) A$args$coef))
+  mult <- switch(kind,
+    fourier = Reduce(add_centred, lapply(ops, function(A) A$args$vhat)),
+    chebyshev = Reduce(add_padded, lapply(ops, function(A) A$args$a)),
+    basis = Reduce(add_padded, lapply(ops, function(A) A$args$v)))
+  if (kind == "chebyshev") return(new_chebyshev(coef, mult, bc))
+  space_rebuild(ops[[1L]], coef, mult)
+}
+
+space_scale <- function(A, a) {
+  mult <- switch(A$node, fourier = A$args$vhat, chebyshev = A$args$a, basis = A$args$v)
+  if (A$node == "chebyshev") {
+    ## a boundary condition is a statement about the solution, not a term of the
+    ## operator, so it is not scaled
+    return(new_chebyshev(a * A$args$coef, a * mult, A$args$boundary))
+  }
+  space_rebuild(A, a * A$args$coef, a * mult)
+}
+
+space_rebuild <- function(A, coef, mult) {
+  switch(A$node,
+    fourier = linop_space("fourier", derivative = coef, multiplier = mult),
+    chebyshev = new_chebyshev(coef, mult, A$args$boundary),
+    basis = new_basis_operator(A$args$kind, coef, mult))
 }
 
 make_product <- function(ops) {
