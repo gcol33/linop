@@ -92,7 +92,7 @@ test_that("the width is chosen, and recorded", {
 })
 
 test_that("what linop_space() and its section refuse", {
-  expect_error(linop_space("chebyshev"), "kind is")
+  expect_error(linop_space("hermite"), "kind is")
   expect_error(linop_space("fourier", multiplier = c(1, 2)), "odd number")
   expect_error(finite_section(hill(1), 1), "narrower than the multiplier")
   expect_error(eigs(hill(1), k = 1, v0 = rep(1, 3)), "does not take v0")

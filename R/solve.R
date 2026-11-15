@@ -157,6 +157,13 @@ solve.linop <- function(a, b, method = "auto", preconditioner = NULL,
     require_finite_dim(a, "solve")
     return(exact_inverse(a))
   }
+  ## An operator with no matrix is solved by its node type where it knows how,
+  ## choosing the truncation itself, as eigs() does through the spectrum hook.
+  if (is_linop(a) && !is_finite_dim(a)) {
+    run <- get_node(a$node)$solve
+    if (is.null(run)) require_finite_dim(a, "solve")
+    return(run(a, b, list(tol = tol)))
+  }
   if (!is_scalar_string(method)) stopf("method must be a single string")
   if (!method %in% c("auto", SOLVE_METHODS)) {
     stopf("unknown method '%s'; it is one of: auto, %s",

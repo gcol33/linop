@@ -68,6 +68,13 @@ First development release. The finite object model and the expression graph.
   trigonometric polynomial. `eigs()` runs on it directly, chooses the
   truncation, and certifies against the operator on the circle with an exact
   truncation term; `finite_section()` truncates it by hand.
+* `linop_space("chebyshev", derivative, multiplier, boundary)` is a
+  differential operator on `[-1, 1]` with polynomial coefficients and boundary
+  conditions, held in the ultraspherical method: banded from Chebyshev
+  coefficients to those of `C^(p)`. `solve()` takes the right-hand side's
+  Chebyshev coefficients and `eigs(which = "smallest")` the smallest eigenvalues;
+  both choose the number of coefficients and certify the exact residual on the
+  untruncated system.
 * `linop()` takes a `DelayedMatrix` (DelayedArray, and so HDF5-backed matrices
   from HDF5Array), a two-dimensional `torch_tensor` of type float64 or
   complex128, and a `big.matrix` (bigmemory, file-backed or not), applied by
