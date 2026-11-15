@@ -6,5 +6,6 @@
   register_structured_nodes()
   register_fourier_nodes()
   register_chebyshev_node()
+  register_basis_nodes()
   invisible(NULL)
 }

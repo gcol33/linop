@@ -68,6 +68,11 @@ First development release. The finite object model and the expression graph.
   trigonometric polynomial. `eigs()` runs on it directly, chooses the
   truncation, and certifies against the operator on the circle with an exact
   truncation term; `finite_section()` truncates it by hand.
+* `linop_space("hermite")` and `linop_space("laguerre")`: operators on the line
+  in Hermite functions and on the half line in Laguerre functions, banded
+  because `x` is tridiagonal in both, with `-d^2/dx^2 + V` (`V` a polynomial)
+  and the Laguerre operator `-(x u')' + x u / 4` respectively. Truncated and
+  certified like the circle's.
 * `linop_jacobi()` takes periodic limits: `diagonal_limit` and
   `offdiagonal_limit` may be one period of values, the essential spectrum is
   then a union of bands, and the certificate measures isolation against the

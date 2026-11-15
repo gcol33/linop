@@ -142,7 +142,7 @@ node_children <- function(op) {
   switch(op$node,
     sum = , product = , kron = , blockdiag = , hstack = , vstack = op$args$ops,
     transpose = , adjoint = , conjugate = , scale = , section = , power = ,
-    fourier_section = ,
+    fourier_section = , basis_section = ,
     inverse = list(op$args$A),
     list())
 }

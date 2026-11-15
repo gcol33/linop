@@ -90,5 +90,5 @@ test_that("what the Chebyshev operator refuses", {
   E <- linop_space("chebyshev", derivative = c(0, 0, -1), boundary = dirichlet())
   expect_error(eigs(E, k = 2), "smallest magnitude")
   expect_error(E %*% 1, "no block to act on|finite dimensions")
-  expect_error(linop_space("hermite"), "kind is")
+  expect_error(linop_space("legendre"), "kind is")
 })

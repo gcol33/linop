@@ -420,7 +420,7 @@ section_eigs <- function(A, k, control, args) {
 ## because the residual term is added in quadrature with this one and answers to
 ## a different knob; a search that stopped at exactly the tolerance would leave
 ## the truncation binding.
-width_search <- function(P, n, n_max, k, args, accept, predict) {
+width_search <- function(P, n, n_max, k, args, accept, predict, space = "l^2(Z)") {
   history <- data.frame(n = integer(0), eta = numeric(0))
   repeat {
     fit <- do.call(eigs, c(list(A = finite_section(P, n), k = k), args))
@@ -447,7 +447,7 @@ width_search <- function(P, n, n_max, k, args, accept, predict) {
   ## dispatch in the package is recorded and printed the same way.
   fit$certificate$dispatch <- list(
     requested = args$method, chosen = fit$method,
-    reason = sprintf("operator on l^2(Z); width %s, stopped because %s",
-                     paste(widths, collapse = " -> "), why))
+    reason = sprintf("operator on %s; width %s, stopped because %s",
+                     space, paste(widths, collapse = " -> "), why))
   fit
 }

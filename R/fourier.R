@@ -66,13 +66,22 @@ fourier_apply <- function(op, X, mode) {
 #' magnitude; both choose the number of coefficients and certify the exact
 #' residual on the untruncated system.
 #'
-#' @param kind The function space: `"fourier"`, the circle, or `"chebyshev"`,
-#'   the interval `[-1, 1]`.
+#' `kind = "hermite"` is the line, in the Hermite functions, where `x` and
+#' `d/dx` are tridiagonal: `sum_m c_m (d/dx)^m + V(x)` with `V` a polynomial given
+#' by its monomial coefficients. `kind = "laguerre"` is the half line, in the
+#' Laguerre functions `exp(-x/2) L_n(x)`, where `x` is tridiagonal and the
+#' Laguerre operator `-(x u')' + x u / 4` is diagonal: `c` times that operator
+#' plus a polynomial `V(x)`, with `derivative = c`. Both are banded operators on
+#' coefficient sequences, truncated and certified as on the circle.
+#'
+#' @param kind The function space: `"fourier"`, the circle; `"chebyshev"`, the
+#'   interval `[-1, 1]`; `"hermite"`, the line; `"laguerre"`, the half line.
 #' @param derivative Coefficients `c_0, c_1, ..., c_p` of `sum c_m (d/dx)^m`.
 #'   The default, `c(0, 0, -1)`, is `-d^2/dx^2`.
 #' @param multiplier The coefficients of the multiplying function: Fourier
 #'   coefficients from frequency `-d` to `d` (an odd number of them) on the
-#'   circle, Chebyshev coefficients `a_0, a_1, ...` on the interval. A single
+#'   circle, Chebyshev coefficients `a_0, a_1, ...` on the interval, monomial
+#'   coefficients `v_0, v_1, ...` of `V(x)` on the line and half line. A single
 #'   number is a constant.
 #' @param boundary For `"chebyshev"`, a list with `at` (each `-1` or `1`),
 #'   `derivative` and `value`, one entry per order of the operator.
@@ -98,10 +107,20 @@ fourier_apply <- function(op, X, mode) {
 #' @export
 linop_space <- function(kind = "fourier", derivative = c(0, 0, -1), multiplier = 0,
                         boundary = NULL) {
-  if (!is_scalar_string(kind) || !kind %in% c("fourier", "chebyshev")) {
-    stopf("kind is \"fourier\" or \"chebyshev\"; got %s", deparse(kind))
+  kinds <- c("fourier", "chebyshev", "hermite", "laguerre")
+  if (!is_scalar_string(kind) || !kind %in% kinds) {
+    stopf("kind is one of %s; got %s", paste0("\"", kinds, "\"", collapse = ", "), deparse(kind))
   }
   if (kind == "chebyshev") return(new_chebyshev(derivative, multiplier, boundary))
+  if (kind %in% c("hermite", "laguerre")) {
+    if (!is.numeric(multiplier) || !length(multiplier) || anyNA(multiplier)) {
+      stopf("multiplier is the coefficients v_0, v_1, ... of the polynomial V(x) = sum v_m x^m")
+    }
+    if (!is.numeric(derivative) || !length(derivative) || anyNA(derivative)) {
+      stopf("derivative must be real coefficients")
+    }
+    return(new_basis_operator(kind, derivative, multiplier))
+  }
   if (!(is.numeric(derivative) || is.complex(derivative)) || !length(derivative) ||
       anyNA(derivative)) {
     stopf("derivative must be the coefficients c_0, ..., c_p, at least one of them")
@@ -222,75 +241,15 @@ fourier_scale <- function(P, q) Mod(q) + P$args$vnorm + Mod(P$args$coef[length(P
 fourier_certificate <- function(A, values, vectors, tol, iterations, maxit,
                                 floor_const = SOLVE_FLOOR_CONST,
                                 requested = NULL, stop_reason = NULL) {
-  r <- cert_rows()
-  eps <- .Machine$double.eps
   P <- A$args$A
-  n <- A$args$n
-  X <- as_block(vectors)
-  q <- if (is.complex(values)) as.vector(values) else as.numeric(values)
-  k <- ncol(X)
-  requested <- requested %||% k
-  if (!k) {
-    return(eigen_certificate_empty(r, requested, iterations, maxit, stop_reason,
-                                   "finite section"))
-  }
-  hn <- max(Mod(A$args$diag)) + P$args$vnorm
-  flr <- floor_const * eps * hn
-  want <- tol * fourier_scale(P, q)
-
-  xn <- col_norms(X)
-  sx <- ifelse(xn > 0, xn, 1)
-  res <- col_norms(linop_apply(A, X, "N") - scale_cols(X, q)) / sx
-  trunc <- fourier_edge(P, X) / sx
-  total <- sqrt(res^2 + trunc^2)
-  bound <- total + flr
-  met <- bound <= want
-
-  r$add("arithmetic floor", "pass",
-        sprintf("||H_n|| <= %.4g, the largest |s(k)| on the section plus sum |vhat_j|; c = %g, eps = %.3g, floor %.3e",
-                hn, floor_const, eps, flr),
-        source = "construction", guarantee = "deterministic_bound", confidence = 1)
-  r$add("finite residual", cert_level(max(res / want), 1, flr / min(want)),
-        sprintf("worst ||H_n u - q u|| / ||u|| = %.3e against %.3e; %d of %d iterations",
-                max(res), min(want), iterations, maxit))
-  if (P$args$self_adjoint) {
-    cert_add_orthogonality(r, X, floor_const)
-  } else {
-    r$add("orthogonality", "not_checked",
-          "the operator is not self-adjoint, and its eigenvectors need not be orthogonal",
-          source = "computation", guarantee = "identity", confidence = NA_real_)
-  }
-  r$add("truncation bound", cert_level(max(trunc / want), 1, flr / min(want)),
-        sprintf("worst ||r_out|| / ||u|| = %.3e against %.3e at n = %d, from the %d frequencies each side the band reaches%s",
-                max(trunc), min(want), n, P$args$d,
-                if (max(trunc) <= flr) "; the tail is at the arithmetic floor" else ""),
-        source = "theorem", guarantee = "deterministic_bound", confidence = 1)
-  r$add("target identity", "not_checked",
-        "a residual bound says the value is near some eigenvalue, not which one",
-        source = "computation", guarantee = "identity", confidence = NA_real_)
-  cert_add_convergence(r, met, requested, iterations, maxit,
-                       if (!all(met) && all(res + flr <= want))
-                         sprintf("the eigensolve met its target and the section did not; the truncation term is %.3e at n = %d",
-                                 max(trunc), n)
-                       else stop_reason,
-                       "the subspace had stopped improving")
-  if (P$args$self_adjoint) {
-    r$add("forward error", if (all(met)) "pass" else "fail",
-          sprintf(paste0("min_j |q - lambda_j(H)| <= %.3e = sqrt(%.3e^2 + %.3e^2) + %.3e against %.3e%s"),
-                  max(bound), max(res), max(trunc), flr, min(want),
-                  if (P$args$discrete) "; the spectrum is discrete, so lambda_j is an eigenvalue" else ""),
-          evidence = evidence("theorem", "deterministic_bound", 1))
-  } else {
-    r$add("forward error", "not_checked",
-          sprintf("q lies in the %.3e-pseudospectrum of the operator on the circle; it is not self-adjoint, so no distance to an eigenvalue follows",
-                  max(total)),
-          source = "computation", guarantee = "identity", confidence = NA_real_)
-  }
-  build_certificate(r$collect(), subject = "finite section",
-                    values = list(residual = res, truncation = trunc, bound = bound,
-                                  target = want, norm = hn, floor = flr, n = n,
-                                  converged = met),
-                    evidence = r$collect_evidence())
+  band_certificate(A, values, vectors, tol, iterations, maxit, floor_const,
+                   requested, stop_reason, P,
+                   hn = max(Mod(A$args$diag)) + P$args$vnorm,
+                   scale = function(q) fourier_scale(P, q),
+                   edge = function(X) fourier_edge(P, X),
+                   self_adjoint = P$args$self_adjoint, discrete = P$args$discrete,
+                   reach = sprintf("the %d frequencies each side the band reaches", P$args$d),
+                   space = "the circle")
 }
 
 fourier_certify <- function(ctx) {
@@ -300,34 +259,9 @@ fourier_certify <- function(ctx) {
                       stop_reason = ctx$stop_reason)
 }
 
-## ----------------------------------------------------- eigs() on the operator --
-
-## The eigenvectors of an operator with a trigonometric-polynomial multiplier
-## have Fourier coefficients that decay faster than any geometric rate, so there
-## is no single rate to divide by as there is for the Jacobi class. Two
-## measurements give the local rate, and extrapolating it is conservative, since
-## the true decay accelerates.
-FOURIER_N_START <- 16L
-
 fourier_eigs <- function(A, k, control, args) {
-  if (!is.null(args$v0)) {
-    stopf("eigs() on the operator itself does not take v0; the truncation width is what it chooses")
-  }
-  bad <- setdiff(names(control), c("n_start", "n_max"))
-  if (length(bad)) stopf("section takes n_start and n_max; it does not take: %s",
-                         paste(bad, collapse = ", "))
-  ctl <- utils::modifyList(list(n_start = FOURIER_N_START, n_max = SECTION_N_MAX), control)
-  n <- max(as.integer(ctl$n_start), A$args$d, as.integer(ceiling(k / 2)) + 1L)
-  n_max <- as.integer(ctl$n_max)
-  width_search(A, n, n_max, k, args, accept = function(v) min(v$target) / 2,
-               predict = function(v, history) {
-                 h <- nrow(history)
-                 if (h < 2L || history$eta[h - 1L] <= 0) return(2L * history$n[h])
-                 rate <- (history$eta[h] / history$eta[h - 1L])^(1 / (history$n[h] - history$n[h - 1L]))
-                 if (!is.finite(rate) || rate >= 1 || rate <= 0) return(2L * history$n[h])
-                 target <- min(v$target) * SECTION_N_AIM
-                 as.integer(ceiling(history$n[h] + log(target / history$eta[h]) / log(rate)))
-               })
+  band_eigs(A, k, control, args,
+            n_min = max(A$args$d, as.integer(ceiling(k / 2)) + 1L))
 }
 
 register_fourier_nodes <- function() {
