@@ -77,8 +77,8 @@ summary(A)$caps[, c("capability", "value")]
 #>               capability value
 #> 1              hermitian  TRUE
 #> 2              symmetric  TRUE
-#> 3      positive_definite    NA
-#> 4  positive_semidefinite    NA
+#> 3      positive_definite  TRUE
+#> 4  positive_semidefinite  TRUE
 #> 5                unitary    NA
 #> 6               diagonal FALSE
 #> 7       triangular_upper FALSE

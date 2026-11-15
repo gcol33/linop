@@ -83,7 +83,10 @@ attr(solve(D, rep(1, 50)), "certificate")$dispatch$reason
 ```
 
 A dense leaf checks its own symmetry when it is built, on data it
-already holds, so a symmetric matrix reaches MINRES:
+already holds, and for a real symmetric matrix of order up to 200 it
+also proves definiteness: it factors `M - c I` and shows that the
+factorisation’s rounding error cannot reach `c`, which is a proof rather
+than an estimate. A matrix that passes reaches CG:
 
 ``` r
 
@@ -91,15 +94,19 @@ M <- crossprod(matrix(rnorm(60 * 60), 60, 60)) + diag(60)
 Ad <- linop(M)
 bd <- as.numeric(Ad %*% rep(1, 60))
 attr(solve(Ad, bd), "certificate")$dispatch$reason
-#> [1] "the operator is hermitian, and definiteness is not established"
+#> [1] "the operator is hermitian positive definite"
 ```
 
-The operator above is positive definite, and `auto` still chose MINRES
-rather than CG. Symmetry was computed; definiteness was not, and `auto`
-will not assume it. There is a CG branch above the MINRES one, and no
-constructor in the package currently reaches it, because the routes that
-establish definiteness at a source `auto` accepts are diagonal and are
-taken by the direct route first. CG is reached by naming it.
+A symmetric matrix whose definiteness is not proven, because it is
+indefinite, too ill conditioned for the proof, or larger than the gate,
+reaches MINRES:
+
+``` r
+
+Mi <- M - 2 * diag(diag(M))
+attr(solve(linop(Mi), as.numeric(Mi %*% rep(1, 60))), "certificate")$dispatch$reason
+#> [1] "the operator is hermitian, and definiteness is not established"
+```
 
 That is the general rule, and it applies to declarations too. `L` at the
 top of this article was built with no properties at all. Declaring them

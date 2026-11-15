@@ -90,7 +90,7 @@ M <- matrix(c(2, 1, 0,
 A <- linop(M)
 A
 #> <linop> 3 x 3, double
-#>   hermitian, symmetric, not diagonal, not triangular_upper, not triangular_lower, real
+#>   hermitian, symmetric, positive_definite, positive_semidefinite, not diagonal, not triangular_upper, not triangular_lower, real
 #> 
 #> dense[3 x 3]
 ```

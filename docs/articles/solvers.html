@@ -168,25 +168,28 @@ at all:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">D</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span><span class="op">)</span>, <span class="st">"certificate"</span><span class="op">)</span><span class="op">$</span><span class="va">dispatch</span><span class="op">$</span><span class="va">reason</span></span>
 <span><span class="co">#&gt; [1] "the operator is diagonal and of full rank, so the solve is exact"</span></span></code></pre></div>
 <p>A dense leaf checks its own symmetry when it is built, on data it
-already holds, so a symmetric matrix reaches MINRES:</p>
+already holds, and for a real symmetric matrix of order up to 200 it
+also proves definiteness: it factors <code>M - c I</code> and shows that
+the factorisation’s rounding error cannot reach <code>c</code>, which is
+a proof rather than an estimate. A matrix that passes reaches CG:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">M</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span> <span class="op">*</span> <span class="fl">60</span><span class="op">)</span>, <span class="fl">60</span>, <span class="fl">60</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">60</span><span class="op">)</span></span>
 <span><span class="va">Ad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">M</span><span class="op">)</span></span>
 <span><span class="va">bd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">Ad</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">60</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">Ad</span>, <span class="va">bd</span><span class="op">)</span>, <span class="st">"certificate"</span><span class="op">)</span><span class="op">$</span><span class="va">dispatch</span><span class="op">$</span><span class="va">reason</span></span>
+<span><span class="co">#&gt; [1] "the operator is hermitian positive definite"</span></span></code></pre></div>
+<p>A symmetric matrix whose definiteness is not proven, because it is
+indefinite, too ill conditioned for the proof, or larger than the gate,
+reaches MINRES:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">Mi</span> <span class="op">&lt;-</span> <span class="va">M</span> <span class="op">-</span> <span class="fl">2</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">M</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">Mi</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">Mi</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">60</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, <span class="st">"certificate"</span><span class="op">)</span><span class="op">$</span><span class="va">dispatch</span><span class="op">$</span><span class="va">reason</span></span>
 <span><span class="co">#&gt; [1] "the operator is hermitian, and definiteness is not established"</span></span></code></pre></div>
-<p>The operator above is positive definite, and <code>auto</code> still
-chose MINRES rather than CG. Symmetry was computed; definiteness was
-not, and <code>auto</code> will not assume it. There is a CG branch
-above the MINRES one, and no constructor in the package currently
-reaches it, because the routes that establish definiteness at a source
-<code>auto</code> accepts are diagonal and are taken by the direct route
-first. CG is reached by naming it.</p>
 <p>That is the general rule, and it applies to declarations too.
 <code>L</code> at the top of this article was built with no properties
 at all. Declaring them changes nothing about which method
 <code>auto</code> picks:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Ldecl</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span></span>
 <span>  <span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">X</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span>, <span class="fl">0</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="va">n</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>  dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span>,</span>
@@ -210,7 +213,7 @@ every route above it was unavailable in the first place.</p>
 </h2>
 <p>Naming a method is the caller making the assertion, so no evidence
 minimum applies:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">Ldecl</span>, <span class="va">b</span>, method <span class="op">=</span> <span class="st">"cg"</span><span class="op">)</span>, <span class="st">"certificate"</span><span class="op">)</span><span class="op">$</span><span class="va">dispatch</span></span>
 <span><span class="co">#&gt; $requested</span></span>
 <span><span class="co">#&gt; [1] "cg"</span></span>
@@ -300,7 +303,7 @@ iterative solve.</p>
 </h2>
 <p><code><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve()</a></code> with <code>method = "auto"</code> refuses a
 rectangular operator, and says what to name instead:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span> <span class="op">*</span> <span class="fl">40</span><span class="op">)</span>, <span class="fl">120</span>, <span class="fl">40</span><span class="op">)</span></span>
 <span><span class="va">R</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span><span class="va">bl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span><span class="op">)</span></span>
@@ -314,7 +317,7 @@ rectangular operator, and says what to name instead:</p>
 mathematical question from <code>A x = b</code>, rather than the same
 one on a different shape, so the caller states which they meant. Both
 methods are reachable through the same verb:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xl</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">R</span>, <span class="va">bl</span>, method <span class="op">=</span> <span class="st">"lsqr"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">xl</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/qr.html" class="external-link">qr.solve</a></span><span class="op">(</span><span class="va">G</span>, <span class="va">bl</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 3.203147e-09</span></span></code></pre></div>
@@ -323,7 +326,7 @@ over the same bidiagonalisation. LSQR minimises <code>||r||</code>. LSMR
 minimises <code>||A^H r||</code>, which is the quantity that goes to
 zero at a least-squares solution and the numerator of the backward error
 the certificate reports:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">R</span>, <span class="va">bl</span>, method <span class="op">=</span> <span class="st">"lsmr"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>lsqr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">xl</span>, <span class="st">"certificate"</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">$</span><span class="va">backward_error</span>,</span>
 <span>  lsmr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">xm</span>, <span class="st">"certificate"</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">$</span><span class="va">backward_error</span><span class="op">)</span></span>
@@ -335,7 +338,7 @@ the certificate reports:</p>
 </h2>
 <p>A preconditioner is built from one direction, <code>M^-1</code>, and
 carries what it declares about itself:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fl">10</span><span class="op">^</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">0</span>, <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="va">Adense</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
@@ -356,7 +359,7 @@ carries what it declares about itself:</p>
 <span><span class="co">#&gt;   M^-H:              equal to M^-1, by the hermitian declaration</span></span></code></pre></div>
 <p>The diagonal of that operator spans five orders of magnitude. At a
 fixed budget of 40 iterations, with everything else equal:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plain</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span>, <span class="va">bb</span>, method <span class="op">=</span> <span class="st">"minres"</span>, maxit <span class="op">=</span> <span class="fl">40</span>, tol <span class="op">=</span> <span class="fl">1e-10</span><span class="op">)</span></span>
 <span><span class="va">scaled</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span>, <span class="va">bb</span>, method <span class="op">=</span> <span class="st">"minres"</span>, maxit <span class="op">=</span> <span class="fl">40</span>, tol <span class="op">=</span> <span class="fl">1e-10</span>,</span>
 <span>                preconditioner <span class="op">=</span> <span class="va">P</span><span class="op">)</span></span>
@@ -417,7 +420,7 @@ preconditioner is accepted:</p>
 </tbody>
 </table>
 <p>A refusal names what was missing:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">flexible</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/preconditioner.html">preconditioner</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">R</span><span class="op">)</span> <span class="va">R</span> <span class="op">/</span> <span class="va">d</span>, fixed <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>                           hermitian <span class="op">=</span> <span class="cn">TRUE</span>, positive_definite <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>                           side <span class="op">=</span> <span class="st">"left"</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">200</span>, <span class="fl">200</span><span class="op">)</span><span class="op">)</span></span>
@@ -429,7 +432,7 @@ preconditioner is accepted:</p>
 the distinction does not arise. For GMRES all three are implemented and
 they produce different iterates, so its row is unrestricted for the
 opposite reason:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">Gm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">80</span> <span class="op">*</span> <span class="fl">80</span><span class="op">)</span>, <span class="fl">80</span>, <span class="fl">80</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Gm</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">Gm</span><span class="op">)</span> <span class="op">+</span> <span class="fl">12</span></span>
@@ -458,7 +461,7 @@ different space.</p>
 </h2>
 <p>An exhausted budget is a result, not an exception. It comes back as a
 <code>fail</code> certificate that says what ran out:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">plain</span>, <span class="st">"certificate"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; solved by minres (named by the caller, so no evidence minimum was applied)</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
@@ -482,7 +485,7 @@ throw, because there the operator is not what it claimed and no iterate
 is worth returning.</p>
 <p><code>details = TRUE</code> returns the whole object rather than the
 solution, including the convergence history:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">A</span>, <span class="va">bb</span>, method <span class="op">=</span> <span class="st">"minres"</span>, maxit <span class="op">=</span> <span class="fl">40</span>, tol <span class="op">=</span> <span class="fl">1e-10</span>, details <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "x"           "certificate" "method"      "iterations"  "restarts"   </span></span>

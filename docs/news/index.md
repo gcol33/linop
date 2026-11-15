@@ -86,6 +86,11 @@ graph.
   why each was taken or passed over.
   `options(linop.backend_priority = c(primme = -1))` prefers the
   reference.
+- A dense real symmetric leaf of order up to 200 proves positive
+  definiteness by a verified Cholesky factorisation (Rump’s approach,
+  Higham’s backward error bound), so `solve(method = "auto")` reaches CG
+  on it; until now nothing in the package reached that branch. A proof
+  that fails leaves the capability unknown, never false.
 - Structured operators:
   [`linop_kron()`](https://gillescolling.com/linop/reference/linop_kron.md),
   [`linop_blockdiag()`](https://gillescolling.com/linop/reference/linop_blockdiag.md),
