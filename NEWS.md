@@ -68,6 +68,10 @@ First development release. The finite object model and the expression graph.
   trigonometric polynomial. `eigs()` runs on it directly, chooses the
   truncation, and certifies against the operator on the circle with an exact
   truncation term; `finite_section()` truncates it by hand.
+* `eigs()` finds every copy of a repeated eigenvalue among the `k` it returns:
+  after the search it deflates what it found, searches again from a fresh
+  direction, and swaps in any pair that ranks better. Lanczos, and Arnoldi on a
+  hermitian operator. It costs about one more converged pair.
 * The domain of a `linop_space("chebyshev")` operator is its boundary
   conditions, which may be mixed (`weights = `). `adjoint()` returns the
   adjoint operator with the adjoint domain, by integration by parts, and the

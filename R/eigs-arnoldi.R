@@ -44,11 +44,18 @@
 ## eigenvectors are the pencil's, and the iteration runs on it in the ordinary
 ## inner product; B enters the measurement and the stopping rule.
 arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
-                         hermitian = FALSE, B = NULL) {
+                         hermitian = FALSE, B = NULL, prelocked = NULL) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
 
+  ## A deflation set from deflation_sweep(): the span of converged eigenvectors
+  ## is invariant, so its orthogonal complement carries the other eigenvalues,
+  ## and the basis is kept inside that complement.
   v <- eigen_start_vector(n, Op$dtype, v0, seed)
+  if (!is.null(prelocked)) {
+    v <- orth_against(prelocked, v)
+    v <- v / col_norms(v)
+  }
   cplx <- Op$dtype == "complex" || is.complex(v)
   m <- min(ncv, n)
 
@@ -87,7 +94,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     if (l >= n) { stop_reason <- "the locked set spans the operator"; break }
     rounds <- rounds + 1L
 
-    ex <- arnoldi_expand(Op, V, M, brow, v, m, maxit - steps, cplx)
+    ex <- arnoldi_expand(Op, V, M, brow, v, m, maxit - steps, cplx, prelocked)
     steps <- steps + ex$applies
     if (ex$applies == 0L) { stop_reason <- "the recurrence made no step"; break }
     if (op_is_a) anorm_lb <- max(anorm_lb, ex$apply_norm)
@@ -240,6 +247,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
       ## direction to continue from, so the next round starts from a random one
       ## outside it with nothing coupling it to the retained block.
       v <- eigen_random_vector(n, Op$dtype, seed, rounds)
+      v <- orth_against(prelocked, v)
       if (!is.null(V)) v <- orth_against(V, v)
       nv <- col_norms(v)
       if (nv <= eps * sqrt(n)) {
@@ -284,7 +292,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
 
   ord <- ritz_order(thetas, sel)
   list(values = values[ord], vectors = vectors[, ord, drop = FALSE],
-       residuals = residuals[ord], steps = steps, rounds = rounds,
+       residuals = residuals[ord], thetas = thetas[ord], steps = steps, rounds = rounds,
        anorm_lb = anorm_lb, bnorm_lb = bnorm_lb, stop_reason = stop_reason)
 }
 
@@ -293,7 +301,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
 ## retained block to; its row of M is b, and each new column of M holds the
 ## coefficients the orthogonalisation removed, measured, plus the norm of what
 ## was left on the subdiagonal.
-arnoldi_expand <- function(Op, V, M, brow, v, m, max_applies, cplx) {
+arnoldi_expand <- function(Op, V, M, brow, v, m, max_applies, cplx, Q = NULL) {
   n <- nrow(v)
   eps <- .Machine$double.eps
   p <- if (is.null(V)) 0L else ncol(V)
@@ -320,6 +328,7 @@ arnoldi_expand <- function(Op, V, M, brow, v, m, max_applies, cplx) {
     ## projection, as in lanczos_run() and GMRES.
     w0 <- col_norms(W)
     apply_norm <- max(apply_norm, w0)
+    W <- orth_against(Q, W)
     h <- orth_project(Vn[, seq_len(j), drop = FALSE], W)
     W <- h$W
     Mn[seq_len(j), j] <- h$h[, 1L]

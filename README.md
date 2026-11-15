@@ -169,8 +169,8 @@ The time of one application of each operator, and the peak memory R used
 over the whole run, with R version 4.6.0 (2026-04-24 ucrt):
 
     #>                     operator seconds
-    #> 1                       Blur   0.010
-    #> 2 crossprod(Blur) + 1e-3 * I   0.022
+    #> 1                       Blur    0.01
+    #> 2 crossprod(Blur) + 1e-3 * I    0.02
     #> Peak R memory: 100 MB
 
 The expression is applied one block at a time, so the memory figure is

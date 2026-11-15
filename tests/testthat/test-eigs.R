@@ -147,13 +147,15 @@ test_that("the thick restart is what makes a small subspace converge", {
   ## spends 240 of its 300 iterations over 9 rounds and converges none of the
   ## four, stalling at a backward error of 5.7e-4. The shipped restart reaches
   ## 5.1e-13 in 96. Measured in dev_notes/spikes/restart-comparison.R, which
-  ## swaps only the block that chooses what the next round starts from.
+  ## swaps only the block that chooses what the next round starts from. The
+  ## count below also holds the check for missed copies (deflation_sweep()),
+  ## one further request for k = 1 that finds nothing better: 96 + 120.
   n <- 60
   A <- laplacian_1d(n)
   fit <- eigs(A, k = 4, which = "smallest_algebraic", ncv = 24L, maxit = 300L)
   expect_equal(fit$nconv, 4L)
   expect_gt(fit$restarts, 0L)
-  expect_lt(fit$iterations, 200L)
+  expect_lt(fit$iterations, 240L)
   expect_equal(fit$values, laplacian_1d_eigenvalues(n)[1:4], tolerance = 1e-10)
 })
 
@@ -429,4 +431,27 @@ test_that("the caller's random stream is not moved", {
 test_that("an ordinary result prints no section line", {
   out <- capture.output(print(eigs(laplacian_1d(20), k = 2)))
   expect_false(any(grepl("section", out)))
+})
+
+test_that("a repeated eigenvalue comes back with every copy it has among the k", {
+  ## A Krylov space from one vector reaches one vector per eigenspace, so the
+  ## circle Laplacian's three smallest came back as 0, 1, 4; the check after the
+  ## search (deflation_sweep()) finds the missed copy and swaps it in.
+  for (k in c(3L, 5L)) {
+    f <- eigs(linop_space("fourier"), k = k, which = "smallest_algebraic")
+    truth <- sort(c(0, rep((1:3)^2, each = 2)))[seq_len(k)]
+    expect_equal(sort(f$values), truth, tolerance = 1e-10, info = sprintf("k = %d", k))
+  }
+  ## the square grid's double eigenvalue, through Lanczos and through Arnoldi
+  n <- 20
+  L <- linop(as.matrix(laplacian_1d(n)))
+  L2 <- linop_kron(L, linop_eye(n)) + linop_kron(linop_eye(n), L)
+  ev <- laplacian_1d_eigenvalues(n)
+  truth <- sort(outer(ev, ev, "+"), decreasing = TRUE)[1:4]
+  expect_equal(eigs(L2, k = 4, which = "largest_algebraic")$values, truth, tolerance = 1e-10)
+  M2 <- as.matrix(L2)
+  cb <- linop(function(X) M2 %*% X, dim = c(n * n, n * n), properties = c(hermitian = TRUE))
+  fa <- eigs(cb, k = 4, which = "largest_algebraic")
+  expect_equal(fa$method, "arnoldi")
+  expect_equal(fa$values, truth, tolerance = 1e-10)
 })

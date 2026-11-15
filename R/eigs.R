@@ -439,7 +439,7 @@ generalized_operator <- function(A, B, inner) {
 ## two agree to the last digit, which is the control that confines the difference
 ## to this block; dev_notes/spikes/restart-comparison.R runs both.
 lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
-                         B = NULL) {
+                         B = NULL, prelocked = NULL) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
   metric <- !is.null(B)
@@ -471,13 +471,14 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     want <- k - nl
     if (want <= 0L) break
     if (steps >= maxit) { stop_reason <- "budget exhausted"; break }
-    if (nl >= n) { stop_reason <- "the locked set spans the operator"; break }
+    npre <- if (is.null(prelocked)) 0L else ncol(prelocked)
+    if (nl + npre >= n) { stop_reason <- "the locked set spans the operator"; break }
     rounds <- rounds + 1L
 
     ## The subspace this round may occupy, and how much of the budget is left to
     ## fill it with. Retained vectors take room in the first and cost nothing
     ## against the second, which is the whole economy of a thick restart.
-    m <- min(ncv - nl, n - nl)
+    m <- min(ncv - nl, n - nl - npre)
     if (!is.null(keep)) {
       p <- min(ncol(keep$Y), m - 2L)
       keep <- if (p >= 1L) list(Y = keep$Y[, seq_len(p), drop = FALSE],
@@ -489,12 +490,13 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     ## The start of a round lives in the complement of what is locked. A start
     ## that lies entirely inside the locked space carries no new direction, and a
     ## fresh random one does.
-    v <- orth_against(Qv, v, BQv)
+    Qd <- cbind(prelocked, Qv)
+    v <- orth_against(Qd, v, BQv)
     if (!is.null(keep)) v <- orth_against(keep$Y, v, keep$BY)
     nv <- col_norms(v)
     if (nv <= eps * sqrt(n)) {
       v <- eigen_random_vector(n, Op$dtype, seed, rounds)
-      v <- orth_against(Qv, v, BQv)
+      v <- orth_against(Qd, v, BQv)
       if (!is.null(keep)) v <- orth_against(keep$Y, v, keep$BY)
       nv <- col_norms(v)
       if (nv <= eps * sqrt(n)) {
@@ -506,7 +508,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     if (metric) nv <- sqrt(col_dot(v, linop_apply(B, v, "N")))
     v <- v / nv
 
-    run <- lanczos_run(Op, v, Qv, m, maxit - steps, keep, B, BQv)
+    run <- lanczos_run(Op, v, Qd, m, maxit - steps, keep, B, BQv)
     steps <- steps + run$applies
     if (run$applies == 0L) { stop_reason <- "the recurrence made no step"; break }
     ## Each step's ||A v_j|| for a unit v_j is a lower bound on ||A|| at no cost,
@@ -608,9 +610,62 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
 
   ord <- ritz_order(thetas, sel)
   list(values = values[ord], vectors = vectors[, ord, drop = FALSE],
-       residuals = residuals[ord], steps = steps, rounds = rounds,
+       residuals = residuals[ord], thetas = thetas[ord], steps = steps, rounds = rounds,
        anorm_lb = anorm_lb, bnorm_lb = bnorm_lb, stop_reason = stop_reason)
 }
+
+## A Krylov space grown from one vector reaches one vector of each eigenspace in
+## exact arithmetic, so the other copies of a repeated eigenvalue come only from
+## rounding, and a request for k values can come back with a copy missing and
+## the next distinct value in its place: the circle Laplacian's three smallest
+## returned 0, 1, 4 where the truth is 0, 1, 1. A restarted block Krylov space
+## would reach the copies directly, but at this package's default subspace a
+## block of k leaves each restart a polynomial of degree about ncv / k: on
+## laplacian_1d(400), four largest, a block of four converged one pair in 4703
+## applies where one vector converges four in 764.
+##
+## So the search is finished and then checked. Deflate everything found, start
+## from a fresh random direction, which has an O(1) component along a missed
+## copy, and ask for the one best pair left. If it ranks above the worst pair
+## returned, it was missed: it takes that place, the displaced pair stays in the
+## deflation set, and the check repeats. If not, nothing better was reached from
+## a random start and the search stops. One request for k = 1 per check, and
+## none for k = 1, where any copy is a right answer.
+deflation_sweep <- function(core, run, k, sel, tol, maxit, seed) {
+  if (k <= 1L || !is.null(run$stop_reason) || length(run$values) < k) return(run)
+  better <- function(a, b) switch(sel,
+    LA = Re(a) > Re(b), SA = Re(a) < Re(b), LM = Mod(a) > Mod(b), SM = Mod(a) < Mod(b),
+    LI = abs(Im(a)) > abs(Im(b)), SI = abs(Im(a)) < abs(Im(b)))
+  found <- run$vectors
+  for (s in seq_len(k)) {
+    budget <- maxit - run$steps
+    if (budget <= 0L) break
+    cand <- core(k = 1L, maxit = budget, seed = seed + 9973L * s,
+                 prelocked = qr.Q(qr(found)))
+    run$steps <- run$steps + cand$steps
+    run$rounds <- run$rounds + cand$rounds
+    if (!is.null(cand$stop_reason) || !length(cand$values)) break
+    worst <- ritz_order(run$thetas, sel)[k]
+    margin <- 10 * tol * max(Mod(run$thetas[worst]), 1)
+    if (!better(cand$thetas[1L], run$thetas[worst]) ||
+        Mod(cand$thetas[1L] - run$thetas[worst]) <= margin) break
+    found <- cbind(found, cand$vectors)
+    if (is.complex(cand$values) && !is.complex(run$values)) {
+      run$values <- as.complex(run$values); run$thetas <- as.complex(run$thetas)
+    }
+    if (is.complex(cand$vectors) && !is.complex(run$vectors)) storage.mode(run$vectors) <- "complex"
+    run$values[worst] <- cand$values[1L]
+    run$thetas[worst] <- cand$thetas[1L]
+    run$residuals[worst] <- cand$residuals[1L]
+    run$vectors[, worst] <- cand$vectors[, 1L]
+    ord <- ritz_order(run$thetas, sel)
+    run$values <- run$values[ord]; run$thetas <- run$thetas[ord]
+    run$residuals <- run$residuals[ord]; run$vectors <- run$vectors[, ord, drop = FALSE]
+    run$anorm_lb <- max(run$anorm_lb, cand$anorm_lb)
+  }
+  run
+}
+
 
 ## One run of the recurrence, from a unit v orthogonal to the locked set Q and to
 ## the retained block Y, filling a basis of at most m vectors and spending at most

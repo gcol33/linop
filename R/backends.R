@@ -223,9 +223,15 @@ register_backend("lanczos", "eigs", priority = 0,
                    s <- hermitian_shift_supports(request)
                    if (isTRUE(s)) definite_pencil_supports(request) else s
                  },
-                 run = function(Op, A, ctl, engine)
-                   lanczos_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                                ctl$v0, ctl$seed, ctl$floor_const, B = ctl$B))
+                 run = function(Op, A, ctl, engine) {
+                   run <- lanczos_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
+                                       ctl$v0, ctl$seed, ctl$floor_const, B = ctl$B)
+                   if (!is.null(ctl$B)) return(run)
+                   deflation_sweep(function(k, maxit, seed, prelocked)
+                     lanczos_core(Op, A, k, ctl$sel, ctl$tol, maxit, ctl$ncv, NULL, seed,
+                                  ctl$floor_const, prelocked = prelocked),
+                     run, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$seed)
+                 })
 
 ## Below the reference Lanczos, so that a hermitian operator keeps the method
 ## whose projected problem is real and symmetric; above nothing, because nothing
@@ -234,12 +240,22 @@ register_backend("arnoldi", "eigs", priority = -10,
                  provides_label = "Arnoldi with Krylov-Schur restarting",
                  targets = c("LM", "SM", "LA", "SA", "LI", "SI"),
                  default_ncv = function(A, k) default_ncv(A, k),
-                 run = function(Op, A, ctl, engine)
-                   arnoldi_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                                ctl$v0, ctl$seed, ctl$floor_const,
-                                hermitian = isTRUE(capv(A, "hermitian")) &&
-                                  isTRUE(definite_pencil_supports(list(B = ctl$B))),
-                                B = ctl$B))
+                 run = function(Op, A, ctl, engine) {
+                   herm <- isTRUE(capv(A, "hermitian")) &&
+                     isTRUE(definite_pencil_supports(list(B = ctl$B)))
+                   run <- arnoldi_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
+                                       ctl$v0, ctl$seed, ctl$floor_const,
+                                       hermitian = herm, B = ctl$B)
+                   ## The sweep for missed copies, where copies exist as separate
+                   ## eigenvectors: a hermitian operator. A repeated eigenvalue of
+                   ## a non-normal one is generically defective, and a candidate
+                   ## there could split a conjugate pair.
+                   if (!herm || !is.null(ctl$B)) return(run)
+                   deflation_sweep(function(k, maxit, seed, prelocked)
+                     arnoldi_core(Op, A, k, ctl$sel, ctl$tol, maxit, ctl$ncv, NULL, seed,
+                                  ctl$floor_const, hermitian = herm, prelocked = prelocked),
+                     run, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$seed)
+                 })
 
 register_backend("golub-kahan", "svds", priority = 0,
                  provides_label = "Golub-Kahan-Lanczos with full reorthogonalisation",
