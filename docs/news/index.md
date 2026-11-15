@@ -95,6 +95,12 @@ graph.
   operator on the circle with an exact truncation term;
   [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
   truncates it by hand.
+- `linop_space("hermite")` and `linop_space("laguerre")`: operators on
+  the line in Hermite functions and on the half line in Laguerre
+  functions, banded because `x` is tridiagonal in both, with
+  `-d^2/dx^2 + V` (`V` a polynomial) and the Laguerre operator
+  `-(x u')' + x u / 4` respectively. Truncated and certified like the
+  circle’s.
 - [`linop_jacobi()`](https://gillescolling.com/linop/reference/linop_jacobi.md)
   takes periodic limits: `diagonal_limit` and `offdiagonal_limit` may be
   one period of values, the essential spectrum is then a union of bands,

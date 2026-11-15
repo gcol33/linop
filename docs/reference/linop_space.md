@@ -21,8 +21,9 @@ linop_space(
 
 - kind:
 
-  The function space: \`"fourier"\`, the circle, or \`"chebyshev"\`, the
-  interval \`\[-1, 1\]\`.
+  The function space: \`"fourier"\`, the circle; \`"chebyshev"\`, the
+  interval \`\[-1, 1\]\`; \`"hermite"\`, the line; \`"laguerre"\`, the
+  half line.
 
 - derivative:
 
@@ -33,8 +34,9 @@ linop_space(
 
   The coefficients of the multiplying function: Fourier coefficients
   from frequency \`-d\` to \`d\` (an odd number of them) on the circle,
-  Chebyshev coefficients \`a_0, a_1, ...\` on the interval. A single
-  number is a constant.
+  Chebyshev coefficients \`a_0, a_1, ...\` on the interval, monomial
+  coefficients \`v_0, v_1, ...\` of \`V(x)\` on the line and half line.
+  A single number is a constant.
 
 - boundary:
 
@@ -70,6 +72,15 @@ right-hand side and returns those of the solution, and \[eigs()\] with
 \`which = "smallest"\` the eigenvalues of smallest magnitude; both
 choose the number of coefficients and certify the exact residual on the
 untruncated system.
+
+\`kind = "hermite"\` is the line, in the Hermite functions, where \`x\`
+and \`d/dx\` are tridiagonal: \`sum_m c_m (d/dx)^m + V(x)\` with \`V\` a
+polynomial given by its monomial coefficients. \`kind = "laguerre"\` is
+the half line, in the Laguerre functions \`exp(-x/2) L_n(x)\`, where
+\`x\` is tridiagonal and the Laguerre operator \`-(x u')' + x u / 4\` is
+diagonal: \`c\` times that operator plus a polynomial \`V(x)\`, with
+\`derivative = c\`. Both are banded operators on coefficient sequences,
+truncated and certified as on the circle.
 
 ## Examples
 
