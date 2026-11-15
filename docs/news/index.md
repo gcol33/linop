@@ -95,6 +95,14 @@ graph.
   operator on the circle with an exact truncation term;
   [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
   truncates it by hand.
+- `linop_space("chebyshev", derivative, multiplier, boundary)` is a
+  differential operator on `[-1, 1]` with polynomial coefficients and
+  boundary conditions, held in the ultraspherical method: banded from
+  Chebyshev coefficients to those of `C^(p)`.
+  [`solve()`](https://rdrr.io/r/base/solve.html) takes the right-hand
+  side’s Chebyshev coefficients and `eigs(which = "smallest")` the
+  smallest eigenvalues; both choose the number of coefficients and
+  certify the exact residual on the untruncated system.
 - [`linop()`](https://gillescolling.com/linop/reference/linop.md) takes
   a `DelayedMatrix` (DelayedArray, and so HDF5-backed matrices from
   HDF5Array), a two-dimensional `torch_tensor` of type float64 or

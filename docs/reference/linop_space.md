@@ -9,14 +9,20 @@ operator plus multiplication by a trigonometric polynomial,
 ## Usage
 
 ``` r
-linop_space(kind = "fourier", derivative = c(0, 0, -1), multiplier = 0)
+linop_space(
+  kind = "fourier",
+  derivative = c(0, 0, -1),
+  multiplier = 0,
+  boundary = NULL
+)
 ```
 
 ## Arguments
 
 - kind:
 
-  The function space. \`"fourier"\`, the circle.
+  The function space: \`"fourier"\`, the circle, or \`"chebyshev"\`, the
+  interval \`\[-1, 1\]\`.
 
 - derivative:
 
@@ -25,8 +31,15 @@ linop_space(kind = "fourier", derivative = c(0, 0, -1), multiplier = 0)
 
 - multiplier:
 
-  The Fourier coefficients of the multiplying function, from frequency
-  \`-d\` to \`d\`, an odd number of them; a single number is a constant.
+  The coefficients of the multiplying function: Fourier coefficients
+  from frequency \`-d\` to \`d\` (an odd number of them) on the circle,
+  Chebyshev coefficients \`a_0, a_1, ...\` on the interval. A single
+  number is a constant.
+
+- boundary:
+
+  For \`"chebyshev"\`, a list with \`at\` (each \`-1\` or \`1\`),
+  \`derivative\` and \`value\`, one entry per order of the operator.
 
 ## Value
 
@@ -47,6 +60,17 @@ of order at least one its spectrum is discrete, so the certificate's
 residual bound is a distance to an eigenvalue of the operator on the
 circle itself.
 
+\`kind = "chebyshev"\` is the interval \`\[-1, 1\]\`: a function is its
+Chebyshev coefficients, the operator \`sum_m c_m u^(m) + a(x) u\` is
+held in the ultraspherical method (Olver and Townsend), mapping
+Chebyshev coefficients to those of the ultraspherical basis \`C^(p)\`
+where it is banded, and \`boundary\` gives one condition \`u^(d)(+-1) =
+value\` per order. \[solve()\] takes the Chebyshev coefficients of the
+right-hand side and returns those of the solution, and \[eigs()\] with
+\`which = "smallest"\` the eigenvalues of smallest magnitude; both
+choose the number of coefficients and certify the exact residual on the
+untruncated system.
+
 ## Examples
 
 ``` r
@@ -59,4 +83,15 @@ fit$values
 #> [1] -4.516328e-17
 fit$n
 #> [1] 16
+
+## u'' = -pi^2 sin(pi x) on [-1, 1] with u(-1) = u(1) = 0, whose solution is
+## sin(pi x); the right-hand side's Chebyshev coefficients are Bessel values
+k <- 0:40
+f <- -pi^2 * ifelse(k %% 2 == 1, 2 * (-1)^((k - 1) / 2) * besselJ(pi, k), 0)
+L <- linop_space("chebyshev", derivative = c(0, 0, 1),
+                 boundary = list(at = c(-1, 1), derivative = c(0, 0), value = c(0, 0)))
+u <- solve(L, f)
+x <- 0.3
+sum(u * cos((seq_along(u) - 1) * acos(x))) - sin(pi * x)
+#> [1] -4.440892e-16
 ```
