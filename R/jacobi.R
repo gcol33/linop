@@ -55,19 +55,28 @@ jacobi_b <- function(A, j) {
 ## eigenvalues of the P x P Bloch matrices at theta = 0 and theta = pi (the band
 ## functions are monotone on [0, pi]), so the edges are eigenvalues of two small
 ## matrices: computed, to rounding. One row per band.
+jacobi_bloch <- function(A, phase) {
+  a <- A$args$a_inf; b <- A$args$b_inf
+  P <- length(a)
+  H <- diag(a, P)
+  for (j in seq_len(P - 1L)) {
+    H[j, j + 1L] <- b[j]
+    H[j + 1L, j] <- b[j]
+  }
+  H[P, 1L] <- H[P, 1L] + phase * b[P]
+  H[1L, P] <- H[1L, P] + phase * b[P]
+  H
+}
+
 jacobi_bands <- function(A) {
   a <- A$args$a_inf; b <- A$args$b_inf
   P <- length(a)
   if (P == 1L) return(matrix(a + c(-2, 2) * abs(b), 1L))
   bloch <- function(theta) {
-    H <- matrix(0i, P, P)
-    diag(H) <- a
-    for (j in seq_len(P - 1L)) { H[j, j + 1L] <- b[j]; H[j + 1L, j] <- b[j] }
-    w <- b[P] * exp(1i * theta)
-    H[P, 1L] <- H[P, 1L] + w; H[1L, P] <- H[1L, P] + Conj(w)
+    H <- jacobi_bloch(A, theta)
     sort(Re(eigen(H, symmetric = TRUE, only.values = TRUE)$values))
   }
-  e0 <- bloch(0); epi <- bloch(pi)
+  e0 <- bloch(1); epi <- bloch(-1)
   cbind(pmin(e0, epi), pmax(e0, epi))
 }
 
@@ -290,5 +299,5 @@ jacobi_of <- function(A, verb) {
 register_jacobi_node <- function() {
   linop_register_node("jacobi", jacobi_apply, NULL, function(op) Inf,
                       spectrum = section_eigs, section = jacobi_section,
-                      overwrite = TRUE)
+                      methods = jacobi_gap_hooks(), overwrite = TRUE)
 }

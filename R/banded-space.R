@@ -11,6 +11,15 @@
 ## ||(H - q) u~||^2 = ||(H_n - q) u||^2 + ||r_out||^2, both terms reported, and for
 ## a self-adjoint H, dist(q, sigma(H)) <= sqrt(residual^2 + truncation^2), a
 ## distance to an eigenvalue when the spectrum is discrete.
+band_residuals <- function(A, values, X, edge) {
+  xn <- col_norms(X)
+  sx <- ifelse(xn > 0, xn, 1)
+  res <- col_norms(linop_apply(A, X, "N") - scale_cols(X, values)) / sx
+  trunc <- edge(X) / sx
+  list(residual = res, truncation = trunc, total = sqrt(res^2 + trunc^2),
+       norm = xn)
+}
+
 band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_const,
                              requested, stop_reason, P, hn, scale, edge,
                              self_adjoint, discrete, reach, space) {
@@ -27,11 +36,10 @@ band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_c
   }
   flr <- floor_const * eps * hn
   want <- tol * scale(q)
-  xn <- col_norms(X)
-  sx <- ifelse(xn > 0, xn, 1)
-  res <- col_norms(linop_apply(A, X, "N") - scale_cols(X, q)) / sx
-  trunc <- edge(X) / sx
-  total <- sqrt(res^2 + trunc^2)
+  measured <- band_residuals(A, q, X, edge)
+  res <- measured$residual
+  trunc <- measured$truncation
+  total <- measured$total
   bound <- total + flr
   met <- bound <= want
 
@@ -91,12 +99,8 @@ band_eigs <- function(A, k, control, args, n_min, space = "l^2(Z)") {
   if (!is.null(args$v0)) {
     stopf("eigs() on the operator itself does not take v0; the truncation width is what it chooses")
   }
-  bad <- setdiff(names(control), c("n_start", "n_max"))
-  if (length(bad)) stopf("section takes n_start and n_max; it does not take: %s",
-                         paste(bad, collapse = ", "))
-  ctl <- utils::modifyList(list(n_start = BAND_N_START, n_max = SECTION_N_MAX), control)
-  n <- max(as.integer(ctl$n_start), n_min)
-  width_search(A, n, as.integer(ctl$n_max), k, args,
+  ctl <- section_width_control(control, BAND_N_START, n_min, free_tail = FALSE)
+  width_search(A, ctl$n, ctl$n_max, k, args,
                accept = function(v) min(v$target) / 2,
                predict = function(v, history) {
                  h <- nrow(history)

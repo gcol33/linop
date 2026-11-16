@@ -19,7 +19,8 @@ eigs(
   inner = list(),
   section = list(),
   floor_const = SOLVE_FLOOR_CONST,
-  norm_control = list()
+  norm_control = list(),
+  barrier = list()
 )
 }
 \arguments{
@@ -91,7 +92,16 @@ is acted on only by naming `"lanczos"` or `"primme"`, as `solve()` acts on
 one only for a named method. The certificate's `dispatch`
 records every engine considered and why. Whichever runs, the reported
 values are Rayleigh quotients measured on `A` and the certificate is the
-same.}
+same. For a Jacobi operator with periodic limits, `"second_order"`
+solves the quadratic relative-spectrum pencil and `"dissipative"` solves
+the section with an imaginary projection barrier. Both require a real
+`sigma` strictly inside a gap between essential bands. They use dense
+base R eigenproblems and the section width budget; `maxit`, `ncv`, `v0`,
+`B`, `inner` and `norm_control` are refused. Their extraction is
+deterministic and independent of `seed`. Values are real parts of the
+computed roots. Each returned `enclosures` row is validated on the original
+operator. An interval wholly inside the gap contains a discrete eigenvalue.
+The certificate reports its precision separately from its isolation.}
 
 \item{inner}{Arguments for the inner solve when `sigma` or `B` is given,
 such as `method` or `tol`.}
@@ -105,13 +115,31 @@ search may reach. The width itself is not among them, because
 \item{floor_const}{`c` in the arithmetic floor of the certificate.}
 
 \item{norm_control}{Arguments for the `||A||` estimate.}
+
+\item{barrier}{For `method = "dissipative"`, a list with positive `gamma`
+(default `0.01`) and projection half-width `n`. The projection is onto
+sites `abs(j) <= n`, must cover the perturbation and must end strictly
+inside the section. With `n = NULL`, it covers half the free tail and
+grows with the section. `Im(root)/gamma > 1/2` is the barrier separation
+diagnostic, recorded as an estimate. Spectral inclusion is independently
+validated on the original operator. A finite calculation establishes
+existence in its isolated intervals; completeness of the gap stays
+unchecked. For these two methods `floor_const` adds to a mandatory
+operation-count roundoff bound.}
 }
 \value{
 An object of class `linop_eigen`, with `values`, `vectors` and the
   `certificate`. A run that exhausts its budget returns the best pairs it
   reached and a `fail` certificate rather than an error, and it may hold fewer
   than `k` of them: nothing is padded. On a sequence space it also carries the
-  width `n` that was chosen and the `widths` that were tried.
+  width `n` that was chosen and the `widths` that were tried. The gap methods
+  also return `roots`, `enclosures` (columns `lower`, `upper`) and
+  `all_roots` from the extraction. For `"second_order"`, `all_roots` holds
+  the upper-half-plane representatives. The exact second-order enclosure
+  radius is `abs(Im(root))`; the returned radius is recomputed from its
+  vector to validate floating-point roots, including near-real pairs.
+  `certificate(fit)$values$relative_enclosures` additionally holds the
+  second-order theorem's intervals enlarged by the checked pencil defect.
 }
 \description{
 A few eigenpairs of a square operator, computed from its action alone. An

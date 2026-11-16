@@ -52,12 +52,17 @@ mode_transposes <- function(mode) mode %in% c("T", "C")
 #'   should refuse it. The truncation is a node of its own, holding this one.
 #' @param solve `function(A, b, args)` answering [solve()] on an operator of
 #'   this type that has no matrix, or `NULL` to be refused.
+#' @param methods Named list of `function(A, k, control, args)`, each answering
+#'   [eigs()] for the `method =` value it is named by, on an operator of this
+#'   type whether or not it has a matrix. A method that only a node type's own
+#'   mathematics defines lives here rather than in the eigensolver.
 #' @param overwrite Replace an existing registration.
 #' @return Invisibly, the node name.
 #' @noRd
 linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
                                 certify = NULL, spectrum = NULL,
-                                section = NULL, solve = NULL, overwrite = FALSE) {
+                                section = NULL, solve = NULL, methods = list(),
+                                overwrite = FALSE) {
   if (!is_scalar_string(node)) stopf("node must be a single string")
   if (!is.function(apply)) stopf("apply must be a function(op, X, mode)")
   if (!overwrite && !is.null(.linop_nodes[[node]])) {
@@ -66,9 +71,14 @@ linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
   .linop_nodes[[node]] <- list(
     node = node, apply = apply,
     materialize = materialize, certify = certify, spectrum = spectrum,
-    section = section, solve = solve,
+    section = section, solve = solve, methods = methods,
     cost = cost %||% function(op) prod(op$dim))
   invisible(node)
+}
+
+node_method_owners <- function(method) {
+  nodes <- sort(ls(.linop_nodes))
+  nodes[vapply(nodes, function(x) !is.null(.linop_nodes[[x]]$methods[[method]]), logical(1))]
 }
 
 get_node <- function(node) {

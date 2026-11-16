@@ -351,6 +351,49 @@ The invented point is not refused; it comes back with a `fail` on the rows that
 are about the operator underneath, which is the information a refusal would
 have thrown away.
 
+## Enclosing a gap eigenvalue
+
+The second-order relative spectrum solves the quadratic pencil
+`P_n H^2 P_n - 2 z H_n + z^2 I`. Its first coefficient includes the two rows
+that connect the section to the rest of the sequence. For each exact root `z`,
+the interval `[Re(z) - abs(Im(z)), Re(z) + abs(Im(z))]` intersects the spectrum.
+An interval wholly inside an essential-spectrum gap contains a discrete
+eigenvalue. This is the enclosure theorem of
+[Levitin and Shargorodsky](https://arxiv.org/abs/math/0212087), also used by
+[Boulton and Levitin](https://arxiv.org/abs/math/0702420).
+
+```{r relative-spectrum}
+enclosed <- eigs(defect, k = 1, sigma = -0.58, method = "second_order",
+                 tol = 1e-5)
+enclosed$roots
+enclosed$enclosures
+certificate(enclosed)$checks[c("check", "status", "source", "guarantee")]
+```
+
+The reported intervals use the root's vector to validate its radius on the
+original operator, with an operation-count roundoff bound. `section` controls
+the width search; `eigs(finite_section(defect, n), ...)` fixes its width.
+
+A dissipative barrier adds `i * gamma * P` to the section, with `P` projecting
+onto an interior window of sites. An eigenvector concentrated in that window
+has `Im(z)/gamma` close to one. The barrier separates candidates by their
+imaginary displacement, as analysed by
+[Marletta and Scheichl](https://ems.press/content/serial-article-files/33475).
+
+```{r dissipative-barrier}
+barrier_fit <- eigs(finite_section(defect, 100), k = 1, sigma = -0.58,
+                    method = "dissipative", tol = 1e-3,
+                    barrier = list(gamma = 0.01, n = 40))
+certificate(barrier_fit)$values$barrier_ratio
+barrier_fit$enclosures
+```
+
+The barrier classification carries `guarantee = "estimate"`. The enclosure
+and isolation rows validate existence on the original self-adjoint operator.
+For either method, `gap completeness` remains `not_checked`: the calculation
+establishes existence in its isolated intervals. The rest of the gap remains
+unresolved.
+
 ## Functions on the circle
 
 A function on the circle is its Fourier coefficients, a sequence on the

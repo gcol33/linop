@@ -99,6 +99,14 @@ jacobi_section <- function(P, n) {
 ## the certificate wants.
 section_target <- function(P, tol) tol * jacobi_norm_bound(P)
 
+jacobi_section_cuts <- function(A) {
+  jacobi_b(A$args$A, c(-A$args$n - 1L, A$args$n))
+}
+
+jacobi_section_edge <- function(A, X) {
+  col_norms(jacobi_section_cuts(A) * X[c(1L, nrow(X)), , drop = FALSE])
+}
+
 ## The fifth shape. Every earlier one certifies a computation against the operator
 ## the computation ran on; this one certifies a statement about an operator that
 ## has no matrix, from a computation on one that does.
@@ -152,18 +160,16 @@ section_certificate <- function(A, values, vectors, tol, iterations, maxit,
   bands <- jacobi_bands(P)
   ## the two couplings the truncation cut, b_n and b_{-(n+1)}: the limit for
   ## constant limits, the period's entry at the cut for periodic ones
-  b_cut <- abs(jacobi_b(P, c(-n - 1L, n)))
   flr <- floor_const * eps * hn
   want <- section_target(P, tol)
 
   ## Recomputed here rather than taken from the iteration, for the reason every
   ## certificate in the package recomputes: what a recurrence believes about
   ## itself drifts, and it drifts where the answer is most converged.
-  xn <- col_norms(X)
-  sx <- ifelse(xn > 0, xn, 1)
-  res <- col_norms(linop_apply(A, X, "N") - scale_cols(X, q)) / sx
-  trunc <- sqrt(b_cut[1L]^2 * Mod(X[1L, ])^2 + b_cut[2L]^2 * Mod(X[m, ])^2) / sx
-  total <- sqrt(res^2 + trunc^2)
+  measured <- band_residuals(A, q, X, function(X) jacobi_section_edge(A, X))
+  res <- measured$residual
+  trunc <- measured$truncation
+  total <- measured$total
   bound <- total + flr
   met <- bound <= want
 
@@ -303,7 +309,7 @@ section_certify <- function(ctx) {
 register_section_node <- function() {
   linop_register_node("section", section_apply, section_materialize,
                       function(op) 5 * op$dim[1L], overwrite = TRUE,
-                      certify = section_certify)
+                      certify = section_certify, methods = jacobi_gap_hooks())
 }
 
 ## --------------------------------------------------- the width, chosen here --
@@ -364,6 +370,30 @@ SECTION_N_MAX <- 10000L
 ## whole extra solve doing it.
 SECTION_N_AIM <- 1 / 8
 
+section_width_control <- function(control, start, minimum, free_tail = TRUE) {
+  if (!is.list(control) || (length(control) &&
+      (is.null(names(control)) || any(!nzchar(names(control)))))) {
+    stopf("section arguments must be a named list")
+  }
+  bad <- setdiff(names(control), c("n_start", "n_max"))
+  if (length(bad)) {
+    stopf("section takes n_start and n_max; it does not take: %s", paste(bad, collapse = ", "))
+  }
+  ctl <- utils::modifyList(list(n_start = start, n_max = SECTION_N_MAX), control)
+  whole <- function(x) is.numeric(x) && !is.complex(x) && length(x) == 1L &&
+    is.finite(x) && x == floor(x) && x >= 1 && x <= .Machine$integer.max / 2
+  if (!whole(ctl$n_start) || !whole(ctl$n_max)) {
+    stopf("n_start and n_max must be whole numbers, and n_start at least 1")
+  }
+  n <- if (free_tail) minimum + ctl$n_start else max(minimum, ctl$n_start)
+  if (ctl$n_max < n) {
+    stopf(paste0("n_max = %d is below the first width %d.\n",
+                 "  The minimum is %d, and n_start = %d."),
+          ctl$n_max, n, minimum, ctl$n_start)
+  }
+  list(n = as.integer(n), n_max = as.integer(ctl$n_max))
+}
+
 section_eigs <- function(A, k, control, args) {
   P <- jacobi_of(A, "eigs")
   if (!is.null(args$v0)) {
@@ -372,25 +402,9 @@ section_eigs <- function(A, k, control, args) {
                  "  no length to be yet. Truncate with finite_section(A, n) and pass v0 to\n",
                  "  eigs() on that."))
   }
-  bad <- setdiff(names(control), c("n_start", "n_max"))
-  if (length(bad)) {
-    stopf("section takes n_start and n_max; it does not take: %s",
-          paste(bad, collapse = ", "))
-  }
-  ctl <- utils::modifyList(
-    list(n_start = SECTION_N_START, n_max = SECTION_N_MAX), control)
-  n_start <- as.integer(ctl$n_start)
-  n_max <- as.integer(ctl$n_max)
-  if (is.na(n_start) || is.na(n_max) || n_start < 1L) {
-    stopf("n_start and n_max must be whole numbers, and n_start at least 1")
-  }
-  n <- P$args$radius + n_start
-  if (n_max < n) {
-    stopf(paste0("n_max = %d is below the first width %d.\n",
-                 "  The window reaches %d, and n_start = %d of free tail beyond it is what the\n",
-                 "  first measurement is taken on."),
-          n_max, n, P$args$radius, n_start)
-  }
+  ctl <- section_width_control(control, SECTION_N_START, P$args$radius)
+  n <- ctl$n
+  n_max <- ctl$n_max
 
   want <- section_target(P, args$tol)
   width_search(P, n, n_max, k, args, accept = want / 2,
@@ -420,14 +434,18 @@ section_eigs <- function(A, k, control, args) {
 ## because the residual term is added in quadrature with this one and answers to
 ## a different knob; a search that stopped at exactly the tolerance would leave
 ## the truncation binding.
-width_search <- function(P, n, n_max, k, args, accept, predict, space = "l^2(Z)") {
+width_search <- function(P, n, n_max, k, args, accept, predict, space = "l^2(Z)",
+                         run = function(A, k, args) do.call(eigs, c(list(A = A, k = k), args)),
+                         measure = function(v) max(v$truncation), stop = NULL) {
   history <- data.frame(n = integer(0), eta = numeric(0))
   repeat {
-    fit <- do.call(eigs, c(list(A = finite_section(P, n), k = k), args))
+    fit <- run(finite_section(P, n), k, args)
     v <- fit$certificate$values
-    eta <- max(v$truncation)
+    eta <- measure(v)
     prev <- if (nrow(history)) history$eta[nrow(history)] else Inf
     history <- rbind(history, data.frame(n = n, eta = eta))
+    reason <- if (!is.null(stop)) stop(v)
+    if (!is.null(reason)) { why <- reason; break }
     if (eta <= (if (is.function(accept)) accept(v) else accept)) { why <- "the tail is below half the tolerance"; break }
     if (n >= n_max) { why <- sprintf("n_max = %d", n_max); break }
     ## Not shrinking means not by more than one part in a million: a tail pinned
