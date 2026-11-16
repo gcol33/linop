@@ -44,7 +44,8 @@
 ## eigenvectors are the pencil's, and the iteration runs on it in the ordinary
 ## inner product; B enters the measurement and the stopping rule.
 arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
-                         hermitian = FALSE, B = NULL, prelocked = NULL) {
+                         hermitian = FALSE, B = NULL, prelocked = NULL,
+                         extraction = "ritz", target = NULL) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
 
@@ -75,7 +76,8 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
   rounds <- 0L
   anorm_lb <- 0
   bnorm_lb <- if (is.null(B)) NULL else 0
-  normal <- hermitian && is.null(B)
+  harmonic <- extraction == "harmonic"
+  normal <- hermitian && is.null(B) && !harmonic
   ## Every expansion step computes ||A v_j|| for a unit v_j, a lower bound on
   ## ||A|| that costs nothing, and the stopping rule's floor scales with that
   ## bound. Measured pairs alone give a poor one at an end of the spectrum near
@@ -107,11 +109,15 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     ## The Schur form of the active block, with every Ritz value the request
     ## ranks inside the wanted count leading, and their conjugates beside them.
     Ma <- M[act, act, drop = FALSE]
-    sch <- schur_complex(Ma)
+    hp <- if (harmonic) harmonic_projection(Ma, ex$beta, target)
+    projected <- if (harmonic) hp$M else Ma
+    sch <- schur_complex(projected)
     lam <- diag(sch$T)
-    real_ev <- schur_real_flags(Ma, lam, cplx)
-    partner <- conjugate_partners(lam, real_ev)
-    ord <- ritz_order(lam, sel)
+    real_ev <- schur_real_flags(projected, lam, cplx)
+    partner <- if (cplx) rep(NA_integer_, length(lam))
+               else conjugate_partners(lam, real_ev)
+    theta_all <- if (harmonic) harmonic_values(lam, target, hp$reciprocal) else lam
+    ord <- ritz_order(theta_all, sel, target)
     q <- closed_cut(ord, min(want, ma), partner, grow = TRUE)
     ord <- q$ord
     q <- q$cut
@@ -119,6 +125,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     T <- re$T
     U <- re$U
     lam <- diag(T)
+    theta_all <- if (harmonic) harmonic_values(lam, target, hp$reciprocal) else lam
     real_ev <- real_ev[re$pos]
     partner <- match(partner[re$pos], re$pos)
 
@@ -139,14 +146,15 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
       Tl <- M[seq_len(l), seq_len(l), drop = FALSE]
       Xc <- M[seq_len(l), act, drop = FALSE] %*% Za
       Zl <- vapply(seq_len(q), function(i)
-                     as.vector(floored_shift_solve(Tl, lam[i], -Xc[, i, drop = FALSE], smin)),
+                     as.vector(floored_shift_solve(Tl, theta_all[i], -Xc[, i, drop = FALSE], smin)),
                    complex(l))
       Z <- rbind(matrix(Zl, l, q), Za)
     } else {
       Z <- Za
     }
     Xr <- V %*% Z
-    theta <- lam[seq_len(q)]
+    theta <- if (harmonic) harmonic_values(lam[seq_len(q)], target, hp$reciprocal)
+             else lam[seq_len(q)]
     if (!cplx) {
       ## A real eigenvalue of a real matrix has a real eigenvector, which the
       ## complex Schur form returns times a unit phase. Removing the phase of
@@ -207,7 +215,8 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     ## thick restart keeps, then nothing.
     left_want <- want - c_new
     rest <- setdiff(seq_len(ma), which(conv))
-    rest <- rest[ritz_order(lam[rest], sel)]
+    theta_all <- if (harmonic) harmonic_values(lam, target, hp$reciprocal) else lam
+    rest <- rest[ritz_order(theta_all[rest], sel, target)]
     room <- m - l - c_new - 2L
     p_u <- max(0L, min(length(rest), max(left_want + 3L, ma %/% 2L), room))
     front <- c(which(conv), rest)
@@ -221,12 +230,18 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     } else {
       Q <- if (cplx) re2$U[, seq_len(kept), drop = FALSE]
            else real_nested_basis(re2$U, c_new, kept)
-      S <- if (cplx) re2$T[seq_len(kept), seq_len(kept), drop = FALSE]
+      S <- if (harmonic) cross_adjoint(Q, Ma %*% Q)
+           else if (cplx) re2$T[seq_len(kept), seq_len(kept), drop = FALSE]
            else crossprod(Q, Ma %*% Q)
       if (!cplx && c_new && kept > c_new) {
         S[(c_new + 1L):kept, seq_len(c_new)] <- 0
       }
-      Va <- V[, act, drop = FALSE] %*% Q
+      if (harmonic && !is.null(ex$vnext)) {
+        hr <- harmonic_restart(V[, act, drop = FALSE], Ma, beta, ex$vnext, Q)
+        S <- hr$H
+        if (c_new && kept > c_new) S[(c_new + 1L):kept, seq_len(c_new)] <- 0
+        Va <- hr$Y
+      } else Va <- V[, act, drop = FALSE] %*% Q
       if (l) {
         Mtop <- cbind(M[seq_len(l), seq_len(l), drop = FALSE],
                       M[seq_len(l), act, drop = FALSE] %*% Q)
@@ -237,7 +252,8 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
         M <- S
         V <- Va
       }
-      brow <- c(numeric(l), beta * Q[ma, ])
+      brow <- if (harmonic && !is.null(ex$vnext)) c(numeric(l), hr$brow)
+              else c(numeric(l), beta * Q[ma, ])
       if (c_new) brow[l + seq_len(c_new)] <- 0
     }
     l <- l + c_new
@@ -257,7 +273,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
       v <- v / nv
       if (!is.null(brow)) brow[] <- 0
     } else {
-      v <- ex$vnext
+      v <- if (harmonic && kept) hr$v else ex$vnext
     }
   }
 
@@ -277,7 +293,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     stopf("eigs() produced no pair at all; the operator applied to the starting vector is zero")
   }
   if (length(values) > k) {
-    keep <- ritz_order(thetas, sel)[seq_len(k)]
+    keep <- ritz_order(thetas, sel, target)[seq_len(k)]
     values <- values[keep]; vectors <- vectors[, keep, drop = FALSE]
     residuals <- residuals[keep]; thetas <- thetas[keep]
   }
@@ -290,7 +306,7 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     if (!cplx && all(Im(vectors) == 0)) vectors <- Re(vectors)
   }
 
-  ord <- ritz_order(thetas, sel)
+  ord <- ritz_order(thetas, sel, target)
   list(values = values[ord], vectors = vectors[, ord, drop = FALSE],
        residuals = residuals[ord], thetas = thetas[ord], steps = steps, rounds = rounds,
        anorm_lb = anorm_lb, bnorm_lb = bnorm_lb, stop_reason = stop_reason)

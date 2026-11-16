@@ -20,7 +20,9 @@ eigs(
   section = list(),
   floor_const = SOLVE_FLOOR_CONST,
   norm_control = list(),
-  barrier = list()
+  barrier = list(),
+  extraction = c("ritz", "harmonic"),
+  target = NULL
 )
 }
 \arguments{
@@ -126,6 +128,20 @@ validated on the original operator. A finite calculation establishes
 existence in its isolated intervals; completeness of the gap stays
 unchecked. For these two methods `floor_const` adds to a mandatory
 operation-count roundoff bound.}
+
+\item{extraction}{`"ritz"` (ordinary Rayleigh-Ritz) or `"harmonic"`.
+Harmonic extraction requires `target` and uses the plain Krylov space of
+`A`, with harmonic Schur vectors retained at restarts. Each reported value
+is the Rayleigh quotient of its harmonic Ritz vector, measured on `A`.
+Available for the finite standard problem with `"lanczos"` and `"arnoldi"`.}
+
+\item{target}{A finite number selecting the eigenvalues nearest it, using
+the extraction selected by `extraction`. Every expansion applies `A`
+directly. `sigma`, `which`, `B` and `inner` are refused with `target`.
+For a real operator or a hermitian operator the target must be real.
+`sigma` independently requests shift-invert and a linear solve per step;
+it cannot be combined with harmonic extraction. Ordinary extraction with
+`target` is accepted and can converge slowly at interior eigenvalues.}
 }
 \value{
 An object of class `linop_eigen`, with `values`, `vectors` and the

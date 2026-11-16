@@ -50,7 +50,8 @@ normalise_which <- function(which, table, verb) {
 ## The order the requested end of the spectrum comes in. order() is stable, so
 ## equal values keep the order the projected problem produced them in. Re() of
 ## real storage returns its argument, so a real spectrum orders as it always did.
-ritz_order <- function(theta, which) {
+ritz_order <- function(theta, which, target = NULL) {
+  if (!is.null(target)) return(order(Mod(theta - target)))
   switch(which,
          LM = order(-abs(theta)),
          SM = order(abs(theta)),
@@ -287,14 +288,16 @@ eigen_ncv <- function(ncv, k, dim_limit) {
 ## and the parameters it settled on), or NULL for the reference.
 new_eigen_result <- function(values, vectors, certificate, k, which, method,
                              iterations, maxit, rounds, converged, residuals,
-                             dispatch = NULL, engine = NULL) {
+                             dispatch = NULL, engine = NULL, target = NULL,
+                             extraction = "ritz") {
   certificate$dispatch <- dispatch
   structure(list(values = values, vectors = vectors, certificate = certificate,
                  k = k, which = which, method = method,
                  iterations = iterations, maxit = maxit,
                  restarts = max(0L, rounds - 1L),
                  nconv = sum(converged), converged = converged,
-                 residuals = residuals, engine = engine),
+                 residuals = residuals, engine = engine, target = target,
+                 extraction = extraction),
             class = "linop_eigen")
 }
 
@@ -313,8 +316,10 @@ new_svd_result <- function(d, u, v, certificate, k, which, method,
 
 ## The header both results print, so the two never drift apart in wording.
 print_spectral_header <- function(x, label) {
-  cat(sprintf("<%s> %d of %d requested %s converged, which = '%s'\n",
-              x$method, x$nconv, x$k, label, x$which))
+  selection <- if (is.null(x$target)) sprintf("which = '%s'", x$which)
+               else sprintf("target = %s", format(x$target))
+  cat(sprintf("<%s> %d of %d requested %s converged, %s\n",
+              x$method, x$nconv, x$k, label, selection))
   cat(sprintf("  %d iterations of at most %d, %d restart%s\n",
               x$iterations, x$maxit, x$restarts,
               if (x$restarts == 1L) "" else "s"))

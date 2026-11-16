@@ -44,6 +44,7 @@ register_backend <- function(name, family, run, priority, provides_label,
                              dtypes = c("double", "complex"),
                              requires = "apply", targets = character(0),
                              capabilities = character(0),
+                             extractions = "ritz", targeted = FALSE,
                              evidence_minimum = NULL,
                              default_ncv = function(A, k) NULL,
                              supports = function(A, request) TRUE) {
@@ -55,6 +56,7 @@ register_backend <- function(name, family, run, priority, provides_label,
                    contract_version = contract_version, dtypes = dtypes,
                    requires = requires, targets = targets,
                    capabilities = capabilities,
+                   extractions = extractions, targeted = targeted,
                    evidence_minimum = evidence_minimum,
                    default_ncv = default_ncv, supports = supports),
          envir = .backends)
@@ -110,6 +112,10 @@ backend_verdicts <- function(family, A, request) {
 ## Why a backend cannot take this request, or NULL. The checks run cheapest
 ## first, and the one that loads an external package runs last.
 backend_refusal <- function(b, A, request) {
+  if (!is.null(request$extraction) && !request$extraction %in% b$extractions) {
+    return(sprintf("does not take extraction = '%s'", request$extraction))
+  }
+  if (!is.null(request$target) && !b$targeted) return("does not take target")
   if (!A$dtype %in% b$dtypes) return(sprintf("does not take a %s operator", A$dtype))
   for (cap in b$capabilities) {
     why <- capability_refusal(A, cap)
@@ -215,6 +221,7 @@ evidence_refusal <- function(A, name, req) {
 eigs_hermitian_requirement <- function() MINRES_HERMITIAN_REQUIREMENT
 
 register_backend("lanczos", "eigs", priority = 0,
+                 extractions = c("ritz", "harmonic"), targeted = TRUE,
                  provides_label = "Lanczos with full reorthogonalisation",
                  targets = c("LM", "SM", "LA", "SA"), capabilities = "hermitian",
                  evidence_minimum = eigs_hermitian_requirement,
@@ -225,18 +232,21 @@ register_backend("lanczos", "eigs", priority = 0,
                  },
                  run = function(Op, A, ctl, engine) {
                    run <- lanczos_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
-                                       ctl$v0, ctl$seed, ctl$floor_const, B = ctl$B)
+                                       ctl$v0, ctl$seed, ctl$floor_const, B = ctl$B,
+                                       extraction = ctl$extraction %||% "ritz", target = ctl$target)
                    if (!is.null(ctl$B)) return(run)
                    deflation_sweep(function(k, maxit, seed, prelocked)
                      lanczos_core(Op, A, k, ctl$sel, ctl$tol, maxit, ctl$ncv, NULL, seed,
-                                  ctl$floor_const, prelocked = prelocked),
-                     run, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$seed)
+                                  ctl$floor_const, prelocked = prelocked,
+                                  extraction = ctl$extraction %||% "ritz", target = ctl$target),
+                     run, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$seed, ctl$target)
                  })
 
 ## Below the reference Lanczos, so that a hermitian operator keeps the method
 ## whose projected problem is real and symmetric; above nothing, because nothing
 ## else runs on an operator that establishes no capability.
 register_backend("arnoldi", "eigs", priority = -10,
+                 extractions = c("ritz", "harmonic"), targeted = TRUE,
                  provides_label = "Arnoldi with Krylov-Schur restarting",
                  targets = c("LM", "SM", "LA", "SA", "LI", "SI"),
                  default_ncv = function(A, k) default_ncv(A, k),
@@ -245,7 +255,8 @@ register_backend("arnoldi", "eigs", priority = -10,
                      isTRUE(definite_pencil_supports(list(B = ctl$B)))
                    run <- arnoldi_core(Op, A, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$ncv,
                                        ctl$v0, ctl$seed, ctl$floor_const,
-                                       hermitian = herm, B = ctl$B)
+                                       hermitian = herm, B = ctl$B,
+                                       extraction = ctl$extraction %||% "ritz", target = ctl$target)
                    ## The sweep for missed copies, where copies exist as separate
                    ## eigenvectors: a hermitian operator. A repeated eigenvalue of
                    ## a non-normal one is generically defective, and a candidate
@@ -253,8 +264,9 @@ register_backend("arnoldi", "eigs", priority = -10,
                    if (!herm || !is.null(ctl$B)) return(run)
                    deflation_sweep(function(k, maxit, seed, prelocked)
                      arnoldi_core(Op, A, k, ctl$sel, ctl$tol, maxit, ctl$ncv, NULL, seed,
-                                  ctl$floor_const, hermitian = herm, prelocked = prelocked),
-                     run, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$seed)
+                                  ctl$floor_const, hermitian = herm, prelocked = prelocked,
+                                  extraction = ctl$extraction %||% "ritz", target = ctl$target),
+                     run, ctl$k, ctl$sel, ctl$tol, ctl$maxit, ctl$seed, ctl$target)
                  })
 
 register_backend("golub-kahan", "svds", priority = 0,

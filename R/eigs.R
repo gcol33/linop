@@ -156,6 +156,18 @@ SHIFT_INVERT_RESTART <- 100L
 #'   `eigs(finite_section(A, n))` is already how a caller fixes it.
 #' @param floor_const `c` in the arithmetic floor of the certificate.
 #' @param norm_control Arguments for the `||A||` estimate.
+#' @param extraction `"ritz"` (ordinary Rayleigh-Ritz) or `"harmonic"`.
+#'   Harmonic extraction requires `target` and uses the plain Krylov space of
+#'   `A`, with harmonic Schur vectors retained at restarts. Each reported value
+#'   is the Rayleigh quotient of its harmonic Ritz vector, measured on `A`.
+#'   Available for the finite standard problem with `"lanczos"` and `"arnoldi"`.
+#' @param target A finite number selecting the eigenvalues nearest it, using
+#'   the extraction selected by `extraction`. Every expansion applies `A`
+#'   directly. `sigma`, `which`, `B` and `inner` are refused with `target`.
+#'   For a real operator or a hermitian operator the target must be real.
+#'   `sigma` independently requests shift-invert and a linear solve per step;
+#'   it cannot be combined with harmonic extraction. Ordinary extraction with
+#'   `target` is accepted and can converge slowly at interior eigenvalues.
 #' @return An object of class `linop_eigen`, with `values`, `vectors` and the
 #'   `certificate`. A run that exhausts its budget returns the best pairs it
 #'   reached and a `fail` certificate rather than an error, and it may hold fewer
@@ -193,8 +205,32 @@ SHIFT_INVERT_RESTART <- 100L
 eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                  tol = 1e-10, maxit = NULL, ncv = NULL, v0 = NULL, seed = 1L,
                  method = "auto", inner = list(), section = list(),
-                 floor_const = SOLVE_FLOOR_CONST, norm_control = list(), barrier = list()) {
+                 floor_const = SOLVE_FLOOR_CONST, norm_control = list(), barrier = list(),
+                 extraction = c("ritz", "harmonic"), target = NULL) {
   if (!is_linop(A)) stopf("eigs() expects a linop")
+  extraction <- match.arg(extraction)
+  if (extraction == "harmonic" && is.null(target)) {
+    stopf("extraction = 'harmonic' requires target; sigma requests shift-invert")
+  }
+  if (!is.null(target)) {
+    if (!(is.numeric(target) || is.complex(target)) || length(target) != 1L ||
+        !is.finite(target)) stopf("target must be a single finite number")
+    if (is.complex(target) && Im(target) == 0) target <- Re(target)
+    if (is.complex(target) && (A$dtype != "complex" || isTRUE(capv(A, "hermitian")))) {
+      stopf("target must be real for a real or hermitian operator")
+    }
+    if (!is.null(sigma)) stopf("target and sigma cannot both be given; sigma requests shift-invert")
+    if (!identical(which, "largest")) stopf("target and which cannot both be given")
+    if (!is.null(B)) stopf("target with B is not implemented; target requires the finite standard problem")
+    if (length(inner)) stopf("inner cannot be given with target; target applies A directly")
+    if (!is_finite_dim(A)) stopf("target requires an operator of finite dimension")
+    if (!is.null(get_node(A$node)$certify)) {
+      stopf("target requires the standard eigenpair certificate; a %s node certifies its own rows", A$node)
+    }
+    if (is_scalar_string(method) && length(node_method_owners(method))) {
+      stopf("target is available with the lanczos and arnoldi engines")
+    }
+  }
   if (!is.list(section)) stopf("section must be a list")
   own <- if (is_scalar_string(method)) get_node(A$node)$methods[[method]]
   if (!is.null(own)) {
@@ -294,7 +330,8 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   ## below this line knows which one ran.
   pick <- select_backend("eigs", A,
                          list(k = k, which = sel, sigma = sigma, tol = tol, ncv = ncv, maxit = maxit, B = B,
-                              interior = sel %in% c("LM", "SM")),
+                              interior = sel %in% c("LM", "SM"),
+                              target = target, extraction = extraction),
                          method, "eigs")
   ## The shift-invert operator is the hermitian one exactly when the engine
   ## requires a hermitian operator, since that engine runs on it.
@@ -305,7 +342,8 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   ncv <- eigen_ncv(ncv %||% pick$backend$default_ncv(A, k), k, n)
   run <- pick$backend$run(Op, A, list(k = k, sel = sel, tol = tol, maxit = maxit,
                                       ncv = ncv, v0 = v0, seed = seed,
-                                      floor_const = floor_const, B = B), pick$engine)
+                                      floor_const = floor_const, B = B,
+                                      target = target, extraction = extraction), pick$engine)
   label <- if (is.null(sigma)) {
              if (is.null(B)) pick$backend$label
              else sprintf("%s on B^-1 A", pick$backend$label)
@@ -313,6 +351,10 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                           if (is.null(B)) "I" else "B", if (is.null(B)) "" else " B")
   chosen <- if (is.null(sigma)) pick$backend$name
             else paste(pick$backend$name, "shift-invert")
+  if (!is.null(target)) {
+    label <- sprintf("%s, %s extraction near %s on A", label, extraction, format(target))
+    chosen <- paste(chosen, extraction)
+  }
 
   ## Which certificate the result carries is the node type's to say. A finite
   ## section answers a question about the operator underneath it, so its rows are
@@ -325,7 +367,8 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
   cert <- (get_node(A$node)$certify %||% eigen_certify)(ctx)
 
   new_eigen_result(values = run$values, vectors = run$vectors,
-                   certificate = cert, k = k, which = which, method = chosen,
+                   certificate = cert, k = k,
+                   which = if (is.null(target)) which else "nearest", method = chosen,
                    iterations = run$steps, maxit = maxit, rounds = run$rounds,
                    converged = cert$values$converged, residuals = run$residuals,
                    dispatch = backend_dispatch(method, pick, paste0(
@@ -335,7 +378,7 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
                      } else if (real_spectrum) "hermitian pencil with B positive definite, "
                      else "pencil not established hermitian with B positive definite, ",
                      label)),
-                   engine = run$engine)
+                   engine = run$engine, target = target, extraction = extraction)
 }
 
 ## The default: the eigenpair certificate, on the operator the run measured
@@ -405,9 +448,11 @@ shift_invert_operator <- function(A, sigma, inner, hermitian = TRUE, B = NULL) {
   ## spends 1000 applies and stops at a relative residual of 6.4e-2. A longer
   ## cycle is the default here, bounded so that its basis stays a modest multiple
   ## of the outer one; inner = list(control = list(restart = )) overrides it.
-  defaults <- if (hermitian) list(method = "minres", tol = 1e-12)
-              else list(method = "gmres", tol = 1e-12,
-                        control = list(restart = min(n, SHIFT_INVERT_RESTART)))
+  defaults <- list(method = inner$method %||% if (hermitian) "minres" else "gmres",
+                   tol = 1e-12)
+  if (identical(defaults$method, "gmres")) {
+    defaults$control <- list(restart = min(n, SHIFT_INVERT_RESTART))
+  }
   args <- utils::modifyList(defaults, inner)
   apply_inverse <- function(X) {
     if (!is.null(B)) X <- linop_apply(B, X, "N")
@@ -479,10 +524,11 @@ generalized_operator <- function(A, B, inner) {
 ## two agree to the last digit, which is the control that confines the difference
 ## to this block; dev_notes/spikes/restart-comparison.R runs both.
 lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
-                         B = NULL, prelocked = NULL) {
+                         B = NULL, prelocked = NULL, extraction = "ritz", target = NULL) {
   n <- Op$dim[1L]
   eps <- .Machine$double.eps
   metric <- !is.null(B)
+  harmonic <- extraction == "harmonic"
 
   Qv <- NULL
   BQv <- NULL
@@ -557,8 +603,12 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     if (op_is_a) anorm_lb <- max(anorm_lb, run$apply_norm)
 
     ## The projected problem, hermitian, and real for a real operator.
-    ee <- eigen(run$Tm, symmetric = TRUE)
-    ord <- ritz_order(ee$values, sel)
+    if (harmonic) {
+      hp <- harmonic_projection(run$Tm, if (is.null(run$vnext)) 0 else run$beta_last, target)
+      ee <- eigen(hp$M)
+      ee$values <- Re(harmonic_values(ee$values, target, hp$reciprocal))
+    } else ee <- eigen(run$Tm, symmetric = TRUE)
+    ord <- ritz_order(ee$values, sel, target)
     take <- ord[seq_len(min(want, run$size))]
     theta <- ee$values[take]
     Xr <- run$V %*% ee$vectors[, take, drop = FALSE]
@@ -579,6 +629,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     ## then fail the residual row.
     conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const,
                               bnorm_lb, meas$bx)$converged
+    if (!is.null(target)) conv <- cumprod(conv) == 1
     if (any(conv)) {
       Qv <- cbind(Qv, Xr[, conv, drop = FALSE])
       if (metric) BQv <- cbind(BQv, BXr[, conv, drop = FALSE])
@@ -615,17 +666,26 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     left_want <- want - sum(conv)
     avail <- setdiff(ord, take[conv])
     p <- min(length(avail), max(left_want + 3L, m %/% 2L), m - 2L)
+    if (harmonic) p <- min(p, m - sum(conv) - 2L)
     if (is.null(run$vnext) || p < 1L) {
       ## An invariant subspace, or no room to retain anything: there is no
       ## direction to continue from and the next round starts fresh.
       keep <- NULL
       v <- eigen_random_vector(n, Op$dtype, seed, rounds)
     } else {
-      Z <- ee$vectors[, avail[seq_len(p)], drop = FALSE]
-      H <- cross_adjoint(Z, run$Tm %*% Z)
-      keep <- list(Y = run$V %*% Z, BY = if (metric) run$BV %*% Z,
-                   H = (H + t(Conj(H))) / 2)
-      v <- run$vnext
+      if (harmonic) {
+        Z <- harmonic_keep_basis(hp$M, target, p, is.complex(run$Tm), hp$reciprocal,
+                                 locked = sum(conv))
+        hr <- harmonic_restart(run$V, run$Tm, run$beta_last, run$vnext, Z)
+        keep <- list(Y = hr$Y, H = (hr$H + t(Conj(hr$H))) / 2)
+        v <- hr$v
+      } else {
+        Z <- ee$vectors[, avail[seq_len(p)], drop = FALSE]
+        H <- cross_adjoint(Z, run$Tm %*% Z)
+        keep <- list(Y = run$V %*% Z, BY = if (metric) run$BV %*% Z,
+                     H = (H + t(Conj(H))) / 2)
+        v <- run$vnext
+      }
     }
   }
 
@@ -648,7 +708,7 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     stopf("eigs() produced no pair at all; the operator applied to the starting vector is zero")
   }
 
-  ord <- ritz_order(thetas, sel)
+  ord <- ritz_order(thetas, sel, target)
   list(values = values[ord], vectors = vectors[, ord, drop = FALSE],
        residuals = residuals[ord], thetas = thetas[ord], steps = steps, rounds = rounds,
        anorm_lb = anorm_lb, bnorm_lb = bnorm_lb, stop_reason = stop_reason)
@@ -671,9 +731,10 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
 ## deflation set, and the check repeats. If not, nothing better was reached from
 ## a random start and the search stops. One request for k = 1 per check, and
 ## none for k = 1, where any copy is a right answer.
-deflation_sweep <- function(core, run, k, sel, tol, maxit, seed) {
-  if (k <= 1L || !is.null(run$stop_reason) || length(run$values) < k) return(run)
-  better <- function(a, b) switch(sel,
+deflation_sweep <- function(core, run, k, sel, tol, maxit, seed, target = NULL) {
+  if (k <= 1L || !is.null(run$stop_reason) || length(run$values) < k ||
+      ncol(run$vectors) >= nrow(run$vectors)) return(run)
+  better <- function(a, b) if (!is.null(target)) Mod(a - target) < Mod(b - target) else switch(sel,
     LA = Re(a) > Re(b), SA = Re(a) < Re(b), LM = Mod(a) > Mod(b), SM = Mod(a) < Mod(b),
     LI = abs(Im(a)) > abs(Im(b)), SI = abs(Im(a)) < abs(Im(b)))
   found <- run$vectors
@@ -692,7 +753,7 @@ deflation_sweep <- function(core, run, k, sel, tol, maxit, seed) {
     run$steps <- run$steps + cand$steps
     run$rounds <- run$rounds + cand$rounds
     if (!is.null(cand$stop_reason) || !length(cand$values)) break
-    worst <- ritz_order(run$thetas, sel)[k]
+    worst <- ritz_order(run$thetas, sel, target)[k]
     margin <- 10 * tol * max(Mod(run$thetas[worst]), 1)
     if (!better(cand$thetas[1L], run$thetas[worst]) ||
         Mod(cand$thetas[1L] - run$thetas[worst]) <= margin) break
@@ -705,7 +766,7 @@ deflation_sweep <- function(core, run, k, sel, tol, maxit, seed) {
     run$thetas[worst] <- cand$thetas[1L]
     run$residuals[worst] <- cand$residuals[1L]
     run$vectors[, worst] <- cand$vectors[, 1L]
-    ord <- ritz_order(run$thetas, sel)
+    ord <- ritz_order(run$thetas, sel, target)
     run$values <- run$values[ord]; run$thetas <- run$thetas[ord]
     run$residuals <- run$residuals[ord]; run$vectors <- run$vectors[, ord, drop = FALSE]
     run$anorm_lb <- max(run$anorm_lb, cand$anorm_lb)
