@@ -154,6 +154,9 @@ diag_solve <- function(A, b, tol, floor_const, norm_control) {
 #'   otherwise, carrying the certificate in its `"certificate"` attribute.
 #'   Arithmetic on the result drops that attribute, which is the documented cost
 #'   of behaving like a matrix. With `details = TRUE`, the full object.
+#' @references Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
+#'   series. ACM Transactions on Mathematical Software 43(4).
+#'   \doi{10.1145/2998442}.
 #' @export
 solve.linop <- function(a, b, method = "auto", preconditioner = NULL,
                         tol = 1e-8, maxit = NULL, x0 = NULL, details = FALSE,

@@ -1,12 +1,8 @@
 Package: linop
 Title: Matrix-Free Linear Operators with Evidence-Bearing Capabilities
 Version: 0.0.0.9000
-Authors@R: c(person("Gilles", "Colling", email = "gilles.colling051@gmail.com",
-                  role = c("aut", "cre"), comment = c(ORCID = "0000-0003-3070-6066")),
-    person("Jared", "Aurentz", role = "ctb", comment = "standardChop algorithm"),
-    person("Lloyd N.", "Trefethen", role = "ctb", comment = "standardChop algorithm"),
-    person("The Chancellor, Masters and Scholars of the University of Oxford and the Chebfun Developers",
-           role = "cph", comment = "standardChop; see COPYRIGHTS"))
+Authors@R: person("Gilles", "Colling", email = "gilles.colling051@gmail.com",
+                  role = c("aut", "cre"), comment = c(ORCID = "0000-0003-3070-6066"))
 Description: Linear operators defined by their action rather than their entries.
     A 'linop' behaves like a matrix under ordinary arithmetic, composes lazily into
     a typed expression graph, and carries capabilities such as being Hermitian or

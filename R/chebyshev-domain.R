@@ -293,7 +293,7 @@ cheb_galerkin_eigs <- function(P, k, args) {
   cert <- build_certificate(r$collect(), subject = "galerkin eigenproblem",
                             values = list(strong = strong, n = n, widths = widths, converged = met),
                             evidence = r$collect_evidence())
-  cert <- function_certificate(cert, function_records(P))
+  cert <- function_certificate(cert, function_records(P), P)
   new_eigen_result(values = lam, vectors = U, certificate = cert, k = k,
                    which = "smallest_algebraic", method = "galerkin",
                    iterations = fit$iterations, maxit = fit$maxit, rounds = fit$restarts,

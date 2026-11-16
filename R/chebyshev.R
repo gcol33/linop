@@ -238,6 +238,7 @@ cheb_measure <- function(P, c, F, values) {
 }
 
 cheb_solve <- function(A, b, args) {
+  A <- function_request_operator(A, args$tol)
   P <- A
   cheb_check_problem(P, "solve")
   records <- function_records(A)
@@ -305,6 +306,7 @@ cheb_solve_certificate <- function(m, tol, N, widths) {
 ## and it is measured in ultraspherical coefficients rather than in L2, so it bounds
 ## no distance to the spectrum: the forward row says so.
 cheb_eigs <- function(A, k, control, args) {
+  A <- function_request_operator(A, args$tol)
   P <- A
   cheb_check_problem(P, "eigs")
   if (identical(args$method, "galerkin")) return(cheb_galerkin_eigs(P, k, args))
@@ -356,7 +358,7 @@ cheb_eigs <- function(A, k, control, args) {
   lam <- lam[ord]; X <- X[, ord, drop = FALSE]; meas <- meas[ord, , drop = FALSE]
   if (all(Im(lam) == 0)) lam <- Re(lam)
   cert <- cheb_eigen_certificate(lam, meas, tol, N, widths, k)
-  cert <- function_certificate(cert, function_records(A))
+  cert <- function_certificate(cert, function_records(A), P)
   new_eigen_result(values = lam, vectors = X, certificate = cert, k = k, which = which,
                    method = "arnoldi on the ultraspherical pencil", iterations = fit$iterations,
                    maxit = fit$maxit, rounds = fit$restarts,

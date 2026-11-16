@@ -628,8 +628,8 @@ lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     ## by, the backward error and the residual, each with the arithmetic floor.
     ## The backward error alone lets a pair with |mu| well below ||A|| lock and
     ## then fail the residual row.
-    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const,
-                              bnorm_lb, meas$bx)$converged
+    conv <- eigen_pair_converged(A, rr, mu, anorm_lb, 1, tol, floor_const,
+                                 bnorm_lb, meas$bx)
     if (!is.null(target)) conv <- cumprod(conv) == 1
     if (any(conv)) {
       Qv <- cbind(Qv, Xr[, conv, drop = FALSE])

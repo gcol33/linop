@@ -120,10 +120,10 @@ space_scale <- function(A, a) {
     ## a boundary condition is a statement about the solution, not a term of the
     ## operator, so it is not scaled
     return(carry_function_records(new_chebyshev(lapply(A$args$terms, function(t) a * t), 0,
-                                                 A$args$boundary), function_records(A)))
+                                                 A$args$boundary), scale_function_records(function_records(A), a)))
   }
   mult <- switch(A$node, fourier = A$args$vhat, basis = A$args$v)
-  carry_function_records(space_rebuild(A, a * A$args$coef, a * mult), function_records(A))
+  carry_function_records(space_rebuild(A, a * A$args$coef, a * mult), scale_function_records(function_records(A), a))
 }
 
 space_rebuild <- function(A, coef, mult, representation = A$args$multiplier_basis %||% "monomial") {

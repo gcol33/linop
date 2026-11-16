@@ -97,6 +97,9 @@ fourier_apply <- function(op, X, mode) {
 #'   A function of `x` is sampled adaptively in the selected space. It must
 #'   return one finite value per point. Scalar functions that error on vector
 #'   input are evaluated pointwise after one detected fallback.
+#'   Certificate construction may make one cached complex vector call to estimate
+#'   an analytic tail on an ellipse or strip. The sampled maximum and analyticity
+#'   are estimates. Real-only functions retain coefficient and off-grid estimates.
 #' @param boundary For `"chebyshev"`, a list with `at` (each `-1` or `1`),
 #'   `value`, and either `derivative` (one per condition) or `weights` (a list of
 #'   weight vectors over `u, u', ...`, for mixed conditions), one condition per
@@ -105,6 +108,8 @@ fourier_apply <- function(op, X, mode) {
 #'   scalar per endpoint. Functions are approximated on the interval first.
 #' @param tol Relative tolerance for adaptive function coefficients. Defaults
 #'   to machine epsilon. Chopping is an estimate recorded in the certificate.
+#'   Solve and eigen requests may shorten stored multipliers when the estimated
+#'   sup-norm error fits one tenth of the request and the arithmetic floor permits it.
 #' @param nmax Maximum sample grid length for each function. An unresolved
 #'   function is refused by argument name. Defaults to `65536`.
 #' @references Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
@@ -299,13 +304,21 @@ fourier_edge <- function(P, X) {
 
 fourier_scale <- function(P, q) Mod(q) + P$args$vnorm + Mod(P$args$coef[length(P$args$coef)])
 
+fourier_section_norm <- function(A) max(Mod(A$args$diag)) + A$args$A$args$vnorm
+
+fourier_pair_converged <- function(A, rn, theta, tol, floor_const) {
+  target <- tol * fourier_scale(A$args$A, theta)
+  floor <- floor_const * .Machine$double.eps * fourier_section_norm(A)
+  rn <= pmax(target / 2 - floor, floor)
+}
+
 fourier_certificate <- function(A, values, vectors, tol, iterations, maxit,
                                 floor_const = SOLVE_FLOOR_CONST,
                                 requested = NULL, stop_reason = NULL) {
   P <- A$args$A
   band_certificate(A, values, vectors, tol, iterations, maxit, floor_const,
                    requested, stop_reason, P,
-                   hn = max(Mod(A$args$diag)) + P$args$vnorm,
+                   hn = fourier_section_norm(A),
                    scale = function(q) fourier_scale(P, q),
                    edge = function(X) fourier_edge(P, X),
                    self_adjoint = P$args$self_adjoint, discrete = P$args$discrete,
@@ -329,5 +342,6 @@ register_fourier_nodes <- function() {
   linop_register_node("fourier", fourier_apply, NULL, function(op) Inf,
                       spectrum = fourier_eigs, section = fourier_section, overwrite = TRUE)
   linop_register_node("fourier_section", fourier_section_apply, fourier_section_materialize,
-                      function(op) op$cost, certify = fourier_certify, overwrite = TRUE)
+                      function(op) op$cost, certify = fourier_certify, overwrite = TRUE,
+                      converged = fourier_pair_converged)
 }

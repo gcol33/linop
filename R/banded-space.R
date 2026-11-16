@@ -32,7 +32,7 @@ band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_c
   requested <- requested %||% k
   if (!k) {
     return(function_certificate(eigen_certificate_empty(r, requested, iterations, maxit, stop_reason,
-                                                        "finite section"), function_records(P)))
+                                                        "finite section"), function_records(P), P))
   }
   flr <- floor_const * eps * hn
   want <- tol * scale(q)
@@ -87,7 +87,7 @@ band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_c
                     values = list(residual = res, truncation = trunc, bound = bound,
                                   target = want, norm = hn, floor = flr, n = n,
                                   converged = met),
-                    evidence = r$collect_evidence()), function_records(P))
+                    evidence = r$collect_evidence()), function_records(P), P)
 }
 
 ## The width search for a node whose eigenvectors decay faster than any
@@ -96,6 +96,8 @@ band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_c
 BAND_N_START <- 16L
 
 band_eigs <- function(A, k, control, args, n_min, space = "l^2(Z)") {
+  A <- function_request_operator(A, args$tol, args$floor_const %||% SOLVE_FLOOR_CONST)
+  if (A$node == "fourier") n_min <- max(A$args$d, as.integer(ceiling(k / 2)) + 1L)
   if (!is.null(args$v0)) {
     stopf("eigs() on the operator itself does not take v0; the truncation width is what it chooses")
   }

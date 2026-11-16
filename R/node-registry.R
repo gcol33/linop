@@ -57,12 +57,14 @@ mode_transposes <- function(mode) mode %in% c("T", "C")
 #'   type whether or not it has a matrix. A method that only a node type's own
 #'   mathematics defines lives here rather than in the eigensolver.
 #' @param overwrite Replace an existing registration.
+#' @param converged Optional function of `(A, rn, theta, tol, floor_const)`
+#'   testing the residual against the node's certificate target.
 #' @return Invisibly, the node name.
 #' @noRd
 linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
                                 certify = NULL, spectrum = NULL,
                                 section = NULL, solve = NULL, methods = list(),
-                                overwrite = FALSE) {
+                                overwrite = FALSE, converged = NULL) {
   if (!is_scalar_string(node)) stopf("node must be a single string")
   if (!is.function(apply)) stopf("apply must be a function(op, X, mode)")
   if (!overwrite && !is.null(.linop_nodes[[node]])) {
@@ -71,7 +73,7 @@ linop_register_node <- function(node, apply, materialize = NULL, cost = NULL,
   .linop_nodes[[node]] <- list(
     node = node, apply = apply,
     materialize = materialize, certify = certify, spectrum = spectrum,
-    section = section, solve = solve, methods = methods,
+    section = section, solve = solve, methods = methods, converged = converged,
     cost = cost %||% function(op) prod(op$dim))
   invisible(node)
 }

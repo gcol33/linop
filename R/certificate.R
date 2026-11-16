@@ -83,11 +83,16 @@ build_certificate <- function(checks, subject, probes = NULL, values = NULL,
 
 cert_status <- function(cert, check) cert$checks$status[cert$checks$check == check]
 
-function_certificate <- function(cert, records) {
+function_certificate <- function(cert, records, operator = NULL) {
   existing <- cert$values$function_coefficients %||% list()
-  records <- Filter(function(x) !any(vapply(existing, identical, logical(1), y = x)), records)
+  known <- lapply(existing, function(x) { x$tail_bound <- NULL; x })
+  records <- Filter(function(x) !any(vapply(known, identical, logical(1), y = x)), records)
   if (!length(records)) return(cert)
-  deps <- lapply(records, function(x) evidence("computation", "estimate", NA_real_))
+  bounds <- lapply(records, coefficient_tail_bound)
+  tail_evidence <- lapply(bounds, function(x)
+    evidence(if (x$available) "theorem" else "computation", "estimate", NA_real_))
+  deps <- lapply(tail_evidence, function(ev)
+    evidence("computation", "estimate", NA_real_, depends_on = list(ev)))
   r <- cert_rows()
   for (i in seq_len(nrow(cert$checks))) {
     row <- cert$checks[i, ]
@@ -101,9 +106,42 @@ function_certificate <- function(cert, records) {
           sprintf("%s; length %d; tail/vscale %.3e; %d calls; grids %s",
                   x$kind, length(x$coefficients), x$tail, x$calls, paste(x$grids, collapse = ", ")),
           evidence = deps[[i]])
+    b <- bounds[[i]]
+    detail <- if (b$available) {
+      sprintf(paste0("sup-norm error <= %.3e estimated from %s; rho %.5g; sampled M %.3e; ",
+                     "interpolation %.3e + discarded l1 %.3e + roundoff %.3e; ",
+                     "analyticity and the contour maximum are estimated"),
+              b$bound, if (x$kind == "chebyshev") "ATAP Theorem 8.2" else "analytic-strip coefficient decay",
+              b$rho, b$M, b$interpolation, b$discarded, b$roundoff)
+    } else sprintf("coefficient tail and off-grid estimates retained: %s", b$reason)
+    r$add(sprintf("function tail %d: %s", length(existing) + i, x$name), "pass", detail,
+          evidence = tail_evidence[[i]])
+    records[[i]]$tail_bound <- b
   }
   values <- cert$values
   values$function_coefficients <- c(existing, records)
+  potential <- which(vapply(records, function(x)
+    x$name %in% c("multiplier", "derivative[[1]]"), logical(1)))
+  if (isTRUE(operator$args$self_adjoint) && length(potential) &&
+      all(vapply(bounds[potential], function(x) x$available, logical(1)))) {
+    delta <- sum(vapply(potential, function(i)
+      Mod(records[[i]]$factor %||% 1) * bounds[[i]]$bound, numeric(1)))
+    want <- min(values$target %||% Inf)
+    floor <- max(values$floor %||% 0)
+    ev <- evidence("theorem", "estimate", NA_real_, depends_on = tail_evidence[potential])
+    r$add("function eigenvalue perturbation", cert_level(delta, want, floor),
+          sprintf("Weyl: spectral distance changes by at most the estimated multiplier sup-norm error %.3e; ordered discrete eigenvalues have this allowance", delta),
+          evidence = ev)
+    values$function_perturbation <- delta
+    if (!is.null(values$bound)) {
+      combined <- values$bound + delta
+      r$add("forward error including functions", cert_level(max(combined), want, floor),
+            sprintf("spectral residual bound plus multiplier error: %.3e against %.3e", max(combined), want),
+            evidence = evidence("theorem", "estimate", NA_real_,
+              depends_on = c(list(cert$evidence[["forward error"]]), tail_evidence[potential])))
+      values$function_forward_bound <- combined
+    }
+  }
   out <- build_certificate(r$collect(), cert$subject, cert$probes, values, r$collect_evidence())
   req <- requirement(guarantees = DETERMINISTIC_GUARANTEES)
   bounded <- vapply(out$evidence, evidence_satisfies, logical(1), required = req)
@@ -575,6 +613,13 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
 ## ||B x||. Both are monotone in nA and nB as before. With nB NULL it is the
 ## standard problem, where B = I is not perturbed.
 ## @noRd
+eigen_pair_converged <- function(A, rn, theta, nA, scale_x, tol, floor_const,
+                                 nB = NULL, scale_bx = scale_x) {
+  run <- get_node(A$node)$converged
+  if (!is.null(run) && is.null(nB)) return(run(A, rn / scale_x, theta, tol, floor_const))
+  eigen_pair_bounds(rn, theta, nA, scale_x, tol, floor_const, nB, scale_bx)$converged
+}
+
 eigen_pair_bounds <- function(rn, theta, nA, scale_x, tol, floor_const,
                               nB = NULL, scale_bx = scale_x) {
   eps <- .Machine$double.eps

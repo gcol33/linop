@@ -89,12 +89,12 @@ primme_eigs_run <- function(Op, A, ctl, engine) {
   convtest <- function(value, x, rnorm, anorm) {
     if (on_A) {
       lb <<- max(lb, anorm, abs(value))
-      return(eigen_pair_bounds(rnorm, value, lb, 1, ctl$tol, ctl$floor_const)$converged)
+      return(eigen_pair_converged(A, rnorm, value, lb, 1, ctl$tol, ctl$floor_const))
     }
     if (is.null(x)) return(FALSE)
     meas <- eigen_measure(A, matrix(x, ncol = 1L))
     lb <<- max(lb, meas$anorm_lb)
-    eigen_pair_bounds(meas$rr, meas$mu, lb, 1, ctl$tol, ctl$floor_const)$converged
+    eigen_pair_converged(A, meas$rr, meas$mu, lb, 1, ctl$tol, ctl$floor_const)
   }
   out <- engine$fn("primme_eigsh")(
     function(X) linop_apply(Op, X, "N"), n, ctl$k, which = sel, tol = ctl$tol,

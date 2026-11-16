@@ -71,3 +71,8 @@ products, block diagonals and powers of those). An iterative solve is not a
 linear operator, since what it applies depends on the vector it is given, so
 anything else is refused with `solve(a, b)` named.
 }
+\references{
+Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
+  series. ACM Transactions on Mathematical Software 43(4).
+  \doi{10.1145/2998442}.
+}

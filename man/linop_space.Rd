@@ -30,7 +30,10 @@ coefficients `v_0, v_1, ...` of `V(x)` on the line and half line. A single
 number is a constant.
 A function of `x` is sampled adaptively in the selected space. It must
 return one finite value per point. Scalar functions that error on vector
-input are evaluated pointwise after one detected fallback.}
+input are evaluated pointwise after one detected fallback.
+Certificate construction may make one cached complex vector call to estimate
+an analytic tail on an ellipse or strip. The sampled maximum and analyticity
+are estimates. Real-only functions retain coefficient and off-grid estimates.}
 
 \item{boundary}{For `"chebyshev"`, a list with `at` (each `-1` or `1`),
 `value`, and either `derivative` (one per condition) or `weights` (a list of
@@ -40,7 +43,9 @@ order of the operator. A term of a sum may omit it; the problem needs it.
 scalar per endpoint. Functions are approximated on the interval first.}
 
 \item{tol}{Relative tolerance for adaptive function coefficients. Defaults
-to machine epsilon. Chopping is an estimate recorded in the certificate.}
+to machine epsilon. Chopping is an estimate recorded in the certificate.
+Solve and eigen requests may shorten stored multipliers when the estimated
+sup-norm error fits one tenth of the request and the arithmetic floor permits it.}
 
 \item{nmax}{Maximum sample grid length for each function. An unresolved
 function is refused by argument name. Defaults to `65536`.}

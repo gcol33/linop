@@ -173,8 +173,8 @@ arnoldi_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
     rr <- meas$rr
     anorm_lb <- max(anorm_lb, meas$anorm_lb)
     if (!is.null(B)) bnorm_lb <- max(bnorm_lb, meas$bnorm_lb)
-    conv <- eigen_pair_bounds(rr, mu, anorm_lb, 1, tol, floor_const,
-                              bnorm_lb, meas$bx)$converged
+    conv <- eigen_pair_converged(A, rr, mu, anorm_lb, 1, tol, floor_const,
+                                 bnorm_lb, meas$bx)
     ## A conjugate pair locks together or not at all.
     pq <- partner[seq_len(q)]
     has <- !is.na(pq) & pq <= q
