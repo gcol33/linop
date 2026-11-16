@@ -27,6 +27,14 @@ rq_on <- function(A, X) {
   Re(colSums(Conj(X) * AX)) / Re(colSums(Conj(X) * X))
 }
 
+expect_eigen_recovery <- function(A, fit, truth, tolerance = 1e-8) {
+  expect_equal(fit$nconv, length(truth))
+  expect_lt(max(abs(fit$values - truth)), tolerance)
+  residual <- linop:::linop_apply(A, fit$vectors, "N") -
+    sweep(fit$vectors, 2L, truth, "*")
+  expect_lt(max(sqrt(colSums(Mod(residual)^2))), tolerance)
+}
+
 ## ---------------------------------------------------------------- registry --
 
 test_that("every engine is listed with its verdict, and the one that ran says so", {
@@ -119,6 +127,57 @@ test_that("primme refuses a tolerance below machine epsilon, and auto takes the 
   }
 })
 
+test_that("two installed engines report candidates, refusals and priority overrides", {
+  skip_if_not_installed("linop.primme")
+  skip_if_not_installed("RSpectra")
+  A <- linop(as.matrix(laplacian_1d(40)))
+  check_dispatch <- function(fit, requested, chosen, priorities, rejected = character()) {
+    dispatch <- fit$certificate$dispatch
+    candidates <- dispatch$candidates
+    expect_equal(dispatch$requested, requested)
+    expect_equal(dispatch$chosen, chosen)
+    expect_equal(candidates$backend, names(priorities))
+    expect_equal(candidates$priority, unname(priorities))
+    expected <- ifelse(candidates$backend %in% names(rejected), "rejected", "eligible")
+    expected[candidates$backend == chosen] <- "selected"
+    expect_equal(candidates$status, expected)
+    reasons <- rep("eligible", nrow(candidates))
+    reasons[match(names(rejected), candidates$backend)] <- unname(rejected)
+    expect_equal(candidates$reason, reasons)
+    expect_match(dispatch$reason, if (requested == "auto") "highest priority" else "requested by name")
+  }
+  default <- c(primme = 100, lanczos = 0, arnoldi = -10, rspectra = -20)
+  with_default_priority({
+    check_dispatch(eigs(A, k = 2), "auto", "primme", default)
+    for (method in c("primme", "rspectra")) {
+      fit <- eigs(A, k = 2, method = method)
+      check_dispatch(fit, method, method, default)
+      expect_eigen_recovery(A, fit, rev(laplacian_1d_eigenvalues(40))[1:2])
+    }
+    rejected <- c(primme = "it refuses tol = 0, below machine epsilon")
+    check_dispatch(eigs(A, k = 2, tol = 0, maxit = 80L), "auto", "lanczos",
+                   default, rejected)
+    expect_error(eigs(A, k = 2, tol = 0, method = "primme"), rejected[[1L]], fixed = TRUE)
+  })
+  preferred <- c(rspectra = 200, primme = 100, lanczos = 0, arnoldi = -10)
+  with_priority(c(rspectra = 200), {
+    check_dispatch(eigs(A, k = 2), "auto", "rspectra", preferred)
+    check_dispatch(eigs(A, k = 2, method = "primme"), "primme", "primme", preferred)
+    rejected <- c(primme = "with a block of k = 2 it needs ncv >= 5")
+    check_dispatch(eigs(A, k = 2, ncv = 4L, maxit = 3000L), "auto", "rspectra",
+                   preferred, rejected)
+    Z <- linop(hpd_prescribed(40, seq(5, 1, length.out = 40), seed = 8L))
+    rejected <- c(rspectra = "does not take a complex operator")
+    check_dispatch(eigs(Z, k = 2), "auto", "primme", preferred, rejected)
+    expect_error(eigs(Z, k = 2, method = "rspectra"), rejected[[1L]], fixed = TRUE)
+  })
+  with_priority(c(primme = -100, rspectra = -200), {
+    priorities <- c(lanczos = 0, arnoldi = -10, primme = -100, rspectra = -200)
+    check_dispatch(eigs(A, k = 2), "auto", "lanczos", priorities)
+    check_dispatch(eigs(A, k = 2, method = "rspectra"), "rspectra", "rspectra", priorities)
+  })
+})
+
 test_that("svds with a starting vector is the reference's, since primme needs both sides", {
   skip_if_not_installed("linop.primme")
   A <- linop(rmat(12, 8, seed = 2L))
@@ -169,6 +228,7 @@ test_that("both engines reach the closed-form spectrum at every end, real and co
       fit <- eigs(A, k = 3, which = w, method = m, maxit = 3000L)
       expect_equal(fit$nconv, 3L, info = paste(w, m))
       expect_lt(max(abs(fit$values - want[[w]])), 1e-9, label = paste(w, m))
+      expect_eigen_recovery(A, fit, want[[w]])
       expect_equal(cert_status(fit$certificate, "backward error"), "pass")
       expect_equal(cert_status(fit$certificate, "forward error"), "pass")
       ## The residual row holds the pair to tol relative to |value|, which only
@@ -188,6 +248,7 @@ test_that("both engines reach the closed-form spectrum at every end, real and co
   expect_true(is.complex(fp$vectors))
   expect_lt(max(abs(fp$values - lam[1:3])), 1e-10)
   expect_lt(max(abs(fp$values - fl$values)), 1e-10)
+  expect_eigen_recovery(Z, fp, lam[1:3])
 })
 
 test_that("shift-invert runs through primme on the same transformed operator", {
@@ -199,12 +260,56 @@ test_that("shift-invert runs through primme on the same transformed operator", {
   near <- ev[order(abs(ev - sigma))][1:3]
   fit <- eigs(A, k = 3, sigma = sigma, method = "primme")
   expect_equal(fit$method, "primme shift-invert")
-  expect_lt(max(abs(sort(fit$values) - sort(near))), 1e-9)
+  expect_eigen_recovery(A, fit, near)
   ## PRIMME's stopping test runs on (A - sigma I)^-1, which bounds the residual
   ## on A by tol ||A - sigma I||, not by tol |value|; measured 1.13e-10 against
   ## 1e-10 here. The backward error and the forward bound hold.
   expect_equal(cert_status(fit$certificate, "backward error"), "pass")
   expect_equal(cert_status(fit$certificate, "forward error"), "pass")
+})
+
+test_that("PRIMME signed targets and shift-invert recover paired Laplacian eigenvectors", {
+  skip_if_not_installed("linop.primme")
+  n <- 40L
+  values <- laplacian_1d_eigenvalues(n) - 2.63
+  targets <- list(largest_algebraic = rev(values)[1:3], smallest_algebraic = values[1:3],
+                  largest = values[order(abs(values), decreasing = TRUE)][1:3],
+                  smallest = values[order(abs(values))][1:3])
+  for (dtype in c("double", "complex")) {
+    phase <- if (dtype == "complex") exp(1i * seq_len(n) / 7) else rep(1, n)
+    apply <- function(X) {
+      Y <- Conj(phase) * X
+      phase * (laplacian_1d_apply(Y) - 2.63 * Y)
+    }
+    A <- linop(apply, adjoint = apply, dim = c(n, n), dtype = dtype,
+               properties = c(hermitian = TRUE))
+    for (which in names(targets)) {
+      fit <- eigs(A, k = 3, which = which, method = "primme", maxit = 3000L)
+      expect_equal(is.complex(fit$vectors), dtype == "complex")
+      expect_eigen_recovery(A, fit, targets[[which]])
+    }
+    sigma <- 0.3
+    fit <- eigs(A, k = 3, sigma = sigma, method = "primme", maxit = 3000L)
+    expect_equal(fit$method, "primme shift-invert")
+    expect_eigen_recovery(A, fit, values[order(abs(values - sigma))][1:3])
+  }
+})
+
+test_that("PRIMME warm starts recover closed-form eigenpairs in both dtypes", {
+  skip_if_not_installed("linop.primme")
+  n <- 40L
+  values <- laplacian_1d_eigenvalues(n)
+  vectors <- laplacian_1d_eigenvectors(n)
+  for (dtype in c("double", "complex")) {
+    phase <- if (dtype == "complex") exp(1i * seq_len(n) / 7) else rep(1, n)
+    apply <- function(X) phase * laplacian_1d_apply(Conj(phase) * X)
+    A <- linop(apply, adjoint = apply, dim = c(n, n), dtype = dtype,
+               properties = c(hermitian = TRUE))
+    v0 <- phase * (vectors[, n] + 0.05 * rowSums(vectors[, 1:5]))
+    fit <- eigs(A, k = 3, which = "largest_algebraic", method = "primme",
+                v0 = v0, maxit = 3000L)
+    expect_eigen_recovery(A, fit, rev(values)[1:3])
+  }
 })
 
 test_that("primme's smallest singular value near zero meets the residual row", {
@@ -229,17 +334,17 @@ test_that("singular triplets through primme, real and complex", {
   sigma <- c(20, 9, 5, seq(2, 0.4, length.out = 17))
   for (dt in c("double", "complex")) {
     f <- lsq_prescribed(30, 20, sigma, seed = 5L, dtype = dt)
-    A <- linop(f$A)
-    for (w in c("largest", "smallest")) {
-      fit <- svds(A, k = 3, which = w, method = "primme", maxit = 3000L)
-      tru <- if (w == "largest") sigma[1:3] else sort(sigma)[1:3]
-      expect_equal(fit$nconv, 3L)
-      expect_lt(max(abs(fit$d - tru)), 1e-9)
-      expect_lte(triplet_backward(A, fit$d, fit$u, fit$v, max(sigma)), 1e-9)
-      ## the smallest are below ||A|| by up to 50x, where a test on the backward
-      ## error alone leaves the residual row failing
-      expect_true(cert_status(fit$certificate, "residual") %in% c("pass", "qualified"))
-      expect_equal(is.complex(fit$u), dt == "complex")
+    for (M in list(f$A, Conj(t(f$A)))) {
+      A <- linop(M)
+      for (w in c("largest", "smallest")) {
+        fit <- svds(A, k = 3, which = w, method = "primme", maxit = 3000L)
+        tru <- if (w == "largest") sigma[1:3] else rev(sigma)[1:3]
+        expect_equal(fit$nconv, 3L)
+        expect_lt(max(abs(fit$d - tru)), 1e-9)
+        expect_lte(triplet_backward(A, tru, fit$u, fit$v, max(sigma)), 1e-9)
+        expect_true(cert_status(fit$certificate, "residual") %in% c("pass", "qualified"))
+        expect_equal(is.complex(fit$u), dt == "complex")
+      }
     }
   }
 })
@@ -251,15 +356,17 @@ test_that("a repeated eigenvalue comes back with every copy, through a block of 
   skip_if_not_installed("linop.primme")
   n <- 30
   lambda <- c(rep(10, 8), seq(2, 0.5, length.out = n - 8L))
-  for (seed in 1:3) {
-    set.seed(seed)
-    Q <- qr.Q(qr(matrix(rnorm(n * n), n)))
-    M <- Q %*% diag(lambda) %*% t(Q)
-    fit <- eigs(linop((M + t(M)) / 2), k = 8, which = "largest_algebraic",
-                method = "primme")
-    expect_equal(fit$values, rep(10, 8), tolerance = 1e-9)
-    expect_lt(max(abs(crossprod(fit$vectors) - diag(8))), 1e-10)
-    expect_equal(fit$engine$params$maxBlockSize, 8L)
+  for (dtype in c("double", "complex")) {
+    for (seed in 1:3) {
+      M <- if (dtype == "complex") hpd_prescribed(n, lambda, seed) else
+        spd_prescribed(n, lambda, seed)
+      A <- linop(M)
+      fit <- eigs(A, k = 8, which = "largest_algebraic", method = "primme")
+      expect_equal(fit$values, rep(10, 8), tolerance = 1e-9)
+      expect_lt(max(Mod(Conj(t(fit$vectors)) %*% fit$vectors - diag(8))), 1e-10)
+      expect_equal(fit$engine$params$maxBlockSize, 8L)
+      expect_eigen_recovery(A, fit, rep(10, 8))
+    }
   }
 })
 
