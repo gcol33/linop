@@ -1,8 +1,8 @@
 # The conjugate transpose
 
-Distinct from \[t()\], which is the transpose. For a real operator the
-two have the same action; they remain separate nodes so the printed tree
-keeps showing what was written.
+Distinct from [`t()`](https://rdrr.io/r/base/t.html), which is the
+transpose. For a real operator the two have the same action; they remain
+separate nodes so the printed tree keeps showing what was written.
 
 ## Usage
 
@@ -20,7 +20,7 @@ adjoint(x, ...)
 
 - x:
 
-  A \`linop\`.
+  A `linop`.
 
 - ...:
 
@@ -28,4 +28,4 @@ adjoint(x, ...)
 
 ## Value
 
-A \`linop\`.
+A `linop`.

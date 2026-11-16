@@ -16,8 +16,8 @@ linop_eye(n, dtype = "double")
 
 - dtype:
 
-  \`"double"\` or \`"complex"\`.
+  `"double"` or `"complex"`.
 
 ## Value
 
-A \`linop\`.
+A `linop`.

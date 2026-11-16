@@ -1,9 +1,9 @@
 # A Jacobi operator on the sequence space
 
-A self-adjoint operator on \`l^2(Z)\`, tridiagonal in the standard
-basis, given by its diagonal and off-diagonal sequences. Both are real
-and eventually constant: they take the values you supply on a finite
-window and their limiting values everywhere else.
+A self-adjoint operator on `l^2(Z)`, tridiagonal in the standard basis,
+given by its diagonal and off-diagonal sequences. Both are real and
+eventually constant: they take the values you supply on a finite window
+and their limiting values everywhere else.
 
 ## Usage
 
@@ -27,48 +27,50 @@ linop_jacobi(
 - offdiagonal:
 
   The couplings, as a real vector of length 1 for a constant
-  off-diagonal, or \`length(diagonal) + 1\` for a perturbed one. Zero is
+  off-diagonal, or `length(diagonal) + 1` for a perturbed one. Zero is
   not allowed as the limiting value.
 
 - from:
 
-  The index of \`diagonal\[1\]\`. The default centres the window on the
+  The index of `diagonal[1]`. The default centres the window on the
   origin.
 
 - diagonal_limit:
 
   The value the diagonal takes outside the window, or one period of
-  values: outside the window \`a_j = diagonal_limit\[(j mod P) + 1\]\`.
-  With periodic limits the essential spectrum is a union of bands with
-  gaps between them, and the certificate measures isolation against the
+  values: outside the window `a_j = diagonal_limit[(j mod P) + 1]`. With
+  periodic limits the essential spectrum is a union of bands with gaps
+  between them, and the certificate measures isolation against the
   nearest band.
 
 - offdiagonal_limit:
 
   The value the off-diagonal takes outside the window, or one period of
-  values, anchored the same way. Defaults to \`offdiagonal\` when that
-  is a single number.
+  values, anchored the same way. Defaults to `offdiagonal` when that is
+  a single number.
 
 ## Value
 
-A \`linop\` of dimension \`Inf x Inf\`.
+A `linop` of dimension `Inf x Inf`.
 
 ## Details
 
 The operator has infinite dimensions, so it has no matrix and nothing
-numeric runs on it directly. \[finite_section()\] truncates it to an
-operator that does, and the certificate that comes back describes the
-operator here rather than the truncation.
+numeric runs on it directly.
+[`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
+truncates it to an operator that does, and the certificate that comes
+back describes the operator here rather than the truncation.
 
-The window is \`from\` to \`from + length(diagonal) - 1\`.
-\`offdiagonal\[i\]\` couples index \`from + i - 2\` to \`from + i - 1\`,
-so the couplings incident to the diagonal window run from the one on its
-left edge to the one on its right, and there are one more of them than
-there are diagonal entries.
+The window is `from` to `from + length(diagonal) - 1`. `offdiagonal[i]`
+couples index `from + i - 2` to `from + i - 1`, so the couplings
+incident to the diagonal window run from the one on its left edge to the
+one on its right, and there are one more of them than there are diagonal
+entries.
 
-A constructor knows the operator is self-adjoint the way \[linop_eye()\]
-knows it about the identity, so \`hermitian\` and \`symmetric\` are
-recorded with \`source = "construction"\` rather than as declarations.
+A constructor knows the operator is self-adjoint the way
+[`linop_eye()`](https://gillescolling.com/linop/reference/linop_eye.md)
+knows it about the identity, so `hermitian` and `symmetric` are recorded
+with `source = "construction"` rather than as declarations.
 
 ## Examples
 

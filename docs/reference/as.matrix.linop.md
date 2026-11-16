@@ -14,11 +14,11 @@ as.matrix(x, max_entries = 1e+07, ...)
 
 - x:
 
-  A \`linop\`.
+  A `linop`.
 
 - max_entries:
 
-  Guard on \`nrow \* ncol\`. Raise it deliberately.
+  Guard on `nrow * ncol`. Raise it deliberately.
 
 - ...:
 

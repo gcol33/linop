@@ -1,8 +1,8 @@
 # Permutation operator
 
-The operator taking \`x\` to \`x\[p\]\`. Its transpose is its inverse,
-so it is unitary by construction, and it is symmetric exactly when \`p\`
-is an involution.
+The operator taking `x` to `x[p]`. Its transpose is its inverse, so it
+is unitary by construction, and it is symmetric exactly when `p` is an
+involution.
 
 ## Usage
 
@@ -14,11 +14,11 @@ linop_perm(p)
 
 - p:
 
-  A permutation of \`1:n\`.
+  A permutation of `1:n`.
 
 ## Value
 
-A \`linop\`.
+A `linop`.
 
 ## Examples
 

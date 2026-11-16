@@ -5,15 +5,11 @@
 *.Rcheck/
 *.tar.gz
 
-# The global ignore excludes dev_notes/ and *_plan.md. Both are governing
-# documents here and CLAUDE.md cites them, so re-include them; .Rbuildignore
-# keeps them out of the built package.
-!dev_notes/
-!implementation_plan.md
-
-# A spike writes a .done marker so a detached launcher can tell it finished.
-# The results next to it are the evidence; the marker is a timestamp.
-dev_notes/spikes/results/*.done
+# Development notes, the plan and agent instructions stay local.
+dev_notes/
+implementation_plan.md
+CLAUDE.md
+sidecars/
 
 .run*
 tests/testthat/_problems/

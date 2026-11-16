@@ -12,7 +12,7 @@ explain(A)
 
 - A:
 
-  A \`linop\`.
+  A `linop`.
 
 ## Value
 

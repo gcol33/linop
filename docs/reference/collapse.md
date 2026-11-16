@@ -14,7 +14,7 @@ collapse(A, expected_applies = 100, max_entries = 1e+06)
 
 - A:
 
-  A \`linop\`.
+  A `linop`.
 
 - expected_applies:
 
@@ -26,4 +26,4 @@ collapse(A, expected_applies = 100, max_entries = 1e+06)
 
 ## Value
 
-A \`linop\` carrying a \`report\` attribute.
+A `linop` carrying a `report` attribute.

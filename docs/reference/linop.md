@@ -1,8 +1,8 @@
 # Build a linear operator
 
-One generic, dispatching on its first argument. A matrix or \`Matrix\`
+One generic, dispatching on its first argument. A matrix or `Matrix`
 becomes an operator wrapping that storage; a function becomes a callback
-operator. Third-party packages implement \`linop.myclass()\` and nothing
+operator. Third-party packages implement `linop.myclass()` and nothing
 else.
 
 ## Usage
@@ -47,15 +47,15 @@ linop(x, properties = NULL, ...)
 
 - x:
 
-  A matrix, a \`Matrix\`, a function implementing the forward action, or
-  any object with a \`linop()\` method.
+  A matrix, a `Matrix`, a function implementing the forward action, or
+  any object with a `linop()` method.
 
 - properties:
 
   A named logical vector of declared capabilities, for example
-  \`c(hermitian = TRUE, positive_definite = TRUE)\`. A bare character
-  vector is accepted as shorthand for all-\`TRUE\`. Declared properties
-  are recorded with \`source = "user_declaration"\`.
+  `c(hermitian = TRUE, positive_definite = TRUE)`. A bare character
+  vector is accepted as shorthand for all-`TRUE`. Declared properties
+  are recorded with `source = "user_declaration"`.
 
 - ...:
 
@@ -68,11 +68,11 @@ linop(x, properties = NULL, ...)
 
 - dim:
 
-  For the callback form, \`c(nrow, ncol)\`.
+  For the callback form, `c(nrow, ncol)`.
 
 - dtype:
 
-  \`"double"\` or \`"complex"\`.
+  `"double"` or `"complex"`.
 
 - cost:
 
@@ -80,27 +80,27 @@ linop(x, properties = NULL, ...)
 
 ## Value
 
-A \`linop\`.
+A `linop`.
 
 ## Details
 
-A \`DelayedMatrix\` (from the DelayedArray package, which also covers
+A `DelayedMatrix` (from the DelayedArray package, which also covers
 HDF5-backed matrices from HDF5Array) becomes a callback leaf applied by
 DelayedArray's block-processed product, so the matrix is never read
 whole.
 
-A two-dimensional \`torch_tensor\` becomes a callback leaf applied by
+A two-dimensional `torch_tensor` becomes a callback leaf applied by
 torch's matrix product on the tensor's device, with each block copied to
-the device and back. Only \`float64\` and \`complex128\` tensors are
-taken: a single-precision apply carries an error near 1e-7 that the
+the device and back. Only `float64` and `complex128` tensors are taken:
+a single-precision apply carries an error near 1e-7 that the
 certificates' arithmetic floor, written for double precision, would not
 see.
 
-A \`big.matrix\` (bigmemory, including a file-backed, memory-mapped one)
+A `big.matrix` (bigmemory, including a file-backed, memory-mapped one)
 becomes a callback leaf that reads it a block of rows at a time, so at
 most one block is in memory. bigmemory stores real numbers only.
 
-A \`linop\` behaves like a matrix: use ordinary matrix operations.
+A `linop` behaves like a matrix: use ordinary matrix operations.
 
 ## Examples
 

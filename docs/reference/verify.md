@@ -21,7 +21,7 @@ verify(x, tol = 1e-08, n_probe = 10L, seed = 1L, block = c(1L, 3L), ...)
 
 - x:
 
-  A \`linop\`, or a solver result.
+  A `linop`, or a solver result.
 
 - tol:
 
@@ -45,4 +45,4 @@ verify(x, tol = 1e-08, n_probe = 10L, seed = 1L, block = c(1L, 3L), ...)
 
 ## Value
 
-An object of class \`linop_certificate\`.
+An object of class `linop_certificate`.

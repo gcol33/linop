@@ -1,9 +1,9 @@
 # Low-rank operator
 
-\`U diag(d) V^H\`, applied as three thin products, \`(m + n) r\` work
-per column for rank \`r\`. With \`V\` left at \`U\` and \`d\` real, it
-is hermitian by construction, and positive semidefinite when \`d\` is
-also non-negative. A rank of zero is the zero operator.
+`U diag(d) V^H`, applied as three thin products, `(m + n) r` work per
+column for rank `r`. With `V` left at `U` and `d` real, it is hermitian
+by construction, and positive semidefinite when `d` is also
+non-negative. A rank of zero is the zero operator.
 
 ## Usage
 
@@ -15,19 +15,19 @@ linop_lowrank(U, V = U, d = rep(1, ncol(U)))
 
 - U:
 
-  An \`m x r\` matrix.
+  An `m x r` matrix.
 
 - V:
 
-  An \`n x r\` matrix, by default \`U\`.
+  An `n x r` matrix, by default `U`.
 
 - d:
 
-  The \`r\` weights, by default all one.
+  The `r` weights, by default all one.
 
 ## Value
 
-A \`linop\`.
+A `linop`.
 
 ## Examples
 

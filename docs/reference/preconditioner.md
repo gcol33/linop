@@ -20,7 +20,7 @@ preconditioner(
 
 - apply_inverse:
 
-  \`function(R)\` returning \`z = M^-1 r\`, always this direction.
+  `function(R)` returning `z = M^-1 r`, always this direction.
 
 - fixed:
 
@@ -33,19 +33,19 @@ preconditioner(
 
 - side:
 
-  \`"left"\`, \`"right"\` or \`"split"\`.
+  `"left"`, `"right"` or `"split"`.
 
 - dim:
 
-  \`c(n, n)\`.
+  `c(n, n)`.
 
 - apply_inverse_adjoint:
 
-  \`function(R)\` returning \`M^-H r\`. Needed only by a method that
-  runs on \`A M^-1\` and has to apply its adjoint, which in v0.1 is LSQR
-  and LSMR. A hermitian \`M\` supplies it for nothing, since \`M^-H =
-  M^-1\` there, so this is for the case where the two differ.
+  `function(R)` returning `M^-H r`. Needed only by a method that runs on
+  `A M^-1` and has to apply its adjoint, which in v0.1 is LSQR and LSMR.
+  A hermitian `M` supplies it for nothing, since `M^-H = M^-1` there, so
+  this is for the case where the two differ.
 
 ## Value
 
-An object of class \`preconditioner\`.
+An object of class `preconditioner`.

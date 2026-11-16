@@ -4,7 +4,8 @@ Every verb in this package that computes something returns a certificate
 with it, and each puts it where its own return value has room. A solve
 carries it in an attribute, so the result stays the matrix a matrix
 solve returns; the spectral verbs carry it in a field of their result;
-\[verify()\] returns one directly. This reads it off any of them.
+[`verify()`](https://gillescolling.com/linop/reference/verify.md)
+returns one directly. This reads it off any of them.
 
 ## Usage
 
@@ -16,7 +17,11 @@ certificate(x, ...)
 
 - x:
 
-  A result from \[solve()\], \[eigs()\], \[svds()\] or \[verify()\].
+  A result from
+  [`solve()`](https://gillescolling.com/linop/reference/solve.linop.md),
+  [`eigs()`](https://gillescolling.com/linop/reference/eigs.md),
+  [`svds()`](https://gillescolling.com/linop/reference/svds.md) or
+  [`verify()`](https://gillescolling.com/linop/reference/verify.md).
 
 - ...:
 
@@ -24,21 +29,24 @@ certificate(x, ...)
 
 ## Value
 
-An object of class \`linop_certificate\`.
+An object of class `linop_certificate`.
 
 ## Details
 
 A certificate belongs to a result and not to an operator. An operator on
 its own has nothing to certify: the claims a certificate makes are about
 a computation, and the one claim an operator can make alone is that it
-satisfies the contract, which is \[verify()\] and returns a certificate
-of its own.
+satisfies the contract, which is
+[`verify()`](https://gillescolling.com/linop/reference/verify.md) and
+returns a certificate of its own.
 
 A solve's attribute survives arithmetic on the solution and is dropped
-by indexing, \`as.numeric()\`, \`c()\` and the reductions. So the cost
-of \[solve()\] returning what a matrix solve returns is not that the
-certificate is easily lost: it is that \`2 \* x\` still carries a
-certificate describing \`x\`.
+by indexing, [`as.numeric()`](https://rdrr.io/r/base/numeric.html),
+[`c()`](https://rdrr.io/r/base/c.html) and the reductions. So the cost
+of [`solve()`](https://gillescolling.com/linop/reference/solve.linop.md)
+returning what a matrix solve returns is not that the certificate is
+easily lost: it is that `2 * x` still carries a certificate describing
+`x`.
 
 ## Examples
 

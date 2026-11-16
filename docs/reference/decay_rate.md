@@ -1,13 +1,13 @@
 # How fast an eigenvector decays
 
-Outside the window the eigenvalue equation is the free recurrence \`b
-(u\[j-1\] + u\[j+1\]) + a u\[j\] = lambda u\[j\]\`, whose solutions are
-\`z^j\` for the two roots of \`z^2 - mu z + 1\` with \`mu = (lambda -
-a_inf) / b_inf\`. The roots are reciprocal, so for \`\|mu\| \> 2\`
-exactly one lies inside the unit disc, and membership in \`l^2\` forces
-it on each side. An eigenvector is therefore \*exactly\* geometric
-outside the window, at the rate this returns, rather than asymptotically
-so.
+Outside the window the eigenvalue equation is the free recurrence
+`b (u[j-1] + u[j+1]) + a u[j] = lambda u[j]`, whose solutions are `z^j`
+for the two roots of `z^2 - mu z + 1` with
+`mu = (lambda - a_inf) / b_inf`. The roots are reciprocal, so for
+`|mu| > 2` exactly one lies inside the unit disc, and membership in
+`l^2` forces it on each side. An eigenvector is therefore *exactly*
+geometric outside the window, at the rate this returns, rather than
+asymptotically so.
 
 ## Usage
 
@@ -19,7 +19,11 @@ decay_rate(A, lambda)
 
 - A:
 
-  A \`linop\` from \[linop_jacobi()\], or a \[finite_section()\] of one.
+  A `linop` from
+  [`linop_jacobi()`](https://gillescolling.com/linop/reference/linop_jacobi.md),
+  or a
+  [`finite_section()`](https://gillescolling.com/linop/reference/finite_section.md)
+  of one.
 
 - lambda:
 
@@ -27,14 +31,13 @@ decay_rate(A, lambda)
 
 ## Value
 
-A numeric vector in \`(0, 1)\`, with \`NA\` where \`lambda\` lies in the
+A numeric vector in `(0, 1)`, with `NA` where `lambda` lies in the
 essential spectrum.
 
 ## Details
 
-\`NA\` for a value inside the essential spectrum: there both roots lie
-on the unit circle, nothing decays, and there is no eigenvector to
-decay.
+`NA` for a value inside the essential spectrum: there both roots lie on
+the unit circle, nothing decays, and there is no eigenvector to decay.
 
 ## Examples
 

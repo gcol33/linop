@@ -1,6 +1,6 @@
 # Treat an operator P ~ A^-1 as a preconditioner
 
-Applied by computing \`z = P r\`.
+Applied by computing `z = P r`.
 
 ## Usage
 
@@ -12,12 +12,13 @@ as_preconditioner_inverse(P, ...)
 
 - P:
 
-  A \`linop\` approximating \`A^-1\`.
+  A `linop` approximating `A^-1`.
 
 - ...:
 
-  Passed to \[preconditioner()\].
+  Passed to
+  [`preconditioner()`](https://gillescolling.com/linop/reference/preconditioner.md).
 
 ## Value
 
-A \`preconditioner\`.
+A `preconditioner`.

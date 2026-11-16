@@ -24,8 +24,8 @@ requirement(
 
 - min_confidence:
 
-  Minimum confidence, or \`NA\` to not require one.
+  Minimum confidence, or `NA` to not require one.
 
 ## Value
 
-An object of class \`linop_requirement\`.
+An object of class `linop_requirement`.

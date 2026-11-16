@@ -1,9 +1,9 @@
 # Treat an approximate inverse as a preconditioner
 
-A \`linop\` \`M ~ A\` is applied by solving \`M z = r\`, so it needs a
-solver; the inverse is never formed here. A \`linsolve\` already applies
-\`A^-1\`, so it needs nothing further, and its contract (section 4.2)
-determines whether the resulting preconditioner is fixed.
+A `linop` `M ~ A` is applied by solving `M z = r`, so it needs a solver;
+the inverse is never formed here. A `linsolve` already applies `A^-1`,
+so it needs nothing further, and its contract (section 4.2) determines
+whether the resulting preconditioner is fixed.
 
 ## Usage
 
@@ -24,21 +24,21 @@ as_preconditioner(x, ...)
 
 - x:
 
-  A \`linop\` approximating \`A\`, or a \`linsolve\`.
+  A `linop` approximating `A`, or a `linsolve`.
 
 - ...:
 
-  Passed to \[preconditioner()\].
+  Passed to
+  [`preconditioner()`](https://gillescolling.com/linop/reference/preconditioner.md).
 
 - solver:
 
-  \`function(M, R)\` performing the solve. \`linop\` method only.
+  `function(M, R)` performing the solve. `linop` method only.
 
 - side:
 
-  \`"left"\`, \`"right"\` or \`"split"\`. Defaults by contract; see
-  details.
+  `"left"`, `"right"` or `"split"`. Defaults by contract; see details.
 
 ## Value
 
-A \`preconditioner\`.
+A `preconditioner`.

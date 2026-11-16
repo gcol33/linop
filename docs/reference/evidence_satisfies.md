@@ -1,10 +1,10 @@
 # Does this evidence satisfy a requirement?
 
-Recurses into \`depends_on\`, so a composite built by an unconditional
+Recurses into `depends_on`, so a composite built by an unconditional
 rule from user-declared inputs fails any requirement the inputs would
-have failed directly. Without the recursion, \`crossprod(A) +
-crossprod(B)\` would report bare \`construction\` and launder the
-declarations underneath it.
+have failed directly. Without the recursion,
+`crossprod(A) + crossprod(B)` would report bare `construction` and
+launder the declarations underneath it.
 
 ## Usage
 
@@ -16,12 +16,15 @@ evidence_satisfies(actual, required)
 
 - actual:
 
-  Evidence from \[evidence()\], or \`NULL\`.
+  Evidence from
+  [`evidence()`](https://gillescolling.com/linop/reference/evidence.md),
+  or `NULL`.
 
 - required:
 
-  A \[requirement()\].
+  A
+  [`requirement()`](https://gillescolling.com/linop/reference/requirement.md).
 
 ## Value
 
-\`TRUE\` or \`FALSE\`.
+`TRUE` or `FALSE`.

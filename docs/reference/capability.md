@@ -12,13 +12,15 @@ capability(value, evidence = NULL)
 
 - value:
 
-  \`TRUE\`, \`FALSE\`, or \`NA\`. \`NA\` means unknown and is never read
-  as \`FALSE\`.
+  `TRUE`, `FALSE`, or `NA`. `NA` means unknown and is never read as
+  `FALSE`.
 
 - evidence:
 
-  An object from \[evidence()\], or \`NULL\` when \`value\` is \`NA\`.
+  An object from
+  [`evidence()`](https://gillescolling.com/linop/reference/evidence.md),
+  or `NULL` when `value` is `NA`.
 
 ## Value
 
-An object of class \`linop_capability\`.
+An object of class `linop_capability`.

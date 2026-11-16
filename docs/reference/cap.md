@@ -12,7 +12,7 @@ cap(A, name)
 
 - A:
 
-  A \`linop\`.
+  A `linop`.
 
 - name:
 
@@ -20,4 +20,4 @@ cap(A, name)
 
 ## Value
 
-The \`linop_capability\`, or an unknown capability if absent.
+The `linop_capability`, or an unknown capability if absent.

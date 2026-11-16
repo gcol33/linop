@@ -15,11 +15,11 @@ linop_blockdiag(...)
 
 - ...:
 
-  \`linop\`s or matrices, at least one.
+  `linop`s or matrices, at least one.
 
 ## Value
 
-A \`linop\`.
+A `linop`.
 
 ## Examples
 

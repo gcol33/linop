@@ -1,11 +1,12 @@
 # Kronecker product of two operators
 
-\`A (x) B\`, in the ordering of base R's \[kronecker()\]: the block in
-row block \`i\` and column block \`j\` is \`A\[i, j\] \* B\`. It is
-applied without forming either factor's entries, as \`vec(B X A^T)\`, at
-one apply of each factor per block of right-hand sides. Hermitian,
-symmetric, definite, unitary, diagonal, triangular and real carry over
-when both factors have them.
+`A (x) B`, in the ordering of base R's
+[`base::kronecker()`](https://rdrr.io/r/base/kronecker.html): the block
+in row block `i` and column block `j` is `A[i, j] * B`. It is applied
+without forming either factor's entries, as `vec(B X A^T)`, at one apply
+of each factor per block of right-hand sides. Hermitian, symmetric,
+definite, unitary, diagonal, triangular and real carry over when both
+factors have them.
 
 ## Usage
 
@@ -17,11 +18,11 @@ linop_kron(A, B)
 
 - A, B:
 
-  \`linop\`s or matrices.
+  `linop`s or matrices.
 
 ## Value
 
-A \`linop\` of dimension \`nrow(A) nrow(B)\` by \`ncol(A) ncol(B)\`.
+A `linop` of dimension `nrow(A) nrow(B)` by `ncol(A) ncol(B)`.
 
 ## Examples
 

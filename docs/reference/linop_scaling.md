@@ -16,8 +16,9 @@ linop_scaling(d, properties = NULL)
 
 - properties:
 
-  Declared capabilities, as in \[linop()\].
+  Declared capabilities, as in
+  [`linop()`](https://gillescolling.com/linop/reference/linop.md).
 
 ## Value
 
-A \`linop\`.
+A `linop`.

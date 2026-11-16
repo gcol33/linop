@@ -16,4 +16,4 @@ is_linop(x)
 
 ## Value
 
-\`TRUE\` or \`FALSE\`.
+`TRUE` or `FALSE`.

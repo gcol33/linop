@@ -12,17 +12,17 @@ evidence(source, guarantee, confidence = NA_real_, depends_on = list())
 
 - source:
 
-  One of \`construction\`, \`adapter_contract\`, \`user_declaration\`,
-  \`probe\`, \`computation\`, \`theorem\`.
+  One of `construction`, `adapter_contract`, `user_declaration`,
+  `probe`, `computation`, `theorem`.
 
 - guarantee:
 
-  One of \`identity\`, \`deterministic_bound\`, \`probabilistic_bound\`,
-  \`estimate\`, \`heuristic\`.
+  One of `identity`, `deterministic_bound`, `probabilistic_bound`,
+  `estimate`, `heuristic`.
 
 - confidence:
 
-  \`1\`, a stated probability, or \`NA\`.
+  `1`, a stated probability, or `NA`.
 
 - depends_on:
 
@@ -31,4 +31,4 @@ evidence(source, guarantee, confidence = NA_real_, depends_on = list())
 
 ## Value
 
-An object of class \`linop_evidence\`.
+An object of class `linop_evidence`.

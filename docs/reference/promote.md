@@ -16,4 +16,4 @@ promote(a, b)
 
 ## Value
 
-\`"complex"\` if either is complex, else \`"double"\`.
+`"complex"` if either is complex, else `"double"`.

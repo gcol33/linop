@@ -1,10 +1,10 @@
 # Integer power of an operator
 
-\`A^k\`, applied as \`k\` applies of \`A\`. \`k = 0\` is the identity; a
-negative \`k\` is a power of the exact inverse, so it needs an operator
-\`solve(A)\` can invert. A hermitian operator to an even power is
-positive semidefinite, and positive definite when it is also established
-of full rank.
+`A^k`, applied as `k` applies of `A`. `k = 0` is the identity; a
+negative `k` is a power of the exact inverse, so it needs an operator
+`solve(A)` can invert. A hermitian operator to an even power is positive
+semidefinite, and positive definite when it is also established of full
+rank.
 
 ## Usage
 
@@ -16,7 +16,7 @@ linop_power(A, k)
 
 - A:
 
-  A square \`linop\` or matrix.
+  A square `linop` or matrix.
 
 - k:
 
@@ -24,7 +24,7 @@ linop_power(A, k)
 
 ## Value
 
-A \`linop\`.
+A `linop`.
 
 ## Examples
 

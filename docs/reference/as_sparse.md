@@ -12,12 +12,12 @@ as_sparse(A, max_entries = 1e+07)
 
 - A:
 
-  A \`linop\`.
+  A `linop`.
 
 - max_entries:
 
-  Guard on \`nrow \* ncol\`.
+  Guard on `nrow * ncol`.
 
 ## Value
 
-A \`Matrix\` object.
+A `Matrix` object.

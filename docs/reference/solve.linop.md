@@ -1,6 +1,6 @@
 # Solve a linear system
 
-Solves \`a x = b\`. If the operator declares a capability that makes a
+Solves `a x = b`. If the operator declares a capability that makes a
 direct solve available, that is used; otherwise one of the seven Krylov
 methods of the package runs. Either way the result records which
 happened, what residual was reached, and what argument establishes it.
@@ -27,27 +27,26 @@ solve(
 
 - a:
 
-  A \`linop\`.
+  A `linop`.
 
 - b:
 
   A vector or block of right-hand sides, or missing for the exact
   inverse. For a Chebyshev operator, Chebyshev coefficients or a
-  function of \`x\` on \`\[-1, 1\]\`; function coefficients are
-  constructed adaptively and their estimated tail is recorded in the
-  certificate.
+  function of `x` on `[-1, 1]`; function coefficients are constructed
+  adaptively and their estimated tail is recorded in the certificate.
 
 - method:
 
-  \`"auto"\`, or one of \`"cg"\`, \`"minres"\`, \`"gmres"\`,
-  \`"fgmres"\`, \`"bicgstab"\`, \`"lsqr"\`, \`"lsmr"\`. Naming a method
-  is the caller asserting their own declaration and is not filtered by
-  evidence; \`"auto"\` is the package choosing, and applies each
-  method's declared evidence minimum.
+  `"auto"`, or one of `"cg"`, `"minres"`, `"gmres"`, `"fgmres"`,
+  `"bicgstab"`, `"lsqr"`, `"lsmr"`. Naming a method is the caller
+  asserting their own declaration and is not filtered by evidence;
+  `"auto"` is the package choosing, and applies each method's declared
+  evidence minimum.
 
 - preconditioner:
 
-  A \`preconditioner\`, or \`NULL\`.
+  A `preconditioner`, or `NULL`.
 
 - tol:
 
@@ -59,7 +58,7 @@ solve(
 
 - x0:
 
-  Starting iterate, or \`NULL\` for zero.
+  Starting iterate, or `NULL` for zero.
 
 - details:
 
@@ -68,12 +67,11 @@ solve(
 
 - control:
 
-  A list of arguments for the chosen method, such as \`restart\` for
-  GMRES or \`conlim\` for the bidiagonal methods. A name the method does
-  not take is an error rather than being ignored. For a Chebyshev
-  right-hand side supplied as a function, \`coefficient_tol\` and
-  \`nmax\` control its adaptive construction (machine epsilon and
-  \`65536\`).
+  A list of arguments for the chosen method, such as `restart` for GMRES
+  or `conlim` for the bidiagonal methods. A name the method does not
+  take is an error rather than being ignored. For a Chebyshev right-hand
+  side supplied as a function, `coefficient_tol` and `nmax` control its
+  adaptive construction (machine epsilon and `65536`).
 
 - ...:
 
@@ -81,22 +79,21 @@ solve(
 
 ## Value
 
-By default the solution, a vector for a vector \`b\` and a matrix
-otherwise, carrying the certificate in its \`"certificate"\` attribute.
+By default the solution, a vector for a vector `b` and a matrix
+otherwise, carrying the certificate in its `"certificate"` attribute.
 Arithmetic on the result drops that attribute, which is the documented
-cost of behaving like a matrix. With \`details = TRUE\`, the full
-object.
+cost of behaving like a matrix. With `details = TRUE`, the full object.
 
 ## Details
 
-With \`b\` missing, \`solve(a)\` returns the inverse as a \`linop\`, but
-only where it is exact and fixed before any vector is seen: a stored
-matrix inverted once, or a structure whose inverse is known (identity,
-nonzero diagonal, permutation, unitary, scale, transpose and adjoint,
-and products, Kronecker products, block diagonals and powers of those).
-An iterative solve is not a linear operator, since what it applies
-depends on the vector it is given, so anything else is refused with
-\`solve(a, b)\` named.
+With `b` missing, `solve(a)` returns the inverse as a `linop`, but only
+where it is exact and fixed before any vector is seen: a stored matrix
+inverted once, or a structure whose inverse is known (identity, nonzero
+diagonal, permutation, unitary, scale, transpose and adjoint, and
+products, Kronecker products, block diagonals and powers of those). An
+iterative solve is not a linear operator, since what it applies depends
+on the vector it is given, so anything else is refused with
+`solve(a, b)` named.
 
 ## References
 

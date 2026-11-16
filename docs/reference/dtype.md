@@ -12,8 +12,8 @@ dtype(A)
 
 - A:
 
-  A \`linop\`.
+  A `linop`.
 
 ## Value
 
-\`"double"\` or \`"complex"\`.
+`"double"` or `"complex"`.

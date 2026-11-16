@@ -27,7 +27,7 @@ svds(
 
 - A:
 
-  A \`linop\`. Both the forward action and the adjoint are needed.
+  A `linop`. Both the forward action and the adjoint are needed.
 
 - k:
 
@@ -35,31 +35,32 @@ svds(
 
 - which:
 
-  \`"largest"\` or \`"smallest"\`. RSpectra's \`"LM"\` and \`"SM"\` are
-  accepted for the same two. The algebraic forms are not separate names
-  here because a singular value is non-negative.
+  `"largest"` or `"smallest"`. RSpectra's `"LM"` and `"SM"` are accepted
+  for the same two. The algebraic forms are not separate names here
+  because a singular value is non-negative.
 
 - tol:
 
   Convergence tolerance on the backward error and the relative residual
   of the augmented eigenpair, each plus the arithmetic floor: the
-  certificate's \`backward error\` and \`residual\` rows.
+  certificate's `backward error` and `residual` rows.
 
 - maxit:
 
   Total applies of the operator, in either mode, across all restarts.
-  \`NULL\` takes \`20 min(m, n)\` for an \`m x n\` operator, the rule
-  \[eigs()\] uses on the dimension the singular vectors are sought in.
+  `NULL` takes `20 min(m, n)` for an `m x n` operator, the rule
+  [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) uses on
+  the dimension the singular vectors are sought in.
 
 - ncv:
 
-  Subspace size per restart. Storage is \`ncv\` vectors of each length.
-  \`NULL\` takes the engine's default.
+  Subspace size per restart. Storage is `ncv` vectors of each length.
+  `NULL` takes the engine's default.
 
 - v0:
 
-  Starting vector in the domain, or \`NULL\` for a seeded random one.
-  \`"golub-kahan"\` only.
+  Starting vector in the domain, or `NULL` for a seeded random one.
+  `"golub-kahan"` only.
 
 - seed:
 
@@ -68,39 +69,40 @@ svds(
 
 - method:
 
-  \`"auto"\`, \`"golub-kahan"\`, \`"primme"\` or \`"rspectra"\`.
-  \`"golub-kahan"\` is the reference implementation in this package;
-  \`"primme"\` is the PRIMME library, available when the
-  \`linop.primme\` package is installed; \`"rspectra"\` is the Spectra
-  library through the RSpectra package, for the largest singular values
-  of a real operator, and is never chosen by \`"auto"\`. \`"auto"\`
-  takes PRIMME when it is available and Golub-Kahan otherwise, and the
-  certificate's \`dispatch\` records every engine considered and why.
-  The reported singular values are Rayleigh quotients \`Re(u^H A v)\` of
-  the returned unit vectors, measured on \`A\`, whichever engine ran.
+  `"auto"`, `"golub-kahan"`, `"primme"` or `"rspectra"`. `"golub-kahan"`
+  is the reference implementation in this package; `"primme"` is the
+  PRIMME library, available when the `linop.primme` package is
+  installed; `"rspectra"` is the Spectra library through the RSpectra
+  package, for the largest singular values of a real operator, and is
+  never chosen by `"auto"`. `"auto"` takes PRIMME when it is available
+  and Golub-Kahan otherwise, and the certificate's `dispatch` records
+  every engine considered and why. The reported singular values are
+  Rayleigh quotients `Re(u^H A v)` of the returned unit vectors,
+  measured on `A`, whichever engine ran.
 
 - floor_const:
 
-  \`c\` in the arithmetic floor of the certificate.
+  `c` in the arithmetic floor of the certificate.
 
 - norm_control:
 
-  Arguments for the \`\|\|A\|\|\` estimate.
+  Arguments for the `||A||` estimate.
 
 ## Value
 
-An object of class \`linop_svd\`, with \`d\`, \`u\`, \`v\` and the
-\`certificate\`. A run that exhausts its budget returns the best
-triplets it reached and a \`fail\` certificate rather than an error, and
-it may hold fewer than \`k\` of them: nothing is padded.
+An object of class `linop_svd`, with `d`, `u`, `v` and the
+`certificate`. A run that exhausts its budget returns the best triplets
+it reached and a `fail` certificate rather than an error, and it may
+hold fewer than `k` of them: nothing is padded.
 
 ## Details
 
 The certificate is the certificate of the corresponding eigenpair of the
-hermitian augmented operator, so \`residual\`, \`backward error\` and
-\`forward error\` mean there exactly what they mean for \[eigs()\].
+hermitian augmented operator, so `residual`, `backward error` and
+`forward error` mean there exactly what they mean for
+[`eigs()`](https://gillescolling.com/linop/reference/eigs.md).
 
-\`which = "smallest"\` is accepted and is the hard end of the problem: a
+`which = "smallest"` is accepted and is the hard end of the problem: a
 Krylov space reaches the largest singular values first, so the smallest
 need a subspace approaching the rank of the operator. The certificate
 reports what was reached rather than the request being refused.
