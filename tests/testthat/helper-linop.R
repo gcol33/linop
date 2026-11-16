@@ -35,7 +35,7 @@ with_columnwise_products <- function(expr) {
 }
 
 ## ------------------------------------------------- closed-form ground truth --
-## Section 10. Each fixture below has its spectrum, or its inverse, in closed
+## Each fixture below has its spectrum, or its inverse, in closed
 ## form, so a solver is checked against truth rather than against itself.
 
 ## 1-D Dirichlet Laplacian, tridiag(-1, 2, -1). Eigenvalues
@@ -162,7 +162,7 @@ spd_prescribed <- function(n, lambda, seed = 1L) {
 ## closed form here: the solution is V diag(1/sigma) U^H b, the residual is
 ## (I - U U^H) b, and kappa_2(A) is exactly max(sigma)/min(sigma). A right-hand
 ## side inside the range of A and one outside it are both reachable by choosing
-## b, which is what makes this the fixture for the two readings of section 6's
+## b, which is what makes this the fixture for the two readings of the least-squares
 ## backward error rather than for one of them.
 lsq_prescribed <- function(m, n, sigma, seed = 1L, dtype = "double") {
   stopifnot(m >= n, length(sigma) == n)

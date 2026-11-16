@@ -1,4 +1,4 @@
-## Section 5.5. No path silently downcasts.
+## No path silently downcasts.
 
 DTYPES <- c("double", "complex")
 

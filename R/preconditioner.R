@@ -1,4 +1,4 @@
-## Section 4.3. Two representations are common and mixing them is a known bug
+## Two representations are common and mixing them is a known bug
 ## source: M ~ A applied by solving M z = r, and P ~ A^-1 applied as z = P r.
 ## Internally only one direction ever exists: apply_inverse.
 
@@ -43,7 +43,7 @@ is_preconditioner <- function(x) inherits(x, "preconditioner")
 #'
 #' A `linop` `M ~ A` is applied by solving `M z = r`, so it needs a solver; the
 #' inverse is never formed here. A `linsolve` already applies `A^-1`, so it needs
-#' nothing further, and its contract (section 4.2) determines whether the
+#' nothing further, and its contract determines whether the
 #' resulting preconditioner is fixed.
 #'
 #' @param x A `linop` approximating `A`, or a `linsolve`.
@@ -133,12 +133,11 @@ LSQ_SIDE_REASON <- paste0(
   "  which lives in the codomain, and they change which x minimises rather than how fast it\n",
   "  is reached. Build the same map with side = 'right'.")
 
-## Section 4.3 requirement table: the properties each method requires of a
+## The requirement table: the properties each method requires of a
 ## preconditioner, and the sides it can consume. A fixed = FALSE preconditioner
 ## passed to CG is an error naming the flag, not a warning.
 ##
-## Two rows are restricted by side, and the plan's own instruction is that a row
-## stays unrestricted until a check narrows it, so each restriction carries the
+## Two rows are restricted by side. A row stays unrestricted until a check narrows it, so each restriction carries the
 ## reason it was narrowed on. The rows that remain unrestricted admit more than
 ## one standard formulation, left in the M-inner product, split through
 ## M = L L^H, or right, and all three are implemented for them.

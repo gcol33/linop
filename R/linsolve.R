@@ -1,9 +1,9 @@
-## Section 4.2. A linsolve computes an approximation to A^-1 b and may be
+## A linsolve computes an approximation to A^-1 b and may be
 ## adaptive. It is NOT a linop: an object is a linop if and only if its action on
-## x is determined without reference to x (section 4.1), and CG chooses its
+## x is determined without reference to x, and CG chooses its
 ## polynomial by minimising over the Krylov space of b.
 ##
-## Internal in v0.1: the public surface exposes solve() only (section 1.1).
+## Internal in v0.1: the public surface exposes solve() only.
 ## Designing the class now does not oblige exposing it now.
 
 LINSOLVE_FIDELITY    <- c("exact", "linear_approximation", "variable_inexact")

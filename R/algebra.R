@@ -1,6 +1,6 @@
-## Section 1.1. A linop behaves like a matrix under R's normal arithmetic.
+## A linop behaves like a matrix under R's normal arithmetic.
 ##
-## One matrixOps group method covers %*%, crossprod and tcrossprod. S0.1 verified
+## One matrixOps group method covers %*%, crossprod and tcrossprod. This was verified
 ## this against a namespace-installed package: three generics, one method, and
 ## `.Generic` tells them apart. R >= 4.4.0 is required because crossprod and
 ## tcrossprod only became S3 generic then.
@@ -17,7 +17,7 @@ matrixOps.linop <- function(x, y) {
 
 as_linop_operand <- function(x) if (is_linop(x)) x else linop(x)
 
-## Dispatch on the second argument, exactly as the plan specifies. Returning a
+## Dispatch on the second argument. Returning a
 ## lazy node where a matrix would have returned a vector is the fastest way to
 ## break the mental model, so it does not happen.
 linop_matmul <- function(x, y) {

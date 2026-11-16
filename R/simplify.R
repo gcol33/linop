@@ -1,4 +1,4 @@
-## Section 5.8. Local, applied at construction, never cost-model driven.
+## Local, applied at construction, never cost-model driven.
 ##
 ## For a real operator adjoint and transpose have identical action and Conj is
 ## the identity, but the node is deliberately NOT rewritten here. That

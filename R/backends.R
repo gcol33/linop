@@ -1,11 +1,11 @@
-## Section 3's backend protocol, internal. Which engine computes a spectral
+## The backend protocol, internal. Which engine computes a spectral
 ## result is chosen here, and the choice is reported in the certificate's
 ## dispatch, every candidate with its verdict.
 ##
 ## The one-package decision keeps this internal: an engine is a value of
 ## method =, never a second exported verb, and the registry is how eigs() and
 ## svds() find out which engines exist rather than a surface anyone else
-## registers into. The protocol's fields are section 3's, plus the two it left
+## registers into. The protocol's fields are the usual ones, plus two often left
 ## implicit, the package an external engine lives in and the function that runs
 ## it.
 ##
@@ -25,7 +25,7 @@ BACKEND_CONTRACT <- "1.1"
 .backends <- new.env(parent = emptyenv())
 
 ## supports(A, request) returns TRUE or a string saying why not, never FALSE,
-## so every exclusion is explainable (section 3). capabilities names what the
+## so every exclusion is explainable. capabilities names what the
 ## method requires of the operator, and targets the values of which it can
 ## select; both are checked here for every engine, so a requirement is stated once
 ## in the registry entry rather than in each verb. run takes the operator (for

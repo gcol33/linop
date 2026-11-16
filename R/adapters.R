@@ -1,4 +1,4 @@
-## Phase 4's adapters: storage that is not a base matrix, reached through the
+## Adapters: storage that is not a base matrix, reached through the
 ## linop() generic like any other class, so they cost no export. Each package is
 ## a Suggests, used through :: and only when an object of its class arrives, so
 ## the method is inert until then.

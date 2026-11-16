@@ -1,4 +1,4 @@
-## Section 7.2's eigensolver for an operator that is not established hermitian:
+## The eigensolver for an operator that is not established hermitian:
 ## Arnoldi with Krylov-Schur restarting and locking.
 ##
 ## What it requires. A forward action and nothing else, so it is to eigs() what

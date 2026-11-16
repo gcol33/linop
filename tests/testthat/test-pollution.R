@@ -1,4 +1,4 @@
-## Phase 6 step 4, plan section 8.10's pollution test. A Jacobi operator with
+## The pollution test. A Jacobi operator with
 ## period-2 couplings (1, 0.4) has two bands, [-1.4, -0.6] and [0.6, 1.4], and no
 ## eigenvalue at all; every finite section of it puts a point at 0 in the gap,
 ## with an eigenvector sitting at the cut. A defect at the origin creates a

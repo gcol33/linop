@@ -1,4 +1,4 @@
-## Section 7.1, the sixth of the seven Krylov methods. LSMR, on the same
+## The sixth of the seven Krylov methods. LSMR, on the same
 ## rectangular least-squares problem LSQR takes, Fong and Saunders 2011.
 ##
 ## Same bidiagonalisation, different minimisation. LSQR minimises ||b - A x||

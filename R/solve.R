@@ -1,17 +1,16 @@
-## Sections 1.1 and 7.1. One verb over the seven methods.
+## One verb over the seven methods.
 ##
-## solve() rather than solve_iterative(). This reverses an earlier decision in the
-## plan, which had solve() error without a direct capability and point at a second
-## verb: refusing was the wrong way to honour "nothing silent", because reporting
+## solve() rather than solve_iterative(). Erroring without a direct capability
+## and pointing at a second verb would be the wrong way to honour "nothing silent", because reporting
 ## achieves it without spending a verb, and for a linop there is usually no
 ## factorization available at all, so iterative is the only meaning solve() can
 ## have.
 ##
 ## It costs no export. solve() is a base generic, so an S3 method reaches it the
-## way t(), crossprod() and %*% already do, and the API budget of section 1.1 does
+## way t(), crossprod() and %*% already do, and the API budget does
 ## not move. test-api-budget.R asserts that.
 
-## Every method of section 7.1. The two least-squares methods are the only ones a
+## Every method. The two least-squares methods are the only ones a
 ## rectangular operator admits, and the only ones auto will not choose.
 SOLVE_METHODS <- c("cg", "minres", "gmres", "fgmres", "bicgstab", "lsqr", "lsmr")
 SOLVE_LEAST_SQUARES <- c("lsqr", "lsmr")
@@ -48,12 +47,12 @@ AUTO_DIRECT_REQUIREMENT <- requirement(
 
 ## A capability that is TRUE and whose evidence clears the minimum. Unknown is
 ## not false, and a value behind evidence auto does not accept is not a value
-## auto may act on: that is the section 5.3 laundering case reaching dispatch.
+## auto may act on: that is the laundering case reaching dispatch.
 auto_has <- function(A, name, req) {
   isTRUE(capv(A, name)) && evidence_satisfies(cape(A, name), req)
 }
 
-## Section 1.1: auto picks from declared capabilities and shape, and records the
+## auto picks from declared capabilities and shape, and records the
 ## choice and the reason. It never picks a method whose precondition is NA or
 ## whose evidence is below that method's declared minimum.
 ##
@@ -86,7 +85,7 @@ auto_method <- function(A) {
 }
 
 ## The exact solve of a diagonal operator, which is the whole of the direct half
-## of section 1.1 in v0.1. The entries are recovered with one apply of a block of
+## in v0.1. The entries are recovered with one apply of a block of
 ## ones rather than read off a leaf, so the route works for any operator that can
 ## establish diagonality, not only for linop_scaling().
 diag_solve <- function(A, b, tol, floor_const, norm_control) {
@@ -185,7 +184,7 @@ solve.linop <- function(a, b, method = "auto", preconditioner = NULL,
   requested <- method
 
   if (method == "auto") {
-    ## Section 1.1: base R's solve() requires square, and least squares is a
+    ## Base R's solve() requires square, and least squares is a
     ## different mathematical request rather than a fallback for a shape that
     ## did not fit. The caller states the intent exactly where the meaning
     ## changes, and both methods are reachable through this same verb.

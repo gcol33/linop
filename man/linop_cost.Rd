@@ -13,7 +13,7 @@ linop_cost(A)
 A numeric flop estimate.
 }
 \description{
-An ordering heuristic only. S0.2 measured cases where a wider block is
+An ordering heuristic only. There are measured cases where a wider block is
 \emph{slower} per column for memory-bound operators, which a flop count cannot
 express, so this must never be read as a predictor of wall time.
 }

@@ -1,4 +1,4 @@
-## Phase 6 step 2 and 3: operators on [-1, 1] in the ultraspherical method.
+## Operators on [-1, 1] in the ultraspherical method.
 ## Fixtures are closed form: sin(pi x) has Chebyshev coefficients
 ## 2 (-1)^((k-1)/2) J_k(pi) on odd k, exp(x) has I_0(1) and 2 I_k(1), and the
 ## Dirichlet Laplacian has eigenvalues (k pi / 2)^2.

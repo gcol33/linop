@@ -1,4 +1,4 @@
-## Phase 6 step 2: functions on [-1, 1] held as Chebyshev coefficients, and the
+## Functions on [-1, 1] held as Chebyshev coefficients, and the
 ## ultraspherical method for differential operators on them (Olver and Townsend,
 ## SIAM Review 2013).
 ##

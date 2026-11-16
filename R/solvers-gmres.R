@@ -1,4 +1,4 @@
-## Section 7.1, the third and fourth of the seven Krylov methods. Restarted
+## The third and fourth of the seven Krylov methods. Restarted
 ## GMRES, and FGMRES, which is the same iteration with the preconditioned basis
 ## stored rather than recomputed.
 ##
@@ -37,7 +37,7 @@
 
 ## ------------------------------------------------------------ the three sides
 
-## Section 4.3 leaves GMRES unrestricted, and unlike CG that is not a statement
+## GMRES is unrestricted by side, and unlike CG that is not a statement
 ## that the sides agree. They do not: left, right and split preconditioning
 ## generate different iterates and minimise different quantities, and this is the
 ## first method in the package for which `side` selects an algorithm rather than
@@ -73,8 +73,8 @@
 ## The second-pass criterion is REORTH_ETA in solvers-common.R, shared with the
 ## eigensolvers, which orthogonalise against a stored basis for the same reason.
 ##
-## Plan 7.1 names condition estimation among the things a Krylov method has to get
-## right, and this is where GMRES needs it: the ratio of extreme diagonals of the
+## Condition estimation is one of the things a Krylov method has to get right,
+## and this is where GMRES needs it: the ratio of extreme diagonals of the
 ## triangular factor, against KRYLOV_CONDITION_LIMIT in solvers-common.R.
 
 #' Solve A x = b by restarted GMRES
@@ -518,7 +518,7 @@ back_substitute <- function(Rm, g) {
   y
 }
 
-## Two messages from one check. The GMRES row of the section 4.3 table asks only
+## Two messages from one check. The GMRES row of the requirement table asks only
 ## for `fixed`, so a split preconditioner reaching here may have declared
 ## definiteness or may have declared nothing, and those are different facts: one
 ## is a declaration the iteration has contradicted, the other is a requirement of

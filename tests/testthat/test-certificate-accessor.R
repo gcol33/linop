@@ -39,7 +39,7 @@ test_that("the attribute survives arithmetic and not coercion, and the error say
   A <- spd()
   x <- solve(A, c(2, 3, 4))
 
-  ## what plan section 1.1 has backwards: arithmetic keeps it, so a certificate
+  ## arithmetic keeps it, so a certificate
   ## can outlive the value it describes
   expect_s3_class(certificate(x + 0), "linop_certificate")
   expect_s3_class(certificate(2 * x), "linop_certificate")

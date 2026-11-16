@@ -1,7 +1,7 @@
-## Gate 2 for the sixth of the seven methods: recovery against closed-form truth
+## The sixth of the seven methods: recovery against closed-form truth
 ## on compatible, incompatible and rank-deficient right-hand sides, agreement
 ## with the published recurrence including on ill-conditioned problems,
-## certificate coverage over 20 seeds, the refusals the section 4.3 table
+## certificate coverage over 20 seeds, the refusals the requirement table
 ## requires, and the one property that distinguishes LSMR from LSQR rather than
 ## being inherited from it.
 ##
@@ -219,7 +219,7 @@ test_that("the iteration is the published one, step for step", {
 })
 
 test_that("the recurrence agrees with the published one on ill-conditioned problems", {
-  ## Gate 2 asks for this method specifically. The tolerance tracks the
+  ## The tolerance tracks the
   ## conditioning rather than being one constant, because the gap between two
   ## implementations of the same recurrence grows with it: measured at four
   ## steps over five seeds it is 3.8e-14 at kappa 1e4, 6.5e-13 at 1e8 and

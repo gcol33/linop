@@ -1,4 +1,4 @@
-## Section 5.7's structured node types: every apply mode against base R, the
+## The structured node types: every apply mode against base R, the
 ## shapes they refuse, what they compute with, and recovery of closed forms
 ## through the solvers and eigensolvers when an operator is built from them.
 

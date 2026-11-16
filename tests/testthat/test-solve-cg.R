@@ -1,6 +1,6 @@
-## Gate 2 for the first of the seven methods: recovery against closed-form truth
+## The first of the seven methods: recovery against closed-form truth
 ## run to convergence, certificate coverage over 20 seeds, the rate its condition
-## number predicts, and the refusals the section 4.3 table requires.
+## number predicts, and the refusals the requirement table requires.
 
 cg <- linop:::cg_solve
 cert_status <- linop:::cert_status
@@ -120,7 +120,7 @@ test_that("columns run in lockstep are the iterates of per-column cg", {
 ## ------------------------------------------------------ the arithmetic floor
 
 test_that("a fully converged solve does not certify as fail, and the floor is what stops it", {
-  ## S0.6: the bound keeps decaying past machine epsilon while the true error
+  ## The bound keeps decaying past machine epsilon while the true error
   ## plateaus, so without a roundoff term the results that certify as fail are
   ## exactly the most converged ones. tol = 0 asks for an exact solve, which no
   ## floating-point iteration delivers.
@@ -382,7 +382,7 @@ test_that("cg agrees with a textbook reference implementation, iterate for itera
 })
 
 test_that("cg accepts a preconditioner on any of the three sides", {
-  ## Section 4.3 leaves the CG row unrestricted. The mathematical coincidence
+  ## The CG row is unrestricted. The mathematical coincidence
   ## behind it is Saad section 9.2, cited in the implementation; what this
   ## asserts is the contract, that none of the three is refused.
   n <- 20

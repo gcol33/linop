@@ -1,10 +1,10 @@
-## Plan sections 8.4 to 8.6 for the Chebyshev operator: its domain, its adjoint
+## The Chebyshev operator's its domain, its adjoint
 ## with the adjoint domain, and a Galerkin discretisation of its weak form.
 ##
 ## The domain of L = sum_m c_m D^m + a(x) on [-1, 1] is the set of u satisfying
 ## its homogeneous boundary conditions. For constant derivative coefficients and
 ## a polynomial multiplier, integration by parts gives the adjoint exactly
-## (plan 8.4 names this class as the tractable one):
+## (the tractable class):
 ##
 ##     int (L u) conj(v) = int u conj(L* v) + [B(u, v)]_{-1}^{1},
 ##     L* = sum_m (-1)^m conj(c_m) D^m + conj(a),
@@ -148,7 +148,7 @@ cheb_domain_text <- function(P) {
 ##
 ##     a(u, v) = int k u' v' + int q u v + boundary terms,   m(u, v) = int u v,
 ##
-## the sesquilinear form plan 8.5 asks to treat as a peer of the operator. A
+## the sesquilinear form, treated as a peer of the operator. A
 ## Dirichlet end is an essential condition and the basis vanishes there; a
 ## Robin or Neumann end, alpha u + beta u' = 0 with beta nonzero, is natural:
 ## integrating by parts leaves -[k u' v] at the ends, which the condition turns

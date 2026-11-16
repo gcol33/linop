@@ -1,7 +1,7 @@
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
-## Section 5.2: X is always a matrix; a vector is a block of width 1.
-## `dim<-` rather than as.matrix(): S0.2 measured 300 ns against 2300 ns, and this
+## X is always a matrix; a vector is a block of width 1.
+## `dim<-` rather than as.matrix(): measured at 300 ns against 2300 ns, and this
 ## sits on the hot path of every apply.
 as_block <- function(X) {
   if (is.null(dim(X))) dim(X) <- c(length(X), 1L)
@@ -108,7 +108,7 @@ with_preserved_seed <- function(seed, expr) {
 
 is_scalar_string <- function(x) is.character(x) && length(x) == 1L && !is.na(x)
 
-## Three-valued logic. NA means unknown and never reads as FALSE (section 5.3).
+## Three-valued logic. NA means unknown and never reads as FALSE.
 tv_and <- function(a, b) {
   if (isFALSE(a) || isFALSE(b)) return(FALSE)
   if (is.na(a) || is.na(b)) return(NA)

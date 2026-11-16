@@ -1,4 +1,4 @@
-## Section 7.1, the fifth of the seven Krylov methods. LSQR, on the rectangular
+## The fifth of the seven Krylov methods. LSQR, on the rectangular
 ## least-squares problem min ||b - A x||, Paige and Saunders 1982.
 ##
 ## This is the first method in the package whose problem is a minimisation rather

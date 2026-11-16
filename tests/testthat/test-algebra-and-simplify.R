@@ -1,4 +1,4 @@
-## Sections 1.1, 5.8, 5.9.
+## Arithmetic, simplification and materialisation.
 
 test_that("%*% returns what a matrix would return", {
   M <- rmat(5, 4, seed = 1); A <- linop(M)
@@ -63,7 +63,7 @@ test_that("simplification rules fire at construction", {
 })
 
 test_that("a real operator keeps adjoint and transpose as distinct nodes", {
-  ## Section 5.8: the simplification happens at apply time, not construction, so
+  ## The simplification happens at apply time, not construction, so
   ## print() keeps showing what the author wrote.
   A <- linop(rmat(4, 3, seed = 9))
   expect_identical(t(A)$node, "transpose")

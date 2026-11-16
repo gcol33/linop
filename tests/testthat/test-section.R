@@ -1,5 +1,5 @@
 ## The truncation, and the certificate that carries a statement about an operator
-## no computation touched. Ground truth is S0.6's single-site model throughout,
+## no computation touched. Ground truth is the single-site model throughout,
 ## and the bound is checked against the true error rather than against itself.
 
 sect <- function(v, n, ...) finite_section(linop_jacobi(diagonal = v, ...), n = n)
@@ -57,7 +57,7 @@ test_that("a section that cuts through the window is refused, with the reason", 
   expect_error(finite_section(linop(diag(3)), n = 4), "linop_jacobi\\(\\)")
 })
 
-test_that("the bound holds against the true error over the whole S0.6 ladder", {
+test_that("the bound holds against the true error over the whole ladder of potentials", {
   for (v in c(0.5, 1, 2, 4)) {
     truth <- sqrt(v^2 + 4)
     for (n in c(5, 10, 20, 40, 80)) {
@@ -142,7 +142,7 @@ test_that("Temple's bracket contains the truth and beats the linear bound", {
     cv <- fit$certificate$values
     half <- cv$bound^2 / cv$gap
     ## both ends are exact in exact arithmetic and carry the floor in this one,
-    ## which is the S0.6 correction reaching a third row
+    ## which is the arithmetic floor reaching a third row
     expect_lte(sqrt(5), fit$values + half + cv$floor)
     expect_gte(sqrt(5), fit$values - cv$floor)
     ## quadratic against linear: four orders at n = 20

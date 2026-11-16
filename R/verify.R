@@ -1,4 +1,4 @@
-## Section 5.10. The adoption mechanism: a third party writes linop.myclass(),
+## The adoption mechanism: a third party writes linop.myclass(),
 ## runs one function, and knows the ecosystem will work.
 
 #' Check that a claim is valid
@@ -22,9 +22,9 @@ verify <- function(x, ...) UseMethod("verify")
 #' @export
 verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 3L), ...) {
   A <- x
-  ## Gate 1: running the operator suite against a solve object is an error, not
+  ## Running the operator suite against a solve object is an error, not
   ## a purity failure. A history-dependent solve returns different output for the
-  ## same input by design (section 4.2).
+  ## same input by design.
   ##
   ## Ahead of the finite-dimension gate, because this method can be reached
   ## directly with an object that is not a linop at all, and "this is a linsolve"
@@ -34,7 +34,7 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
                  "  A solve object may be adaptive and history-dependent by design.\n",
                  "  Use the linsolve suite instead: verify() dispatches to it automatically."))
   }
-  ## Gate 2: every check below is a probe, and a probe needs a block.
+  ## Every check below is a probe, and a probe needs a block.
   require_finite_dim(A, "verify")
   set.seed(seed)
   checks <- list()
@@ -143,8 +143,8 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
   add("shape and dtype", if (ok) "pass" else "fail",
       if (ok) "real and complex blocks" else paste(note, collapse = "; "))
 
-  ## 6. complex linearity. Section 5.5 requires that a real operator applied to a
-  ##    complex block promotes the result rather than dropping the imaginary
+  ## 6. complex linearity. A real operator applied to a
+  ##    complex block must promote the result rather than dropping the imaginary
   ##    part. linop_apply() upcasts a real result to complex, which satisfies
   ##    check 5 on its own, so an apply that discarded the imaginary part of its
   ##    input passes every check above. A linear operator satisfies

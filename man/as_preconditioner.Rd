@@ -31,6 +31,6 @@ A \code{preconditioner}.
 \description{
 A \code{linop} \code{M ~ A} is applied by solving \verb{M z = r}, so it needs a solver; the
 inverse is never formed here. A \code{linsolve} already applies \code{A^-1}, so it needs
-nothing further, and its contract (section 4.2) determines whether the
+nothing further, and its contract determines whether the
 resulting preconditioner is fixed.
 }

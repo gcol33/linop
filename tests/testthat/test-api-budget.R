@@ -1,15 +1,15 @@
-## Gate 1: the exported name set is asserted against the budget. Adding an export
+## The exported name set is asserted against the budget. Adding an export
 ## fails this test until the budget below is edited, which is the only mechanism
 ## that reliably stops a public surface from growing by accretion.
 ##
-## Section 1.1 budgets the v0.1 surface. eigs() and svds() have now arrived and
-## cost one export each, which is the whole of what Phase 2 spends: they are new
+## The budget covers the v0.1 surface. eigs() and svds() cost one export each:
+## they are new
 ## names rather than base generics, so unlike solve() there is nothing to register
 ## a method on.
 ##
 ## solve() cost no export at all. It is a base generic, so an S3 method reaches it
-## the way t(), crossprod() and %*% already do, and section 1.1's "keeps the verb
-## budget" turns out to be literal for it. The last test in this file is where
+## the way t(), crossprod() and %*% already do, so keeping the verb
+## budget is literal for it. The last test in this file is where
 ## that is asserted, beside the other generics that work the same way.
 ##
 ## print() and summary() on the two spectral results are the same mechanism and
@@ -24,7 +24,7 @@
 ##        which is worth nothing once core owns the structure. A truncation is a
 ##        node with a child instead, which is structural rather than annotated.
 ##   build_certificate, cert_rows
-##     -- internal for all of Phase 2, public for one day, for one consumer in
+##     -- internal before, public for one day, for one consumer in
 ##        another package. The public certificate surface is a reader, not a builder.
 ##   linop_register_node, linop_nodes
 ##     -- how a package outside this one would add a composition type. There is no
@@ -46,7 +46,7 @@ BUDGET <- list(
   ## everything downstream of it is the surface that already existed.
   sequence_space = c("linop_jacobi", "finite_section", "decay_rate"),
 
-  ## Section 5.7's structured node types, decided 2026-11-15 with the cap raised
+  ## The structured node types, decided 2026-11-15 with the cap raised
   ## from 25 to 30.
   ## Five constructors, because base R has no generic to hang them on; the
   ## stacks come through cbind() and rbind() methods and the exact inverse
@@ -54,7 +54,7 @@ BUDGET <- list(
   structured = c("linop_kron", "linop_blockdiag", "linop_lowrank", "linop_perm",
                  "linop_power"),
 
-  ## Phase 6's one front door to operators on function spaces, decided
+  ## The one front door to operators on function spaces, decided
   ## 2026-11-15 with the cap raised from 30 to 31: every space is a kind of it,
   ## so later spaces add arguments rather than names.
   function_space = "linop_space",
@@ -84,11 +84,11 @@ test_that("the exported surface matches the budget exactly", {
                info = paste0("budgeted but not exported: ", paste(missing, collapse = ", ")))
 })
 
-test_that("the names Phase 2 deliberately keeps private are not exported", {
+test_that("the names deliberately kept private are not exported", {
   actual <- getNamespaceExports("linop")
   early <- intersect(PLANNED_PHASE2, actual)
   expect_equal(early, character(0),
-               info = paste0("names section 1.1 keeps private were exported: ",
+               info = paste0("names kept private were exported: ",
                              paste(early, collapse = ", ")))
 })
 
@@ -112,11 +112,11 @@ test_that("R's own generics work without being exported", {
   expect_s3_class(tcrossprod(A), "linop")
   expect_s3_class(A + A, "linop")
   expect_equal(dim(A), c(4L, 3L))
-  ## nrow and ncol are not generic in base R and need no methods (S0.1 section 5)
+  ## nrow and ncol are not generic in base R and need no methods
   expect_equal(nrow(A), 4L)
   expect_equal(ncol(A), 3L)
 
-  ## and solve(), which is the whole of Phase 2's verb surface
+  ## and solve(), which is the whole of the solver verb surface
   S <- linop(diag(c(2, 3, 4)), properties = c(hermitian = TRUE,
                                               positive_definite = TRUE))
   x <- solve(S, c(2, 3, 4))

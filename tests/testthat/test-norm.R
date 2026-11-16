@@ -1,4 +1,4 @@
-## ||A|| exists for one reason: the arithmetic floor S0.6 requires. What matters
+## ||A|| exists for one reason: the arithmetic floor requires it. What matters
 ## about it is therefore not only the number but the evidence attached, since a
 ## certificate line inherits its guarantee from whichever route produced it.
 

@@ -1,4 +1,4 @@
-## Section 7.2, the reference singular value solver. Golub-Kahan-Lanczos with
+## The reference singular value solver. Golub-Kahan-Lanczos with
 ## full reorthogonalisation, locking, and explicit restarts.
 ##
 ## It is not eigs() on A^H A, and the difference is the whole point of
@@ -150,7 +150,7 @@ svd_certificate <- function(A, d, u, v, tol, iterations, maxit, floor_const,
 
   ## ||H||_2 = ||A||_2 exactly: the spectrum of H is the singular values of A with
   ## both signs, plus zeros. A structural rule over an estimated child, so the
-  ## estimate underneath stays visible at the top (section 5.3).
+  ## estimate underneath stays visible at the top.
   inner <- do.call(norm2, c(list(A = A), norm_control))
   norm_est <- new_norm_estimate(
     inner$value, ev_construction(depends_on = list(inner$evidence)), inner$method,

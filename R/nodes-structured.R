@@ -1,4 +1,4 @@
-## Section 5.7's structured node types: the Kronecker product, block diagonal and
+## The structured node types: the Kronecker product, block diagonal and
 ## stacked operators, low rank, permutation, power and exact inverse. Each is a
 ## node with children, so print(), explain() and the capability lattice see the
 ## structure, and each applies matrix-free through its children.
@@ -335,7 +335,7 @@ new_power <- function(A, k) {
 
 ## ------------------------------------------------------------ exact inverse --
 
-## Section 4: an iterative solve is not a linop, because its action depends on
+## An iterative solve is not a linop, because its action depends on
 ## the vector it is given. An inverse is one only where it is exact and fixed
 ## before any vector is seen: by structure (identity, nonzero diagonal,
 ## permutation, unitary, a scale, a view, and products, Kronecker products,
@@ -387,7 +387,7 @@ exact_inverse <- function(A) {
 }
 
 ## A stored matrix inverted once. The result is a fixed linear map, so it is a
-## linop by section 4's test; it costs n^2 storage and is refused past a size
+## linop by that test; it costs n^2 storage and is refused past a size
 ## where the caller should be solving rather than inverting.
 factored_inverse <- function(A) {
   n <- A$dim[1L]

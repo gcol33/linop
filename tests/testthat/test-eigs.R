@@ -1,4 +1,4 @@
-## Section 7.2, eigs(). Recovery against closed-form spectra, certificate
+## eigs(). Recovery against closed-form spectra, certificate
 ## coverage across seeds, and the refusals.
 ##
 ## Nothing here compares sorted spectra. The convdiff fixture in helper-linop.R
@@ -216,7 +216,7 @@ test_that("the forward bound records the declaration it rests on", {
   expect_true(evidence_satisfies(ev_computed, strict))
 
   ## The same operator behind a callback declares it instead, and the bound is
-  ## then only as good as the declaration. This is the section 5.3 laundering
+  ## then only as good as the declaration. This is the laundering
   ## case reaching the certificate.
   n <- 20
   declared <- eigs(linop(function(X) M %*% X, adjoint = function(X) M %*% X,

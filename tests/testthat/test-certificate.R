@@ -1,4 +1,4 @@
-## Section 6. build_certificate() and cert_rows() are internal: a certificate is
+## build_certificate() and cert_rows() are internal: a certificate is
 ## something a caller reads, never something a caller builds. These assert the
 ## contract every shape in the package depends on -- the roll-up rule, what the
 ## vocabulary refuses, and that a row's evidence survives into evidence_satisfies().
@@ -115,7 +115,7 @@ test_that("rows come back in the order they were added", {
 })
 
 test_that("a shape of its own prints and rolls up like every other", {
-  ## The finite-section certificate of S0.6, hand-built here until the section node
+  ## The finite-section certificate, hand-built here until the section node
   ## lands. Its rows are not the other shapes' rows: no residual line and no
   ## backward-error line, because a finite-section eigenvalue is not the answer to
   ## an equation with a right-hand side. The object around them is unchanged.

@@ -1,4 +1,4 @@
-## Phase 4's adapters: out-of-core and device storage through the linop()
+## Adapters: out-of-core and device storage through the linop()
 ## generic, each skipped when its package is absent. Every mode against the
 ## dense reference, the refusal of single precision, and a solve and a spectrum
 ## through each.

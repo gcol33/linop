@@ -401,11 +401,11 @@ level of the chain:</p>
 <span><span class="co">#&gt; [1] FALSE</span></span>
 <span><span class="fu"><a href="../reference/evidence_satisfies.html">evidence_satisfies</a></span><span class="op">(</span><span class="va">probabilistic</span>, <span class="fu"><a href="../reference/requirement.html">requirement</a></span><span class="op">(</span>min_confidence <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
-<p>This is the shape of the contract Phase 2 solvers will use: CG will
-require Hermitian positive definiteness under a requirement it
-publishes, and an operator whose claim rests on an unverified
-declaration will be turned away by name rather than converge to
-something wrong.</p>
+<p>This is the shape of the contract the solvers use: when
+<code><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve()</a></code> chooses a method itself, CG’s requirement of
+Hermitian positive definiteness is checked against this evidence, and an
+operator whose claim rests on an unverified declaration is not given to
+CG.</p>
 </div>
 <div class="section level2">
 <h2 id="probing-a-declaration">Probing a declaration<a class="anchor" aria-label="anchor" href="#probing-a-declaration"></a>

@@ -1,6 +1,5 @@
-## Section 5.3 lists norm_bound(type) with evidence among the optional operator
-## capabilities. That protocol is Phase 3. The arithmetic floor S0.6 requires is
-## Phase 2 and needs ||A|| now, so this is where it comes from, and it carries
+## The arithmetic floor of every certificate needs ||A||, so this is where it
+## comes from, and it carries
 ## its own evidence for the reason a capability does: a norm read off the
 ## structure of a diagonal leaf and a norm reached by power iteration are not the
 ## same kind of number, and a certificate resting on one has to say which.

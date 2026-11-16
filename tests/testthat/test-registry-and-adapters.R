@@ -1,4 +1,4 @@
-## Section 5.7 and the primary acceptance criterion: a third party implements
+## The node registry and the primary acceptance criterion: a third party implements
 ## linop.myclass() for a storage format this project has never seen, passes
 ## verify(), and gets the ecosystem working with no changes to linop.
 
@@ -55,12 +55,12 @@ test_that("the registry refuses a duplicate without overwrite", {
                                             overwrite = TRUE))
 })
 
-test_that("every node type of section 5.7 is registered, and zero is not a node", {
+test_that("every node type is registered, and zero is not a node", {
   have <- linop:::linop_nodes()
   v01 <- c("dense", "sparse", "fun", "identity", "diag",
            "transpose", "adjoint", "conjugate", "scale", "sum", "product")
   expect_true(all(v01 %in% have))
-  ## The deferral of section 5.7 waited for an external engine to exercise the
+  ## The structured node types waited for an external engine to exercise the
   ## registry; RSpectra and PRIMME have, and these landed together.
   structured <- c("lowrank", "perm", "power", "inverse", "hstack", "vstack",
                   "blockdiag", "kron")
@@ -97,7 +97,7 @@ test_that("the Matrix adapter reads structure off the class as an adapter contra
 
 test_that("complex sparse is refused at construction rather than silently wrong", {
   skip_if_not_installed("Matrix")
-  ## Matrix 1.7.5 has no concrete complex sparse class; see S0.1 section 7.
+  ## Matrix 1.7.5 has no concrete complex sparse class.
   expect_error(Matrix::Matrix(zmat(3, 3, seed = 3)))
 })
 

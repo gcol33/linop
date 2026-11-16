@@ -1,4 +1,4 @@
-## What every Krylov method in section 7.1 shares, kept here rather than in the
+## What every Krylov method shares, kept here rather than in the
 ## first file that needed it. The alternative is a copy per solvers-*.R, and the
 ## preamble below had reached three identical copies before the fourth method
 ## made the shape of the duplication obvious.

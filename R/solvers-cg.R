@@ -1,4 +1,4 @@
-## Section 7.1, the first of the seven Krylov methods. Preconditioned conjugate
+## The first of the seven Krylov methods. Preconditioned conjugate
 ## gradients.
 ##
 ## Sides. The table in 4.3 leaves CG unrestricted, and that is a statement rather
@@ -14,10 +14,10 @@
 ## Several right-hand sides run in lockstep rather than one after another. Each
 ## column's recurrence is independent of the others, so the iterates are exactly
 ## those of per-column CG, and one block apply per step replaces k of them. This
-## is the two-tier apply of section 5.2 paying for itself. It is not block CG,
+## is the two-tier apply paying for itself. It is not block CG,
 ## which couples the columns and is a different method with different iterates.
 
-## Plan 7.1: CG requires positive_definite at declared minimum evidence. Naming
+## CG requires positive_definite at declared minimum evidence. Naming
 ## the method is the caller asserting their own declaration, so an explicit
 ## method = "cg" accepts any evidence behind a TRUE value; method = "auto" is the
 ## package choosing on the caller's behalf, and applies this.
@@ -101,7 +101,7 @@ cg_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, maxit = NULL,
   ## A residual line of "qualified" counts as converged. It means the tolerance
   ## was met once the arithmetic floor is allowed for, which is the strongest
   ## statement floating point supports; treating it as failure would reinstate
-  ## exactly the S0.6 behaviour the floor exists to remove. The certificate keeps
+  ## exactly the behaviour the floor exists to remove. The certificate keeps
   ## the distinction for a reader who needs it.
   list(x = undo_block(X, was_vector),
        certificate = cert,

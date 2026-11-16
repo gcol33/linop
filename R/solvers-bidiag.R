@@ -1,5 +1,5 @@
 ## The Golub-Kahan bidiagonalisation, and the loop the two least-squares methods
-## of section 7.1 run around it.
+## run around it.
 ##
 ## From beta_1 u_1 = b - A x_0 and alpha_1 v_1 = A^H u_1,
 ##

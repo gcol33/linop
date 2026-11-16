@@ -1,4 +1,4 @@
-## Section 5.1. Immutable; every operation returns a new object.
+## Immutable; every operation returns a new object.
 
 ## A dimension is two non-negative whole numbers, or Inf where the operator acts
 ## on a sequence space. Inf is not a sentinel and not a flag: it is the extent of
@@ -97,8 +97,8 @@ new_linop <- function(node, dim, dtype, caps = new_caps(), args = list(),
 #' @export
 dim.linop <- function(x) x$dim
 
-## nrow() and ncol() are not generic in base R; both derive from dim(). S0.1
-## section 5 confirms no methods are needed.
+## nrow() and ncol() are not generic in base R; both derive from dim(), so no
+## methods are needed.
 
 ## base R's length() coerces its result to integer, and prod(c(Inf, Inf)) is not
 ## representable there. NA_integer_ is what an unknown length is called in R, and
@@ -170,7 +170,7 @@ linop_gemm <- function(A, X, Y = NULL, alpha = 1, beta = 0, mode = "N") {
 
 #' Estimated flops per column
 #'
-#' An ordering heuristic only. S0.2 measured cases where a wider block is
+#' An ordering heuristic only. There are measured cases where a wider block is
 #' *slower* per column for memory-bound operators, which a flop count cannot
 #' express, so this must never be read as a predictor of wall time.
 #'

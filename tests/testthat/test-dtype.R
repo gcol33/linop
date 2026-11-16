@@ -1,4 +1,4 @@
-## Gate 1: the dtype promotion table, exhaustively. Section 5.5.
+## The dtype promotion table, exhaustively.
 
 test_that("the promotion table is exhaustive and correct", {
   grid <- expand.grid(a = c("double", "complex"), b = c("double", "complex"),

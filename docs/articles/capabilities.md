@@ -386,11 +386,11 @@ evidence_satisfies(probabilistic, requirement(min_confidence = 0.95))
 #> [1] TRUE
 ```
 
-This is the shape of the contract Phase 2 solvers will use: CG will
-require Hermitian positive definiteness under a requirement it
-publishes, and an operator whose claim rests on an unverified
-declaration will be turned away by name rather than converge to
-something wrong.
+This is the shape of the contract the solvers use: when
+[`solve()`](https://rdrr.io/r/base/solve.html) chooses a method itself,
+CG’s requirement of Hermitian positive definiteness is checked against
+this evidence, and an operator whose claim rests on an unverified
+declaration is not given to CG.
 
 ## Probing a declaration
 

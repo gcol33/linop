@@ -1,4 +1,4 @@
-## Section 3's registry and the PRIMME engine behind method = "primme". The
+## The backend registry and the PRIMME engine behind method = "primme". The
 ## other suites resolve auto to the reference (helper-backend.R); this one names
 ## its engines, and clears that option where it tests auto's choice.
 

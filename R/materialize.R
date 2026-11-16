@@ -1,4 +1,4 @@
-## Section 5.9. Three categories: user-operator materialisation is forbidden
+## Three categories: user-operator materialisation is forbidden
 ## without an explicit request; tall solver workspace is allowed; projected
 ## problems are allowed. What follows is the explicit-request path.
 

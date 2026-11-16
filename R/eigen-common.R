@@ -1,4 +1,4 @@
-## Section 7.2. What the reference eigensolver and the reference singular value
+## What the reference eigensolver and the reference singular value
 ## solver share, kept here rather than in whichever file needed it first.
 ##
 ## Both are labelled reference rather than production, and the label is a
@@ -15,7 +15,7 @@
 ## What is not reference-grade about them is the certificate, which is the same
 ## object every solver in the package returns and rests on the same measurements.
 
-## Section 1.1: which takes strings, and RSpectra's short forms are accepted
+## which takes strings, and RSpectra's short forms are accepted
 ## because the incumbent's vocabulary is what users already have in their fingers.
 ##
 ## Magnitude and algebraic order are separate entries rather than one flag,

@@ -1,4 +1,4 @@
-## Section 5.6, corrected by S0.1 section 6. Every propagated capability records
+## Propagation, following base R's crossprod(). Every propagated capability records
 ## source = "construction" with depends_on holding the input capabilities the
 ## rule relied on, empty when the rule is unconditional.
 

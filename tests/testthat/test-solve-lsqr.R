@@ -1,8 +1,8 @@
-## Gate 2 for the fifth of the seven methods, and the first whose problem is a
+## The fifth of the seven methods, and the first whose problem is a
 ## minimisation rather than an equation: recovery against closed-form truth on
 ## compatible, incompatible and rank-deficient right-hand sides, agreement with
 ## the published recurrence, certificate coverage over 20 seeds, and the refusals
-## the section 4.3 table requires now that the least-squares rows are narrowed.
+## the requirement table requires now that the least-squares rows are narrowed.
 
 lsqr <- linop:::lsqr_solve
 cert_status <- linop:::cert_status
@@ -401,7 +401,7 @@ test_that("over 20 seeds the certificate never understates what it reports", {
 })
 
 test_that("the arithmetic floor is load-bearing on the least-squares line too", {
-  ## S0.6 for the residual, and the same statement for the optimality ratio.
+  ## The floor for the residual, and the same statement for the optimality ratio.
   ## tol = 0 asks for an exact minimiser, which no floating-point iteration
   ## delivers: every iterate's computed A^H r carries rounding, so the request is
   ## below anything the run reaches and both runs are the same iterates certified

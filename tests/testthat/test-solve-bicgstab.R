@@ -1,7 +1,7 @@
-## Gate 2 for the last of the seven methods: recovery against closed-form truth,
+## The last of the seven methods: recovery against closed-form truth,
 ## bitwise agreement with the published recurrence, the three preconditioner
 ## sides, the breakdown that is this method's alone, certificate coverage over 20
-## seeds, and the refusals the section 4.3 table requires.
+## seeds, and the refusals the requirement table requires.
 
 bicgstab <- linop:::bicgstab_solve
 gmres <- linop:::gmres_solve

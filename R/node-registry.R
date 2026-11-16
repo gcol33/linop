@@ -1,10 +1,10 @@
-## Section 5.7. The registry is the mechanism the ecosystem proposition depends
+## The registry is the mechanism the ecosystem proposition depends
 ## on, so internal node types go through exactly the same door external ones do.
 
 .linop_nodes <- new.env(parent = emptyenv())
 
 ## Apply modes, following the BLAS convention. Four rather than one, because
-## section 5.4 keeps transpose, adjoint and conjugate distinct.
+## transpose, adjoint and conjugate are kept distinct.
 ##   N  A X          T  A^T X          C  A^H X          R  conj(A) X
 APPLY_MODES <- c("N", "T", "C", "R")
 

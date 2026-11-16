@@ -1,4 +1,4 @@
-## Plan sections 8.4 to 8.6 for the Chebyshev operator: its domain, its adjoint
+## The Chebyshev operator's its domain, its adjoint
 ## with the adjoint domain, and Galerkin on its weak form. The adjoint is checked
 ## by the identity that defines it, int (L u) v = int u (L* v) for u in the domain
 ## of L and v in the domain of L*, on random polynomials in each domain.

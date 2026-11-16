@@ -1,4 +1,4 @@
-## Gate 1: every conditional construction rule records depends_on, and
+## Every conditional construction rule records depends_on, and
 ## evidence_satisfies() recursing through a composite of user_declaration inputs
 ## fails a requirement that the inputs would have failed directly.
 
@@ -65,7 +65,7 @@ test_that("depends_on is recorded for conditional rules and empty for unconditio
 })
 
 test_that("the laundering case: construction over declarations still fails", {
-  ## This is the case section 5.3 exists to prevent. Both operands carry
+  ## This is the case evidence exists to prevent. Both operands carry
   ## unconditional construction evidence at the top, but the composite is built
   ## by a conditional rule, so the declarations underneath must remain visible.
   n <- 4

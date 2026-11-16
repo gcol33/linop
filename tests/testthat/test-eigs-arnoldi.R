@@ -1,4 +1,4 @@
-## Section 7.2, eigs() on an operator that is not established hermitian: Arnoldi
+## eigs() on an operator that is not established hermitian: Arnoldi
 ## with Krylov-Schur restarting. Recovery against spectra known by construction,
 ## the certificate's rows for a non-normal operator, and the Schur kernel the
 ## restart rests on.

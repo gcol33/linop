@@ -1,4 +1,4 @@
-## Section 6. A status says whether a check passed; evidence says what kind of
+## A status says whether a check passed; evidence says what kind of
 ## argument produced it. The two are reported separately because the classes are
 ## not comparable on one axis.
 
@@ -216,8 +216,8 @@ certificate.default <- function(x, ...) {
 #' @export
 print.linop_certificate <- function(x, ...) {
   df <- x$checks
-  ## What ran and why, where a dispatcher chose it. Section 1.1 asks that the
-  ## result record which route was taken, and this is where it is recorded: the
+  ## What ran and why, where a dispatcher chose it. The
+  ## result records which route was taken, and this is where it is recorded: the
   ## certificate is the one object a caller always gets back.
   if (!is.null(x$dispatch)) {
     cat(sprintf("solved by %s (%s)\n", x$dispatch$chosen, x$dispatch$reason))
@@ -365,10 +365,9 @@ cert_add_convergence <- function(r, met, requested, iterations, maxit,
 
 ## ------------------------------------------------------- the arithmetic floor
 
-## S0.6 measured the correction this exists for. The a posteriori bound keeps
+## Measurement showed the correction this exists for. The a posteriori bound keeps
 ## decaying past machine epsilon while the true error plateaus at about 1e-15, so
-## a fully converged result certifies as fail. Plan section 6's table carries no
-## roundoff term anywhere, and both the residual and the backward-error line need
+## a fully converged result certifies as fail. Without a roundoff term both the residual and the backward-error line need
 ## one.
 ##
 ## For a linear solve the floor is Higham's bound on the computed residual: for
@@ -387,7 +386,7 @@ cert_add_convergence <- function(r, met, requested, iterations, maxit,
 ## is not knowable here. It is an argument with a default rather than a constant,
 ## and any line that meets its tolerance only because of it is reported as
 ## qualified with an estimate guarantee, never as a clean identity. The default
-## comes from S0.6's measurement: a plateau of about 2.2e-15 against ||H|| of 4
+## comes from a measurement: a plateau of about 2.2e-15 against ||H|| of 4
 ## to 6 puts c between 2 and 4.
 SOLVE_FLOOR_CONST <- 4
 
@@ -568,7 +567,7 @@ solve_certificate <- function(A, B, X, tol, norm_estimate, iterations, maxit,
 
   ## --------------------------------------------------------- forward error --
   ## ||x - x*|| / ||x*|| <= kappa(A) * omega needs ||A^-1||, which no matrix-free
-  ## operator supplies and no residual implies. Section 6.1's restraint: the
+  ## operator supplies and no residual implies. The
   ## honest answer is that this was not checked.
   r$add("forward error", "not_checked",
         "needs a condition estimate; ||A^-1|| is not available matrix-free",
@@ -658,7 +657,7 @@ eigen_pair_bounds <- function(rn, theta, nA, scale_x, tol, floor_const,
 
 ## ------------------------------------------------------ the eigen certificate
 
-## Section 6's table and 6.1. This is the third shape rather than a flag on the
+## The eigenpair certificate. This is the third shape rather than a flag on the
 ## second. Both readings of solve_certificate() are backward errors on a linear
 ## system, where b is data; here theta and x are both outputs and A is the only
 ## datum, so the Rigal-Gaches denominator ||A|| ||x|| + ||b|| has no second term
@@ -807,7 +806,7 @@ eigen_certificate <- function(A, values, vectors, tol, norm_estimate,
         confidence = if (bclean) norm_conf else NA_real_)
 
   ## ---------------------------------------------------- target identity row --
-  ## Section 6.1, and the reason this package's certificate is not a diagnostics
+  ## The reason this package's certificate is not a diagnostics
   ## object. A small residual proves the pair is an approximate eigenpair. That it
   ## is the largest, the smallest or the nearest one requires inertia counts, an
   ## interval enclosure, a complete decomposition or a separation bound, and

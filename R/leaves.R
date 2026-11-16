@@ -1,8 +1,8 @@
-## Section 5.7 leaves: dense sparse fun identity diag.
+## Leaves: dense sparse fun identity diag.
 
 ## ------------------------------------------------------------------ dense ---
 
-## Base R semantics throughout (S0.1 section 6): crossprod(M, X) is t(M) %*% X,
+## Base R semantics throughout: crossprod(M, X) is t(M) %*% X,
 ## the transpose and not the conjugate transpose.
 dense_apply <- function(op, X, mode) {
   M <- op$args$M
@@ -89,11 +89,11 @@ linop_dense <- function(M, properties = NULL, check = TRUE) {
 
 ## Real-only: Matrix 1.7.5 declares the zMatrix virtual classes but not the
 ## concrete ones, so a complex sparse operator cannot be constructed at all
-## (S0.1 section 7). Complex structured operators go through a `fun` leaf.
+## Complex structured operators go through a `fun` leaf.
 sparse_apply <- function(op, X, mode) {
   M <- op$args$M
   ## The operator is real but the block need not be. Matrix has no complex
-  ## sparse class, so split and recombine rather than downcast (section 5.5).
+  ## sparse class, so split and recombine rather than downcast.
   if (is.complex(X)) {
     re <- sparse_apply(op, Re(X), mode)
     im <- sparse_apply(op, Im(X), mode)

@@ -1,7 +1,7 @@
-## Gate 2 for the second of the seven methods: recovery against closed-form truth
+## The second of the seven methods: recovery against closed-form truth
 ## run to convergence, the minimal-residual property that defines MINRES, the
 ## indefinite problems CG cannot be given at all, certificate coverage over 20
-## seeds, and the refusals the section 4.3 table requires.
+## seeds, and the refusals the requirement table requires.
 
 minres <- linop:::minres_solve
 cg <- linop:::cg_solve
@@ -93,7 +93,7 @@ test_that("minres solves what cg refuses, which is the whole reason it exists", 
 })
 
 test_that("unknown definiteness is a minres problem rather than a refusal", {
-  ## The three-valued rule in section 5.3 doing visible work: nobody has proved
+  ## The three-valued rule doing visible work: nobody has proved
   ## this operator definite, and it happens to be, but minres does not need to
   ## know either way.
   n <- 30
@@ -236,7 +236,7 @@ test_that("columns run in lockstep are the iterates of per-column minres", {
   })
 })
 
-## ------------------------------------ agreement with a reference, Gate 2 --
+## -------------------------------------------- agreement with a reference --
 
 ## The published recurrence, transcribed from the Paige and Saunders form with
 ## the preconditioner set to the identity and no shift. It shares no code with
@@ -298,7 +298,7 @@ indef_spectrum <- function(n, kappa) {
 }
 
 test_that("the iterate agrees with both references on ill-conditioned problems", {
-  ## Gate 2 asks for this method specifically. tol = 0 removes every stopping
+  ## tol = 0 removes every stopping
   ## test, so both sides run the same fixed number of steps and the gap is the
   ## recurrence rather than the budget.
   ##

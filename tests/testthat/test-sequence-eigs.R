@@ -1,5 +1,5 @@
 ## eigs() on the operator itself, where there is no matrix and the width of the
-## truncation is what the call chooses. Ground truth is S0.6's single-site model:
+## truncation is what the call chooses. Ground truth is the single-site model:
 ## for the potential v at the origin the eigenvalue is sign(v) sqrt(v^2 + 4) and
 ## the eigenvector decays at (-|v| + sqrt(v^2 + 4)) / 2.
 

@@ -1,4 +1,4 @@
-## Section 8.10's first rigorous class, and the first operator in the package
+## The first rigorous class, and the first operator in the package
 ## whose index set is infinite.
 ##
 ##     (H u)_j = b_{j-1} u_{j-1} + a_j u_j + b_j u_{j+1}          on l^2(Z)

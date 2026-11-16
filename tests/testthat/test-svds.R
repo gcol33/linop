@@ -1,4 +1,4 @@
-## Section 7.2, svds(). Recovery against closed-form singular values, the two
+## svds(). Recovery against closed-form singular values, the two
 ## halves of a triplet, certificate coverage across seeds, and the refusals.
 
 ## The backward error of the augmented eigenpair, recomputed from the operator

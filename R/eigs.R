@@ -1,4 +1,4 @@
-## Section 7.2, the eigensolver verb, and the reference hermitian engine.
+## The eigensolver verb, and the reference hermitian engine.
 ## Lanczos with full reorthogonalisation, locking, and explicit restarts, for an
 ## operator established hermitian; Arnoldi with Krylov-Schur restarting
 ## (R/eigs-arnoldi.R) for every other square operator.
@@ -413,7 +413,7 @@ eigen_certify <- function(ctx) {
 
 ## (A - sigma I)^-1 as an operator, built out of the package's own solvers.
 ##
-## Section 4.2 has this the right way round: shift-invert holds a solve object,
+## Shift-invert holds a solve object,
 ## not an operator, and what makes it usable as one here is that the inner method
 ## is a fixed iteration to a fixed tolerance. Whatever it gets wrong shows up in
 ## the residual the outer loop measures on A, which is why nothing downstream has

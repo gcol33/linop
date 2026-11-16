@@ -1,5 +1,5 @@
-## Gate 1: linsolve conformance is a separate suite, and running the linop suite
-## against a linsolve errors rather than failing purity. Section 4.
+## linsolve conformance is a separate suite, and running the linop suite
+## against a linsolve errors rather than failing purity.
 
 mk_exact_solve <- function(M) {
   linop:::new_linsolve(function(R) solve(M, R), dim = dim(M),
@@ -87,7 +87,7 @@ test_that("each solver refuses a preconditioner lacking a property it requires",
   good <- preconditioner(function(R) R, fixed = TRUE,
                          hermitian = TRUE, positive_definite = TRUE)
 
-  ## one row per line of the section 4.3 table
+  ## one row per line of the requirement table
   for (m in c("cg", "minres")) {
     expect_error(linop:::check_preconditioner(flexible, m), "fixed = TRUE")
     expect_error(linop:::check_preconditioner(indefinite, m), "positive_definite = TRUE")
@@ -121,7 +121,7 @@ test_that("side is enforced, not merely stored", {
 })
 
 test_that("the rows that admit more than one formulation accept every side", {
-  ## the side check must not over-refuse where the plan leaves the row open
+  ## the side check must not over-refuse where a row is left open
   for (s in c("left", "right", "split")) {
     p <- preconditioner(function(R) R, fixed = TRUE, hermitian = TRUE,
                         positive_definite = TRUE, side = s)
@@ -132,7 +132,7 @@ test_that("the rows that admit more than one formulation accept every side", {
 })
 
 test_that("the least-squares rows take a right preconditioner and nothing else", {
-  ## Section 4.3 leaves a row unrestricted until a check narrows it. These two
+  ## A row stays unrestricted until a check narrows it. These two
   ## are narrowed: the method runs on A M^-1, so M acts on the domain of A, while
   ## left and split act on the residual, which for a rectangular A is not even
   ## the same space. Where the two spaces coincide it is still a different
@@ -203,8 +203,8 @@ test_that("as_preconditioner refuses to invent a solver", {
 
 ## ------------------------------------------------- linsolve -> preconditioner --
 ## An inner solve run to a loose tolerance is the canonical flexible
-## preconditioner, so the fidelity lattice of section 4.2 needs a path into
-## section 4.3 rather than only out of a linop.
+## preconditioner, so the fidelity lattice needs a path into
+## the requirement table rather than only out of a linop.
 
 test_that("an exact fixed solve converts to a fixed preconditioner", {
   S <- mk_exact_solve(diag(c(2, 3, 4)))

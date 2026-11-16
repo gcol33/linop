@@ -1,4 +1,4 @@
-## Section 7.1, the seventh of the seven Krylov methods. BiCGSTAB, van der Vorst
+## The seventh of the seven Krylov methods. BiCGSTAB, van der Vorst
 ## 1992, on a general square system.
 ##
 ## Like GMRES it requires nothing of the operator and applies no adjoint: every
@@ -37,7 +37,7 @@
 
 ## ------------------------------------------------------------ the three sides
 
-## Section 4.3 leaves BiCGSTAB unrestricted, and as with GMRES that is not a
+## BiCGSTAB is unrestricted by side, and as with GMRES that is not a
 ## statement that the sides agree. Each is a different iteration on a different
 ## operator and they produce different iterates.
 ##

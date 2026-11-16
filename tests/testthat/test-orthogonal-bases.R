@@ -1,4 +1,4 @@
-## Phase 6 step 5: the line in Hermite functions and the half line in Laguerre
+## The line in Hermite functions and the half line in Laguerre
 ## functions, where x is tridiagonal and one differential operator is diagonal.
 ## Closed forms: -u'' + w^2 x^2 u has eigenvalues w (2n + 1); adding b x shifts
 ## them by -b^2/4; the Laguerre operator T alone has n + 1/2, and T + b x has

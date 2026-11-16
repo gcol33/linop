@@ -1,6 +1,6 @@
-## Section 5.3, capability set. `hermitian` and `symmetric` are separate because
+## The capability set. `hermitian` and `symmetric` are separate because
 ## A = A^H and A = A^T differ for complex operators, and a merged flag sends a
-## solver down the wrong path (see S0.1 section 6).
+## solver down the wrong path.
 
 CAPABILITY_NAMES <- c(
   "hermitian", "symmetric", "positive_definite", "positive_semidefinite",

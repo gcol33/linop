@@ -1,7 +1,7 @@
-## Section 7.1, the second of the seven Krylov methods. Preconditioned MINRES.
+## The second of the seven Krylov methods. Preconditioned MINRES.
 ##
 ## CG needs positive definiteness. MINRES needs only that A is hermitian, which
-## makes it the method the three-valued capability set of section 5.3 routes to
+## makes it the method the three-valued capability set routes to
 ## when positive_definite is FALSE, and equally when it is NA: unknown is not
 ## false, and an operator nobody has proved definite is a MINRES problem rather
 ## than a refusal.
@@ -58,7 +58,7 @@
 ## iterates are exactly those of per-column MINRES, at one block apply per step
 ## instead of k.
 
-## Plan 7.1: MINRES requires hermitian at declared minimum evidence, on the same
+## MINRES requires hermitian at declared minimum evidence, on the same
 ## reading of the evidence fields as CG's positive-definiteness requirement. An
 ## exact check on data the operator already holds is an identity rather than a
 ## probe, and probes are excluded by the guarantee field rather than by the source

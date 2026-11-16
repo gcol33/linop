@@ -1,4 +1,4 @@
-## Section 1.1: one verb over the seven methods. What auto is allowed to choose
+## One verb over the seven methods. What auto is allowed to choose
 ## and on what evidence, what naming a method means instead, where the verb
 ## refuses, and what the result carries back.
 
@@ -137,7 +137,7 @@ test_that("auto takes the direct route on a diagonal operator, at no iterations"
 })
 
 test_that("auto never acts on a capability whose evidence it does not accept", {
-  ## The laundering case of section 5.3 reaching dispatch. A sum of two declared
+  ## The laundering case reaching dispatch. A sum of two declared
   ## positive definite operators is positive definite, and the argument for it
   ## bottoms out in user declarations, which is below what auto requires. The
   ## same operator solved by cg on request runs, because naming the method is the
@@ -188,7 +188,7 @@ test_that("the same evidence source can pass or fail, and depends_on is why", {
 
 ## ------------------------------------------------------- naming a method
 
-test_that("every method of section 7.1 is reachable by name", {
+test_that("every solve method is reachable by name", {
   n <- 30
   spd <- as_spd_linop(kms_matrix(n, 0.4))
   set.seed(6)
@@ -212,7 +212,7 @@ test_that("every method of section 7.1 is reachable by name", {
 })
 
 test_that("naming a method is not filtered by evidence, and auto is", {
-  ## The distinction the plan asks not to be collapsed. This operator declares
+  ## A distinction not to be collapsed. This operator declares
   ## positive definiteness and nothing establishes it beyond the declaration.
   n <- 20
   M <- spd_prescribed(n, seq(1, 3, length.out = n))
@@ -279,12 +279,11 @@ test_that("the default return is a plain vector or matrix with the certificate a
 })
 
 test_that("indexing and coercion drop the certificate, and arithmetic keeps it", {
-  ## Plan section 1.1 states the tradeoff the other way round, that arithmetic on
-  ## the result drops the attribute. Measured, R's arithmetic operators copy
+  ## One might expect arithmetic on the result to drop the attribute. Measured, R's arithmetic operators copy
   ## attributes from their longer operand, so the certificate survives every one
   ## of them and it is subsetting and coercion that drop it. Both halves are
   ## asserted so the direction stays recorded: a certificate can outlive the
-  ## value it describes, which is a sharper cost than the one the plan names.
+  ## value it describes, which is a sharper cost than losing it.
   n <- 20
   A <- linop(spd_prescribed(n, seq(1, 4, length.out = n)))
   set.seed(30)
@@ -373,7 +372,7 @@ test_that("a preconditioner reaches the method through the same verb", {
   fit <- solve(A, b, method = "cg", tol = 1e-11, preconditioner = P, details = TRUE)
   expect_equal(fit$method, "cg")
   expect_true(fit$converged)
-  ## and the refusals of section 4.3 survive the extra layer
+  ## and the requirement table's refusals survive the extra layer
   flex <- preconditioner(function(R) R, fixed = FALSE, side = "right")
   expect_error(solve(A, b, preconditioner = flex), "fixed = TRUE")
 })

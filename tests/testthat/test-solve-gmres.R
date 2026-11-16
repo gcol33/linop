@@ -1,9 +1,9 @@
-## Gate 2 for the third and fourth of the seven methods: recovery against
+## The third and fourth of the seven methods: recovery against
 ## closed-form truth run to convergence, the minimal-residual property that
 ## defines GMRES, the nonsymmetric problems neither CG nor MINRES can be given,
 ## the three preconditioner sides that this is the first method to tell apart,
 ## FGMRES on a preconditioner that changes between applications, certificate
-## coverage over 20 seeds, and the refusals the section 4.3 table requires.
+## coverage over 20 seeds, and the refusals the requirement table requires.
 
 gmres <- linop:::gmres_solve
 fgmres <- linop:::fgmres_solve
@@ -406,7 +406,7 @@ test_that("every side meets the euclidean tolerance it was asked for", {
 })
 
 test_that("the sides are genuinely different iterations, not one implementation relabelled", {
-  ## Section 4.3 leaves the gmres row unrestricted, and unlike cg that is not a
+  ## The gmres row is unrestricted, and unlike cg that is not a
   ## statement that the three agree. They generate different Krylov spaces and
   ## different iterates, which is what makes `side` select an algorithm here.
   n <- 40
@@ -483,7 +483,7 @@ test_that("the unpreconditioned path is the right-preconditioned one with M = I"
 
 test_that("fgmres accepts an inner solve that changes between applications", {
   ## The canonical flexible preconditioner, and the only v0.1 consumer of the
-  ## variable_inexact half of the section 4.2 fidelity lattice.
+  ## variable_inexact half of the fidelity lattice.
   n <- 40
   M <- badly_scaled(n, 0.2, 1e4)
   A <- linop(M)

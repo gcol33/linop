@@ -1,4 +1,4 @@
-## The first operator whose index set is infinite, and the closed forms S0.6
+## The first operator whose index set is infinite, and the closed forms
 ## derived for it. Ground truth throughout is the single-site model
 ##
 ##     V = v delta_0,   lambda = sign(v) sqrt(v^2 + 4),
@@ -20,7 +20,7 @@ test_that("a Jacobi operator lives on a sequence space and says so", {
 })
 
 test_that("a constructor states construction, not a declaration", {
-  ## The hilbert spike found the matrix-free route reporting user_declaration for
+  ## A matrix-free route was found reporting user_declaration for
   ## a property the constructor knows the way linop_eye() knows the identity is
   ## unitary. Inside one package there is a constructor to say it, and the
   ## forward-error bound the certificate carries rests on this evidence.

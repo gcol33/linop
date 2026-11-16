@@ -1,4 +1,4 @@
-## Gate 1: generated expression trees checked against a base R recomputation
+## Generated expression trees checked against a base R recomputation
 ## from materialised leaves.
 ##
 ## The gate calls for 1e4 trees. That is what LINOP_FUZZ_N controls, and the full

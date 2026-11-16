@@ -1,4 +1,4 @@
-## Step 2 of the one-package redesign: a dimension may be Inf, because an operator
+## A dimension may be Inf, because an operator
 ## on a sequence space has an infinite index set. Inf is the extent, not a flag, so
 ## the shape arithmetic that already exists has to keep working on it, and every
 ## numeric path has to refuse it by name rather than fail inside an allocation.

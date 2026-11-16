@@ -2,8 +2,8 @@
 
 A `linop` `M ~ A` is applied by solving `M z = r`, so it needs a solver;
 the inverse is never formed here. A `linsolve` already applies `A^-1`,
-so it needs nothing further, and its contract (section 4.2) determines
-whether the resulting preconditioner is fixed.
+so it needs nothing further, and its contract determines whether the
+resulting preconditioner is fixed.
 
 ## Usage
 

@@ -1,4 +1,4 @@
-## Phase 6 step 5: functions on the line and the half line, held as coefficients
+## Functions on the line and the half line, held as coefficients
 ## in the Hermite and Laguerre functions.
 ##
 ## Both bases make multiplication by x tridiagonal, and each has a differential

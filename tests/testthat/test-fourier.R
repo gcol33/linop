@@ -1,4 +1,4 @@
-## Phase 6's first unit: operators on the circle held as banded operators on
+## Operators on the circle held as banded operators on
 ## Fourier coefficients. The fixture is closed form twice over: for
 ## V = a^2 sin^2 x - a cos x the ground state of -u'' + V u is u = exp(a cos x)
 ## at eigenvalue 0, and the Fourier coefficients of exp(a cos x) are the modified

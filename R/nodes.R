@@ -1,7 +1,7 @@
-## Unary view nodes and n-ary nodes (section 5.7).
+## Unary view nodes and n-ary nodes.
 
 ## The three view nodes share one implementation and stay three node types,
-## because section 5.8 requires the printed tree to show what the author wrote.
+## because the printed tree has to show what the author wrote.
 VIEW_MODE <- c(transpose = "T", adjoint = "C", conjugate = "R")
 
 view_apply <- function(op, X, mode) {

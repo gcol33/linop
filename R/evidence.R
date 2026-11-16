@@ -1,4 +1,4 @@
-## Section 5.3. Evidence is three independent fields, not a strength ranking,
+## Evidence is three independent fields, not a strength ranking,
 ## because the classes are not comparable: a probabilistic bound can carry a
 ## rigorous confidence statement while a deterministic estimate carries no
 ## guarantee, and an adapter contract can be stronger than a hundred probes.

@@ -1,9 +1,9 @@
-## Gate 1: the flag propagation table checked by brute force, including the
+## The flag propagation table checked by brute force, including the
 ## A^H A versus A^T A distinction on complex inputs.
 ##
 ## The table follows base R:
 ## base R's crossprod(A) is A^T A, which is symmetric and generally not
-## hermitian. The plan's original table had these swapped.
+## hermitian.
 
 is_herm <- function(M) isTRUE(all.equal(M, Conj(t(M)), check.attributes = FALSE))
 is_symm <- function(M) isTRUE(all.equal(M, t(M), check.attributes = FALSE))
@@ -224,7 +224,7 @@ test_that("the structured rules fire where they should", {
 })
 
 test_that("a bare declaration under a structured node stays visible at the top", {
-  ## section 5.3's laundering case through the new rules
+  ## the laundering case through the new rules
   d1 <- linop(function(X) 2 * X, dim = c(3, 3),
               properties = c(hermitian = TRUE, positive_definite = TRUE))
   strict <- requirement(sources = c("construction", "computation", "theorem"),

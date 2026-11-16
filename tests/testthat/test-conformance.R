@@ -1,4 +1,4 @@
-## Gate 1: the conformance suite passes on every node type, real and complex
+## The conformance suite passes on every node type, real and complex
 ## where the backing storage admits it.
 
 test_that("verify() passes on every node type", {
@@ -64,7 +64,7 @@ test_that("verify() catches a block apply that disagrees with single columns", {
 })
 
 test_that("a real callback is handed real blocks, so a complex block promotes", {
-  ## Section 5.5: a real operator applied to a complex block promotes the result.
+  ## A real operator applied to a complex block promotes the result.
   ## The leaf hands a callback declared real the real and imaginary parts as one
   ## real block, so a callback that cannot take complex input still promotes.
   n <- 4
