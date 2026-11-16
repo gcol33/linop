@@ -16,15 +16,15 @@
 ## X and D (Hermite) or X and T (Laguerre) on the first M coefficients.
 basis_matrices <- function(kind, M) {
   n <- seq_len(M - 1L)
+  rec <- basis_recurrence(kind, M)
   X <- matrix(0, M, M)
+  diag(X) <- rec$b
+  X[cbind(n, n + 1L)] <- rec$a[n]; X[cbind(n + 1L, n)] <- rec$a[n]
   if (kind == "hermite") {
-    X[cbind(n, n + 1L)] <- sqrt(n / 2); X[cbind(n + 1L, n)] <- sqrt(n / 2)
     D <- matrix(0, M, M)
     D[cbind(n, n + 1L)] <- sqrt(n / 2); D[cbind(n + 1L, n)] <- -sqrt(n / 2)
     list(X = X, D = D)
   } else {
-    diag(X) <- 2 * seq.int(0L, M - 1L) + 1
-    X[cbind(n, n + 1L)] <- -n; X[cbind(n + 1L, n)] <- -n
     list(X = X, T = diag(seq.int(0L, M - 1L) + 0.5, M))
   }
 }
@@ -51,9 +51,8 @@ basis_block <- function(P, M) {
   } else {
     L <- L + P$args$coef[1L] * B$T
   }
-  for (m in seq_along(P$args$v) - 1L) {
-    if (P$args$v[m + 1L] != 0) L <- L + P$args$v[m + 1L] * mat_power(B$X, m)
-  }
+  L <- basis_polynomial_matrix(P$args$v, B$X, P$args$kind,
+                                P$args$multiplier_basis %||% "monomial", L)
   L[seq_len(M), seq_len(M), drop = FALSE]
 }
 
@@ -62,10 +61,12 @@ basis_apply <- function(op, X, mode) {
                "  Truncate it with finite_section(A, n) or call eigs() on it."), op$args$kind)
 }
 
-new_basis_operator <- function(kind, derivative, multiplier) {
+new_basis_operator <- function(kind, derivative, multiplier, multiplier_basis = "monomial") {
   v <- as.numeric(multiplier)
   while (length(v) > 1L && v[length(v)] == 0) v <- v[-length(v)]
   deg <- length(v) - 1L
+  leading <- if (multiplier_basis == "orthogonal" && deg > 0L)
+    v[deg + 1L] / prod(basis_recurrence(kind, deg)$a) else v[deg + 1L]
   if (kind == "hermite") {
     coef <- as.numeric(derivative)
     while (length(coef) > 1L && coef[length(coef)] == 0) coef <- coef[-length(coef)]
@@ -76,9 +77,9 @@ new_basis_operator <- function(kind, derivative, multiplier) {
     ## coefficient confines: compact resolvent, discrete spectrum. A free particle
     ## (V constant) has continuous spectrum.
     discrete <- self_adjoint && order == 2L && coef[3L] < 0 && deg >= 2L &&
-                deg %% 2L == 0L && v[deg + 1L] > 0
+                deg %% 2L == 0L && leading > 0
     band <- max(order, deg)
-    lead <- abs(coef[length(coef)]) + abs(v[deg + 1L])
+    lead <- abs(coef[length(coef)]) + abs(leading)
   } else {
     if (length(derivative) != 1L || !is.numeric(derivative)) {
       stopf(paste0("for kind = \"laguerre\", derivative is the single coefficient of the\n",
@@ -87,9 +88,9 @@ new_basis_operator <- function(kind, derivative, multiplier) {
     coef <- as.numeric(derivative)
     order <- 2L
     self_adjoint <- TRUE
-    discrete <- coef > 0 && (deg == 0L || v[deg + 1L] > 0)
+    discrete <- coef > 0 && (deg == 0L || leading > 0)
     band <- max(1L, deg)
-    lead <- abs(coef) + abs(v[deg + 1L])
+    lead <- abs(coef) + abs(leading)
   }
   caps <- list()
   if (self_adjoint) {
@@ -99,7 +100,7 @@ new_basis_operator <- function(kind, derivative, multiplier) {
   new_linop("basis", c(Inf, Inf), "double", do.call(new_caps, caps),
             list(kind = kind, coef = coef, order = order, v = v, degree = deg,
                  band = band, self_adjoint = self_adjoint, discrete = discrete,
-                 lead = lead),
+                 lead = lead, multiplier_basis = multiplier_basis),
             cost = Inf)
 }
 

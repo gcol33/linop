@@ -49,6 +49,12 @@ node_label <- function(op) {
     power = sprintf("power %d", op$args$k),
     inverse = sprintf("inverse of a stored %s matrix", fmt_dim(op$dim)),
     op$node)
+  records <- op$args$function_coefficients
+  if (length(records)) {
+    base <- paste0(base, "; ", paste(vapply(records, function(x)
+      sprintf("%s: length %d, tail/vscale %.3e", x$name, length(x$coefficients), x$tail),
+      character(1)), collapse = "; "))
+  }
   base
 }
 

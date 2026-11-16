@@ -21,7 +21,10 @@
 \item{a}{A `linop`.}
 
 \item{b}{A vector or block of right-hand sides, or missing for the exact
-inverse.}
+inverse.
+For a Chebyshev operator, Chebyshev coefficients or a function of `x` on
+`[-1, 1]`; function coefficients are constructed adaptively and their
+estimated tail is recorded in the certificate.}
 
 \item{method}{`"auto"`, or one of `"cg"`, `"minres"`, `"gmres"`, `"fgmres"`,
 `"bicgstab"`, `"lsqr"`, `"lsmr"`. Naming a method is the caller asserting
@@ -41,7 +44,9 @@ certificate attached.}
 
 \item{control}{A list of arguments for the chosen method, such as `restart`
 for GMRES or `conlim` for the bidiagonal methods. A name the method does not
-take is an error rather than being ignored.}
+take is an error rather than being ignored.
+For a Chebyshev right-hand side supplied as a function, `coefficient_tol`
+and `nmax` control its adaptive construction (machine epsilon and `65536`).}
 
 \item{...}{Unused.}
 }

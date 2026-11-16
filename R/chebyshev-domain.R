@@ -293,6 +293,7 @@ cheb_galerkin_eigs <- function(P, k, args) {
   cert <- build_certificate(r$collect(), subject = "galerkin eigenproblem",
                             values = list(strong = strong, n = n, widths = widths, converged = met),
                             evidence = r$collect_evidence())
+  cert <- function_certificate(cert, function_records(P))
   new_eigen_result(values = lam, vectors = U, certificate = cert, k = k,
                    which = "smallest_algebraic", method = "galerkin",
                    iterations = fit$iterations, maxit = fit$maxit, rounds = fit$restarts,
@@ -311,7 +312,7 @@ cheb_galerkin_eigs <- function(P, k, args) {
 ## (-1)^m conj(c_m)) and V to conj(V); in Hermite functions the odd derivatives
 ## change sign; the Laguerre operator and real multipliers are their own.
 space_adjoint <- function(A) {
-  switch(A$node,
+  out <- switch(A$node,
     chebyshev = cheb_adjoint(A),
     fourier = linop_space("fourier",
                           derivative = Conj(A$args$coef) * (-1)^(seq_along(A$args$coef) - 1L),
@@ -320,5 +321,6 @@ space_adjoint <- function(A) {
                                if (A$args$kind == "hermite")
                                  A$args$coef * (-1)^(seq_along(A$args$coef) - 1L)
                                else A$args$coef,
-                               A$args$v))
+                               A$args$v, A$args$multiplier_basis %||% "monomial"))
+  carry_function_records(out, function_records(A))
 }

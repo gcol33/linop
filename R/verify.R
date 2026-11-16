@@ -196,7 +196,8 @@ verify.linop <- function(x, tol = 1e-8, n_probe = 10L, seed = 1L, block = c(1L, 
         confidence = NA_real_)
   }
 
-  build_certificate(do.call(rbind, checks), subject = "operator", probes = probe_rows)
+  function_certificate(build_certificate(do.call(rbind, checks), subject = "operator", probes = probe_rows),
+                       function_records(A))
 }
 
 probe_capabilities <- function(A, tol, n_probe, rnd) {

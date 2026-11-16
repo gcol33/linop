@@ -131,6 +131,9 @@ diag_solve <- function(A, b, tol, floor_const, norm_control) {
 #' @param a A `linop`.
 #' @param b A vector or block of right-hand sides, or missing for the exact
 #'   inverse.
+#'   For a Chebyshev operator, Chebyshev coefficients or a function of `x` on
+#'   `[-1, 1]`; function coefficients are constructed adaptively and their
+#'   estimated tail is recorded in the certificate.
 #' @param method `"auto"`, or one of `"cg"`, `"minres"`, `"gmres"`, `"fgmres"`,
 #'   `"bicgstab"`, `"lsqr"`, `"lsmr"`. Naming a method is the caller asserting
 #'   their own declaration and is not filtered by evidence; `"auto"` is the
@@ -144,6 +147,8 @@ diag_solve <- function(A, b, tol, floor_const, norm_control) {
 #' @param control A list of arguments for the chosen method, such as `restart`
 #'   for GMRES or `conlim` for the bidiagonal methods. A name the method does not
 #'   take is an error rather than being ignored.
+#'   For a Chebyshev right-hand side supplied as a function, `coefficient_tol`
+#'   and `nmax` control its adaptive construction (machine epsilon and `65536`).
 #' @param ... Unused.
 #' @return By default the solution, a vector for a vector `b` and a matrix
 #'   otherwise, carrying the certificate in its `"certificate"` attribute.
@@ -162,7 +167,9 @@ solve.linop <- function(a, b, method = "auto", preconditioner = NULL,
   if (is_linop(a) && !is_finite_dim(a)) {
     run <- get_node(a$node)$solve
     if (is.null(run)) require_finite_dim(a, "solve")
-    return(run(a, b, list(tol = tol)))
+    if (!is.list(control)) stopf("control must be a list")
+    check_control(control, c("coefficient_tol", "nmax"), "a function-space solve")
+    return(run(a, b, c(list(tol = tol), control)))
   }
   if (!is_scalar_string(method)) stopf("method must be a single string")
   if (!method %in% c("auto", SOLVE_METHODS)) {
@@ -226,6 +233,7 @@ solve.linop <- function(a, b, method = "auto", preconditioner = NULL,
   }
 
   fit$requested <- requested
+  fit$certificate <- function_certificate(fit$certificate, function_records(a))
   fit$reason <- reason
   fit$certificate$dispatch <- list(requested = requested, chosen = method,
                                    reason = reason)

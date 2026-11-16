@@ -8,7 +8,9 @@ linop_space(
   kind = "fourier",
   derivative = c(0, 0, -1),
   multiplier = 0,
-  boundary = NULL
+  boundary = NULL,
+  tol = .Machine$double.eps,
+  nmax = 65536L
 )
 }
 \arguments{
@@ -18,18 +20,30 @@ interval `[-1, 1]`; `"hermite"`, the line; `"laguerre"`, the half line.}
 \item{derivative}{Coefficients `c_0, c_1, ..., c_p` of `sum c_m (d/dx)^m`.
 The default, `c(0, 0, -1)`, is `-d^2/dx^2`. For `"chebyshev"` it may also be
 a list of polynomial coefficients `a_0(x), ..., a_p(x)`, each given by its
-Chebyshev coefficients, for `sum a_m(x) u^(m)`.}
+Chebyshev coefficients, for `sum a_m(x) u^(m)`.
+Each entry of that list may also be a function of `x`.}
 
 \item{multiplier}{The coefficients of the multiplying function: Fourier
 coefficients from frequency `-d` to `d` (an odd number of them) on the
 circle, Chebyshev coefficients `a_0, a_1, ...` on the interval, monomial
 coefficients `v_0, v_1, ...` of `V(x)` on the line and half line. A single
-number is a constant.}
+number is a constant.
+A function of `x` is sampled adaptively in the selected space. It must
+return one finite value per point. Scalar functions that error on vector
+input are evaluated pointwise after one detected fallback.}
 
 \item{boundary}{For `"chebyshev"`, a list with `at` (each `-1` or `1`),
 `value`, and either `derivative` (one per condition) or `weights` (a list of
 weight vectors over `u, u', ...`, for mixed conditions), one condition per
-order of the operator. A term of a sum may omit it; the problem needs it.}
+order of the operator. A term of a sum may omit it; the problem needs it.
+`value` may be a function of the endpoint, or a list with a function or
+scalar per endpoint. Functions are approximated on the interval first.}
+
+\item{tol}{Relative tolerance for adaptive function coefficients. Defaults
+to machine epsilon. Chopping is an estimate recorded in the certificate.}
+
+\item{nmax}{Maximum sample grid length for each function. An unresolved
+function is refused by argument name. Defaults to `65536`.}
 }
 \value{
 A `linop` of dimension `Inf x Inf`.
@@ -98,4 +112,9 @@ L <- linop_space("chebyshev", derivative = c(0, 0, 1),
 u <- solve(L, f)
 x <- 0.3
 sum(u * cos((seq_along(u) - 1) * acos(x))) - sin(pi * x)
+}
+\references{
+Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
+  series. ACM Transactions on Mathematical Software 43(4).
+  \doi{10.1145/2998442}.
 }

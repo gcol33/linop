@@ -365,6 +365,7 @@ eigs <- function(A, k, which = "largest", sigma = NULL, B = NULL,
               requested = k, stop_reason = run$stop_reason, B = B,
               norm_lower_bound_B = run$bnorm_lb %||% 0)
   cert <- (get_node(A$node)$certify %||% eigen_certify)(ctx)
+  cert <- function_certificate(cert, c(function_records(A), function_records(B)))
 
   new_eigen_result(values = run$values, vectors = run$vectors,
                    certificate = cert, k = k,

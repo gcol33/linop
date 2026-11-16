@@ -425,6 +425,54 @@ starts again from a fresh direction, and swaps in any pair that ranks better:
 sort(eigs(linop_space("fourier"), k = 5, which = "smallest_algebraic")$values)
 ```
 
+## Posing a problem with functions
+
+`linop_space()` accepts a function for its multiplier. Chebyshev derivative
+terms can each be a function, and `solve()` accepts a function for the forcing.
+The function receives physical coordinates: `[-1, 1]` for Chebyshev, a circle
+of period `2*pi` for Fourier, the line for Hermite, and the positive half line
+for Laguerre. These spaces use their existing unit scales.
+
+```{r function-forcing}
+L <- linop_space("chebyshev", derivative = c(0, 0, 1),
+                 multiplier = function(x) x,
+                 boundary = list(at = c(-1, 1), derivative = c(0, 0), value = exp))
+u <- solve(L, function(x) (1 + x) * exp(x))
+x <- 0.3
+sum(u * cos((seq_along(u) - 1) * acos(x))) - exp(x)
+certificate(u)
+```
+
+This problem has solution `exp(x)`. The boundary function supplies its values
+at the two endpoints. The multiplier and forcing are sampled on grids of
+17, 33, 65, ... points, with one vectorized call per grid. Functions that error
+on vector input use a detected pointwise evaluation mode.
+
+```{r function-spectra}
+H <- linop_space("fourier", multiplier = function(x) 4 * sin(x)^2 - 2 * cos(x))
+eigs(H, k = 1, which = "smallest_algebraic")$values
+oscillator <- linop_space("hermite", multiplier = function(x) x^2)
+eigs(oscillator, k = 3, which = "smallest_algebraic")$values
+```
+
+The constructor uses the `standardChop` coefficient-envelope algorithm of
+Aurentz and Trefethen (2017, <https://doi.org/10.1145/2998442>). Chebyshev and
+Fourier transforms use FFT; Hermite and Laguerre use Gauss quadrature in
+normalized orthogonal polynomials. On the unbounded domains this judges a
+weighted expansion. A global uniform error bound requires additional assumptions.
+
+`tol` controls coefficient construction in `linop_space()` and defaults to
+machine epsilon. `nmax` limits each function's sample grid and defaults to
+65536. An unresolved function produces an error naming the argument.
+For a function forcing in `solve()`, use `control = list(coefficient_tol = ...,
+nmax = ...)`. The solve tolerance controls the equation residual separately.
+
+Every function construction contributes a `computation` / `estimate` certificate
+row with its tail-to-value-scale ratio. Dependent residual and spectral rows
+carry that evidence in `depends_on`. `print()` and `explain()` show the retained
+length and tail ratio. The computed coefficients and sampling record are held
+on the operator, and in the solve certificate for a function forcing.
+
 ## Where to next
 
 - `vignette("certificates")` covers the fifth certificate shape beside the other

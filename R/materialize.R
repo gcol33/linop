@@ -130,6 +130,10 @@ explain <- function(A) {
     for (k in kids) walk(k, depth + 1L)
   }
   walk(A, 0L)
+  records <- function_records(A)
+  if (length(records)) for (x in records) {
+    cat(sprintf("%s: length %d, tail/vscale %.3e\n", x$name, length(x$coefficients), x$tail))
+  }
   df <- do.call(rbind, rows)
   cat(sprintf("operator %s, dtype %s, estimated %.3g flops per column\n",
               fmt_dim(A$dim), A$dtype, linop_cost(A)))

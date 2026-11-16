@@ -240,6 +240,13 @@ cheb_measure <- function(P, c, F, values) {
 cheb_solve <- function(A, b, args) {
   P <- A
   cheb_check_problem(P, "solve")
+  records <- function_records(A)
+  if (is.function(b)) {
+    z <- function_coefficients(b, "chebyshev", "b", args$coefficient_tol %||% .Machine$double.eps,
+                              args$nmax %||% 65536L)
+    b <- z$coefficients
+    records <- c(records, list(z))
+  }
   f <- as.numeric(b)
   if (!length(f) || anyNA(f)) stopf("b is the Chebyshev coefficients of the right-hand side")
   tol <- args$tol %||% 1e-10
@@ -259,6 +266,7 @@ cheb_solve <- function(A, b, args) {
     N <- min(2L * N, CHEB_N_MAX)
   }
   cert <- cheb_solve_certificate(m, tol, N, widths)
+  cert <- function_certificate(cert, records)
   structure(c, certificate = cert)
 }
 
@@ -348,6 +356,7 @@ cheb_eigs <- function(A, k, control, args) {
   lam <- lam[ord]; X <- X[, ord, drop = FALSE]; meas <- meas[ord, , drop = FALSE]
   if (all(Im(lam) == 0)) lam <- Re(lam)
   cert <- cheb_eigen_certificate(lam, meas, tol, N, widths, k)
+  cert <- function_certificate(cert, function_records(A))
   new_eigen_result(values = lam, vectors = X, certificate = cert, k = k, which = which,
                    method = "arnoldi on the ultraspherical pencil", iterations = fit$iterations,
                    maxit = fit$maxit, rounds = fit$restarts,

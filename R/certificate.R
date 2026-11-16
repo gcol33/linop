@@ -83,6 +83,35 @@ build_certificate <- function(checks, subject, probes = NULL, values = NULL,
 
 cert_status <- function(cert, check) cert$checks$status[cert$checks$check == check]
 
+function_certificate <- function(cert, records) {
+  existing <- cert$values$function_coefficients %||% list()
+  records <- Filter(function(x) !any(vapply(existing, identical, logical(1), y = x)), records)
+  if (!length(records)) return(cert)
+  deps <- lapply(records, function(x) evidence("computation", "estimate", NA_real_))
+  r <- cert_rows()
+  for (i in seq_len(nrow(cert$checks))) {
+    row <- cert$checks[i, ]
+    ev <- cert$evidence[[row$check]] %||% evidence(row$source, row$guarantee, row$confidence)
+    ev$depends_on <- c(ev$depends_on, deps)
+    r$add(row$check, row$status, row$detail, evidence = ev)
+  }
+  for (i in seq_along(records)) {
+    x <- records[[i]]
+    r$add(sprintf("function coefficients %d: %s", length(existing) + i, x$name), "pass",
+          sprintf("%s; length %d; tail/vscale %.3e; %d calls; grids %s",
+                  x$kind, length(x$coefficients), x$tail, x$calls, paste(x$grids, collapse = ", ")),
+          evidence = deps[[i]])
+  }
+  values <- cert$values
+  values$function_coefficients <- c(existing, records)
+  out <- build_certificate(r$collect(), cert$subject, cert$probes, values, r$collect_evidence())
+  req <- requirement(guarantees = DETERMINISTIC_GUARANTEES)
+  bounded <- vapply(out$evidence, evidence_satisfies, logical(1), required = req)
+  out$without_deterministic_bound <- out$checks$check[!bounded | out$checks$status == "not_checked"]
+  for (nm in setdiff(names(cert), names(out))) out[[nm]] <- cert[[nm]]
+  out
+}
+
 ## ---------------------------------------------------------- the accessor ----
 
 #' Read the certificate off a result

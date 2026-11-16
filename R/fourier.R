@@ -88,15 +88,28 @@ fourier_apply <- function(op, X, mode) {
 #'   The default, `c(0, 0, -1)`, is `-d^2/dx^2`. For `"chebyshev"` it may also be
 #'   a list of polynomial coefficients `a_0(x), ..., a_p(x)`, each given by its
 #'   Chebyshev coefficients, for `sum a_m(x) u^(m)`.
+#'   Each entry of that list may also be a function of `x`.
 #' @param multiplier The coefficients of the multiplying function: Fourier
 #'   coefficients from frequency `-d` to `d` (an odd number of them) on the
 #'   circle, Chebyshev coefficients `a_0, a_1, ...` on the interval, monomial
 #'   coefficients `v_0, v_1, ...` of `V(x)` on the line and half line. A single
 #'   number is a constant.
+#'   A function of `x` is sampled adaptively in the selected space. It must
+#'   return one finite value per point. Scalar functions that error on vector
+#'   input are evaluated pointwise after one detected fallback.
 #' @param boundary For `"chebyshev"`, a list with `at` (each `-1` or `1`),
 #'   `value`, and either `derivative` (one per condition) or `weights` (a list of
 #'   weight vectors over `u, u', ...`, for mixed conditions), one condition per
 #'   order of the operator. A term of a sum may omit it; the problem needs it.
+#'   `value` may be a function of the endpoint, or a list with a function or
+#'   scalar per endpoint. Functions are approximated on the interval first.
+#' @param tol Relative tolerance for adaptive function coefficients. Defaults
+#'   to machine epsilon. Chopping is an estimate recorded in the certificate.
+#' @param nmax Maximum sample grid length for each function. An unresolved
+#'   function is refused by argument name. Defaults to `65536`.
+#' @references Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
+#'   series. ACM Transactions on Mathematical Software 43(4).
+#'   \doi{10.1145/2998442}.
 #' @return A `linop` of dimension `Inf x Inf`.
 #' @examples
 #' ## -u'' + V u with V = a^2 sin^2 x - a cos x has the ground state
@@ -118,7 +131,43 @@ fourier_apply <- function(op, X, mode) {
 #' sum(u * cos((seq_along(u) - 1) * acos(x))) - sin(pi * x)
 #' @export
 linop_space <- function(kind = "fourier", derivative = c(0, 0, -1), multiplier = 0,
-                        boundary = NULL) {
+                        boundary = NULL, tol = .Machine$double.eps, nmax = 65536L) {
+  records <- list()
+  convert <- function(x, name) {
+    if (!is.function(x)) return(x)
+    z <- function_coefficients(x, kind, name, tol, nmax)
+    records[[length(records) + 1L]] <<- z
+    z$coefficients
+  }
+  if (is_scalar_string(kind) && kind %in% names(coefficient_registry())) {
+    function_multiplier <- is.function(multiplier)
+    multiplier <- convert(multiplier, "multiplier")
+    if (kind == "chebyshev") {
+      if (is.function(derivative)) derivative <- list(derivative)
+      if (is.list(derivative)) derivative <- lapply(seq_along(derivative), function(i)
+        convert(derivative[[i]], sprintf("derivative[[%d]]", i)))
+      if (is.list(boundary) && !is.null(boundary$value)) {
+        bv <- boundary$value
+        if (is.function(bv)) {
+          cf <- convert(bv, "boundary$value")
+          boundary$value <- vapply(boundary$at, function(x) cheb_value_at(cf, x), numeric(1))
+        } else if (is.list(bv)) {
+          boundary$value <- vapply(seq_along(bv), function(i) {
+            cf <- convert(bv[[i]], sprintf("boundary$value[[%d]]", i))
+            if (is.function(bv[[i]])) cheb_value_at(cf, boundary$at[i]) else cf
+          }, numeric(1))
+        }
+      }
+    }
+    if (kind %in% c("hermite", "laguerre") && function_multiplier) {
+      if (any(Im(multiplier) != 0)) stopf("multiplier function must be real in %s", kind)
+      A <- new_basis_operator(kind, derivative, Re(multiplier), "orthogonal")
+    } else A <- new_space_coefficients(kind, derivative, multiplier, boundary)
+  } else A <- new_space_coefficients(kind, derivative, multiplier, boundary)
+  carry_function_records(A, records)
+}
+
+new_space_coefficients <- function(kind, derivative, multiplier, boundary) {
   kinds <- c("fourier", "chebyshev", "hermite", "laguerre")
   if (!is_scalar_string(kind) || !kind %in% kinds) {
     stopf("kind is one of %s; got %s", paste0("\"", kinds, "\"", collapse = ", "), deparse(kind))

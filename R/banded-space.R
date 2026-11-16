@@ -31,8 +31,8 @@ band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_c
   k <- ncol(X)
   requested <- requested %||% k
   if (!k) {
-    return(eigen_certificate_empty(r, requested, iterations, maxit, stop_reason,
-                                   "finite section"))
+    return(function_certificate(eigen_certificate_empty(r, requested, iterations, maxit, stop_reason,
+                                                        "finite section"), function_records(P)))
   }
   flr <- floor_const * eps * hn
   want <- tol * scale(q)
@@ -83,11 +83,11 @@ band_certificate <- function(A, values, vectors, tol, iterations, maxit, floor_c
                   max(total), space),
           source = "computation", guarantee = "identity", confidence = NA_real_)
   }
-  build_certificate(r$collect(), subject = "finite section",
+  function_certificate(build_certificate(r$collect(), subject = "finite section",
                     values = list(residual = res, truncation = trunc, bound = bound,
                                   target = want, norm = hn, floor = flr, n = n,
                                   converged = met),
-                    evidence = r$collect_evidence())
+                    evidence = r$collect_evidence()), function_records(P))
 }
 
 ## The width search for a node whose eigenvectors decay faster than any

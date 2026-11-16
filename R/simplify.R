@@ -101,29 +101,35 @@ space_sum <- function(ops) {
     p <- max(vapply(ops, function(A) length(A$args$terms), integer(1)))
     terms <- lapply(seq_len(p), function(m) Reduce(add_padded, lapply(ops, function(A)
       if (m <= length(A$args$terms)) A$args$terms[[m]] else 0)))
-    return(new_chebyshev(terms, 0, bc))
+    return(carry_function_records(new_chebyshev(terms, 0, bc),
+                                  unlist(lapply(ops, function_records), recursive = FALSE)))
   }
   coef <- Reduce(add_padded, lapply(ops, function(A) A$args$coef))
+  orthogonal <- kind == "basis" && any(vapply(ops, function(A)
+    identical(A$args$multiplier_basis, "orthogonal"), logical(1)))
   mult <- switch(kind,
     fourier = Reduce(add_centred, lapply(ops, function(A) A$args$vhat)),
-    basis = Reduce(add_padded, lapply(ops, function(A) A$args$v)))
-  space_rebuild(ops[[1L]], coef, mult)
+    basis = Reduce(add_padded, lapply(ops, space_multiplier, orthogonal = orthogonal)))
+  out <- space_rebuild(ops[[1L]], coef, mult,
+                        if (orthogonal) "orthogonal" else "monomial")
+  carry_function_records(out, unlist(lapply(ops, function_records), recursive = FALSE))
 }
 
 space_scale <- function(A, a) {
   if (A$node == "chebyshev") {
     ## a boundary condition is a statement about the solution, not a term of the
     ## operator, so it is not scaled
-    return(new_chebyshev(lapply(A$args$terms, function(t) a * t), 0, A$args$boundary))
+    return(carry_function_records(new_chebyshev(lapply(A$args$terms, function(t) a * t), 0,
+                                                 A$args$boundary), function_records(A)))
   }
   mult <- switch(A$node, fourier = A$args$vhat, basis = A$args$v)
-  space_rebuild(A, a * A$args$coef, a * mult)
+  carry_function_records(space_rebuild(A, a * A$args$coef, a * mult), function_records(A))
 }
 
-space_rebuild <- function(A, coef, mult) {
+space_rebuild <- function(A, coef, mult, representation = A$args$multiplier_basis %||% "monomial") {
   switch(A$node,
     fourier = linop_space("fourier", derivative = coef, multiplier = mult),
-    basis = new_basis_operator(A$args$kind, coef, mult))
+    basis = new_basis_operator(A$args$kind, coef, mult, representation))
 }
 
 make_product <- function(ops) {
