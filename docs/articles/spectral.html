@@ -337,8 +337,7 @@ code ports without edits.</p>
 <div class="section level2">
 <h2 id="eigenvalues-near-a-point">Eigenvalues near a point<a class="anchor" aria-label="anchor" href="#eigenvalues-near-a-point"></a>
 </h2>
-<p>A shift is the way to reach the interior of a spectrum.
-<code>sigma</code> runs the same recurrence on
+<p><code>sigma</code> runs the same recurrence on
 <code>(A - sigma I)^-1</code>, and that inverse is not formed: it is the
 package’s own solvers, applied once per step.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
@@ -354,10 +353,40 @@ method and tolerance are yours to set. This is the one place the two
 halves of the package meet: everything in
 <code><a href="../articles/solvers.html">vignette("solvers")</a></code> is available inside a spectral
 computation.</p>
-<p>A shift is expensive, because each Lanczos step now costs a full
-linear solve. It is the right tool when the eigenvalues wanted are in
-the middle, where no amount of <code>ncv</code> will reach them
-directly.</p>
+<p>A shift costs a full linear solve per expansion step.</p>
+</div>
+<div class="section level2">
+<h2 id="harmonic-extraction">Harmonic extraction<a class="anchor" aria-label="anchor" href="#harmonic-extraction"></a>
+</h2>
+<p><code>target</code> selects eigenvalues near a point using a Krylov
+space built by applying <code>A</code>. With
+<code>extraction = "harmonic"</code>, the projection uses the
+reciprocals of Ritz values of the shifted inverse on
+<code>(A - target I) V</code>. The computation uses a small projected
+problem. Lanczos and Arnoldi both retain the wanted harmonic Schur space
+and its residual direction at each restart.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">harmonic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, target <span class="op">=</span> <span class="fl">2.02</span>, extraction <span class="op">=</span> <span class="st">"harmonic"</span>,</span>
+<span>                 method <span class="op">=</span> <span class="st">"lanczos"</span>, ncv <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">harmonic</span><span class="op">$</span><span class="va">values</span>,</span>
+<span>      closed_form <span class="op">=</span> <span class="va">truth</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">truth</span> <span class="op">-</span> <span class="fl">2.02</span><span class="op">)</span><span class="op">)</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      computed closed_form</span></span>
+<span><span class="co">#&gt; [1,] 2.015630    2.015630</span></span>
+<span><span class="co">#&gt; [2,] 2.046885    2.046885</span></span>
+<span><span class="co">#&gt; [3,] 1.984370    1.984370</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/row.html" class="external-link">row</a></span><span class="op">(</span><span class="va">harmonic</span>, <span class="st">"backward error"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "pass"</span></span></code></pre></div>
+<p><code>target</code> applies <code>A</code> directly at every step;
+<code>sigma</code> invokes shift-invert. They are mutually exclusive.
+The finite standard problem supports harmonic extraction, with a real
+target for a real or hermitian operator. Ordinary Rayleigh-Ritz
+extraction is available with <code>target</code> through
+<code>extraction = "ritz"</code>. Interior convergence depends on the
+subspace size and the spectrum. Harmonic extraction may take more
+expansion steps than shift-invert, whose steps each include a solve.</p>
+<p>Each returned value is the Rayleigh quotient of the harmonic Ritz
+vector, measured on <code>A</code>. The eigenpair certificate and its
+stopping rule apply directly.</p>
 </div>
 <div class="section level2">
 <h2 id="a-second-operator-on-the-right">A second operator on the right<a class="anchor" aria-label="anchor" href="#a-second-operator-on-the-right"></a>
@@ -369,7 +398,7 @@ interval the stiffness is the Laplacian above and the mass is
 so the pencil’s eigenvalues are known in closed form,
 <code>6 (1 - cos t) / (2 + cos t)</code> with
 <code>t = j pi / (n + 1)</code>:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mass</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">X</span><span class="op">)</span> <span class="op">(</span><span class="fl">4</span> <span class="op">*</span> <span class="va">X</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span>, <span class="fl">0</span><span class="op">)</span> <span class="op">+</span></span>
 <span>                     <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">X</span><span class="op">[</span><span class="op">-</span><span class="va">n</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="fl">6</span></span>
 <span><span class="va">M</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">mass</span>, adjoint <span class="op">=</span> <span class="va">mass</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">n</span><span class="op">)</span>,</span>
@@ -388,7 +417,7 @@ symmetric. Each step solves with <code>B</code>, by the package’s own
 solvers, and <code>inner</code> carries that solve’s arguments as it
 does under a shift. The vectors come back orthonormal in the same inner
 product:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">gen</span><span class="op">$</span><span class="va">vectors</span>, <span class="fu">mass</span><span class="op">(</span><span class="va">gen</span><span class="op">$</span><span class="va">vectors</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 1.110223e-15</span></span></code></pre></div>
 <p>Without the two declarations on <code>B</code> the same call runs
@@ -404,7 +433,7 @@ since a pencil’s data is the pair. <code>sigma</code> with
 </h2>
 <p><code><a href="../reference/svds.html">svds()</a></code> needs both the forward action and the adjoint,
 and requires nothing else:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">G</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span> <span class="op">*</span> <span class="fl">12</span><span class="op">)</span>, <span class="fl">60</span>, <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="va">R</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop.html">linop</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span></span>
 <span></span>
@@ -414,7 +443,7 @@ and requires nothing else:</p>
 <span><span class="co">#&gt; computed    11.17144 10.08422</span></span>
 <span><span class="co">#&gt; closed_form 11.17144 10.08422</span></span></code></pre></div>
 <p>The triplets satisfy what they should:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>`A v - d u` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">G</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">sv</span><span class="op">$</span><span class="va">v</span> <span class="op">-</span> <span class="va">sv</span><span class="op">$</span><span class="va">u</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">d</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  `U orthonormal` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">u</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  `V orthonormal` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">sv</span><span class="op">$</span><span class="va">v</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -436,7 +465,7 @@ separately.</p>
 the problem. A Krylov space reaches the largest singular values first,
 so the smallest need a subspace approaching the rank of the
 operator:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">small</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/svds.html">svds</a></span><span class="op">(</span><span class="va">R</span>, k <span class="op">=</span> <span class="fl">2</span>, which <span class="op">=</span> <span class="st">"smallest"</span>, ncv <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">small</span><span class="op">$</span><span class="va">d</span>, closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rev.html" class="external-link">rev</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/svd.html" class="external-link">svd</a></span><span class="op">(</span><span class="va">G</span><span class="op">)</span><span class="op">$</span><span class="va">d</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                 [,1]     [,2]</span></span>
@@ -450,7 +479,7 @@ certificate is where you find out whether it was enough.</p>
 </h2>
 <p>This is worth meeting once, because it looks like a hedge and is
 not:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">L</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span>, method <span class="op">=</span> <span class="st">"lanczos"</span>, ncv <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>computed <span class="op">=</span> <span class="va">smallest</span><span class="op">$</span><span class="va">values</span>, closed_form <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="va">truth</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span></span>
@@ -462,7 +491,7 @@ not:</p>
 <p>Every value is right to the last printed digit and the certificate
 says <code>qualified</code>. The reason is in which row is
 qualified:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">smallest</span><span class="op">$</span><span class="va">certificate</span></span>
 <span><span class="co">#&gt; solved by lanczos (hermitian operator, Lanczos with full reorthogonalisation (requested by name))</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>

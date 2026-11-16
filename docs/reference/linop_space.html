@@ -91,7 +91,9 @@ by a trigonometric polynomial,</p>
 <span>  kind <span class="op">=</span> <span class="st">"fourier"</span>,</span>
 <span>  derivative <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="op">-</span><span class="fl">1</span><span class="op">)</span>,</span>
 <span>  multiplier <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>  boundary <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  boundary <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  tol <span class="op">=</span> <span class="va">.Machine</span><span class="op">$</span><span class="va">double.eps</span>,</span>
+<span>  nmax <span class="op">=</span> <span class="fl">65536L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -108,7 +110,8 @@ interval `[-1, 1]`; `"hermite"`, the line; `"laguerre"`, the half line.</p></dd>
 <dd><p>Coefficients `c_0, c_1, ..., c_p` of `sum c_m (d/dx)^m`.
 The default, `c(0, 0, -1)`, is `-d^2/dx^2`. For `"chebyshev"` it may also be
 a list of polynomial coefficients `a_0(x), ..., a_p(x)`, each given by its
-Chebyshev coefficients, for `sum a_m(x) u^(m)`.</p></dd>
+Chebyshev coefficients, for `sum a_m(x) u^(m)`.
+Each entry of that list may also be a function of `x`.</p></dd>
 
 
 <dt id="arg-multiplier">multiplier<a class="anchor" aria-label="anchor" href="#arg-multiplier"></a></dt>
@@ -116,14 +119,34 @@ Chebyshev coefficients, for `sum a_m(x) u^(m)`.</p></dd>
 coefficients from frequency `-d` to `d` (an odd number of them) on the
 circle, Chebyshev coefficients `a_0, a_1, ...` on the interval, monomial
 coefficients `v_0, v_1, ...` of `V(x)` on the line and half line. A single
-number is a constant.</p></dd>
+number is a constant.
+A function of `x` is sampled adaptively in the selected space. It must
+return one finite value per point. Scalar functions that error on vector
+input are evaluated pointwise after one detected fallback.
+Certificate construction may make one cached complex vector call to estimate
+an analytic tail on an ellipse or strip. The sampled maximum and analyticity
+are estimates. Real-only functions retain coefficient and off-grid estimates.</p></dd>
 
 
 <dt id="arg-boundary">boundary<a class="anchor" aria-label="anchor" href="#arg-boundary"></a></dt>
 <dd><p>For `"chebyshev"`, a list with `at` (each `-1` or `1`),
 `value`, and either `derivative` (one per condition) or `weights` (a list of
 weight vectors over `u, u', ...`, for mixed conditions), one condition per
-order of the operator. A term of a sum may omit it; the problem needs it.</p></dd>
+order of the operator. A term of a sum may omit it; the problem needs it.
+`value` may be a function of the endpoint, or a list with a function or
+scalar per endpoint. Functions are approximated on the interval first.</p></dd>
+
+
+<dt id="arg-tol">tol<a class="anchor" aria-label="anchor" href="#arg-tol"></a></dt>
+<dd><p>Relative tolerance for adaptive function coefficients. Defaults
+to machine epsilon. Chopping is an estimate recorded in the certificate.
+Solve and eigen requests may shorten stored multipliers when the estimated
+sup-norm error fits one tenth of the request and the arithmetic floor permits it.</p></dd>
+
+
+<dt id="arg-nmax">nmax<a class="anchor" aria-label="anchor" href="#arg-nmax"></a></dt>
+<dd><p>Maximum sample grid length for each function. An unresolved
+function is refused by argument name. Defaults to `65536`.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -167,6 +190,13 @@ Laguerre operator `-(x u')' + x u / 4` is diagonal: `c` times that operator
 plus a polynomial `V(x)`, with `derivative = c`. Both are banded operators on
 coefficient sequences, truncated and certified as on the circle.</p>
     </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
+  series. ACM Transactions on Mathematical Software 43(4).
+  <a href="https://doi.org/10.1145/2998442" class="external-link">doi:10.1145/2998442</a>
+.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -176,7 +206,7 @@ coefficient sequences, truncated and certified as on the circle.</p>
 <span class="r-in"><span><span class="va">H</span> <span class="op">&lt;-</span> <span class="fu">linop_space</span><span class="op">(</span><span class="st">"fourier"</span>, multiplier <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="eigs.html">eigs</a></span><span class="op">(</span><span class="va">H</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">values</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -4.516328e-17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3.650369e-17</span>
 <span class="r-in"><span><span class="va">fit</span><span class="op">$</span><span class="va">n</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 16</span>
 <span class="r-in"><span></span></span>

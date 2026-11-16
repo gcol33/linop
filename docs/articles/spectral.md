@@ -269,9 +269,8 @@ code ports without edits.
 
 ## Eigenvalues near a point
 
-A shift is the way to reach the interior of a spectrum. `sigma` runs the
-same recurrence on `(A - sigma I)^-1`, and that inverse is not formed:
-it is the package’s own solvers, applied once per step.
+`sigma` runs the same recurrence on `(A - sigma I)^-1`, and that inverse
+is not formed: it is the package’s own solvers, applied once per step.
 
 ``` r
 
@@ -290,9 +289,42 @@ package meet: everything in
 [`vignette("solvers")`](https://gillescolling.com/linop/articles/solvers.md)
 is available inside a spectral computation.
 
-A shift is expensive, because each Lanczos step now costs a full linear
-solve. It is the right tool when the eigenvalues wanted are in the
-middle, where no amount of `ncv` will reach them directly.
+A shift costs a full linear solve per expansion step.
+
+## Harmonic extraction
+
+`target` selects eigenvalues near a point using a Krylov space built by
+applying `A`. With `extraction = "harmonic"`, the projection uses the
+reciprocals of Ritz values of the shifted inverse on `(A - target I) V`.
+The computation uses a small projected problem. Lanczos and Arnoldi both
+retain the wanted harmonic Schur space and its residual direction at
+each restart.
+
+``` r
+
+harmonic <- eigs(L, k = 3, target = 2.02, extraction = "harmonic",
+                 method = "lanczos", ncv = 40)
+cbind(computed = harmonic$values,
+      closed_form = truth[order(abs(truth - 2.02))][1:3])
+#>      computed closed_form
+#> [1,] 2.015630    2.015630
+#> [2,] 2.046885    2.046885
+#> [3,] 1.984370    1.984370
+row(harmonic, "backward error")
+#> [1] "pass"
+```
+
+`target` applies `A` directly at every step; `sigma` invokes
+shift-invert. They are mutually exclusive. The finite standard problem
+supports harmonic extraction, with a real target for a real or hermitian
+operator. Ordinary Rayleigh-Ritz extraction is available with `target`
+through `extraction = "ritz"`. Interior convergence depends on the
+subspace size and the spectrum. Harmonic extraction may take more
+expansion steps than shift-invert, whose steps each include a solve.
+
+Each returned value is the Rayleigh quotient of the harmonic Ritz
+vector, measured on `A`. The eigenpair certificate and its stopping rule
+apply directly.
 
 ## A second operator on the right
 

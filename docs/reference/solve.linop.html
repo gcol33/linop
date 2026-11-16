@@ -109,7 +109,10 @@ was reached, and what argument establishes it.</p>
 
 <dt id="arg-b">b<a class="anchor" aria-label="anchor" href="#arg-b"></a></dt>
 <dd><p>A vector or block of right-hand sides, or missing for the exact
-inverse.</p></dd>
+inverse.
+For a Chebyshev operator, Chebyshev coefficients or a function of `x` on
+`[-1, 1]`; function coefficients are constructed adaptively and their
+estimated tail is recorded in the certificate.</p></dd>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
@@ -143,7 +146,9 @@ certificate attached.</p></dd>
 <dt id="arg-control">control<a class="anchor" aria-label="anchor" href="#arg-control"></a></dt>
 <dd><p>A list of arguments for the chosen method, such as `restart`
 for GMRES or `conlim` for the bidiagonal methods. A name the method does not
-take is an error rather than being ignored.</p></dd>
+take is an error rather than being ignored.
+For a Chebyshev right-hand side supplied as a function, `coefficient_tol`
+and `nmax` control its adaptive construction (machine epsilon and `65536`).</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -166,6 +171,13 @@ permutation, unitary, scale, transpose and adjoint, and products, Kronecker
 products, block diagonals and powers of those). An iterative solve is not a
 linear operator, since what it applies depends on the vector it is given, so
 anything else is refused with `solve(a, b)` named.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
+  series. ACM Transactions on Mathematical Software 43(4).
+  <a href="https://doi.org/10.1145/2998442" class="external-link">doi:10.1145/2998442</a>
+.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

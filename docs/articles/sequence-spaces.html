@@ -500,6 +500,63 @@ one certifies:</p>
 which is the information a refusal would have thrown away.</p>
 </div>
 <div class="section level2">
+<h2 id="enclosing-a-gap-eigenvalue">Enclosing a gap eigenvalue<a class="anchor" aria-label="anchor" href="#enclosing-a-gap-eigenvalue"></a>
+</h2>
+<p>The second-order relative spectrum solves the quadratic pencil
+<code>P_n H^2 P_n - 2 z H_n + z^2 I</code>. Its first coefficient
+includes the two rows that connect the section to the rest of the
+sequence. For each exact root <code>z</code>, the interval
+<code>[Re(z) - abs(Im(z)), Re(z) + abs(Im(z))]</code> intersects the
+spectrum. An interval wholly inside an essential-spectrum gap contains a
+discrete eigenvalue. This is the enclosure theorem of <a href="https://arxiv.org/abs/math/0212087" class="external-link">Levitin and Shargorodsky</a>,
+also used by <a href="https://arxiv.org/abs/math/0702420" class="external-link">Boulton and
+Levitin</a>.</p>
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">enclosed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">defect</span>, k <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="op">-</span><span class="fl">0.58</span>, method <span class="op">=</span> <span class="st">"second_order"</span>,</span>
+<span>                 tol <span class="op">=</span> <span class="fl">1e-5</span><span class="op">)</span></span>
+<span><span class="va">enclosed</span><span class="op">$</span><span class="va">roots</span></span>
+<span><span class="co">#&gt; [1] -0.5839872+7.26991e-06i</span></span>
+<span><span class="va">enclosed</span><span class="op">$</span><span class="va">enclosures</span></span>
+<span><span class="co">#&gt;           lower    upper</span></span>
+<span><span class="co">#&gt; [1,] -0.5839945 -0.58398</span></span>
+<span><span class="fu"><a href="../reference/certificate.html">certificate</a></span><span class="op">(</span><span class="va">enclosed</span><span class="op">)</span><span class="op">$</span><span class="va">checks</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"check"</span>, <span class="st">"status"</span>, <span class="st">"source"</span>, <span class="st">"guarantee"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;                    check      status      source           guarantee</span></span>
+<span><span class="co">#&gt; 1       arithmetic floor        pass     theorem deterministic_bound</span></span>
+<span><span class="co">#&gt; 2        finite residual        pass computation            identity</span></span>
+<span><span class="co">#&gt; 3       truncation bound        pass     theorem deterministic_bound</span></span>
+<span><span class="co">#&gt; 4 second-order inclusion        pass     theorem deterministic_bound</span></span>
+<span><span class="co">#&gt; 5              isolation        pass     theorem deterministic_bound</span></span>
+<span><span class="co">#&gt; 6              enclosure        pass     theorem deterministic_bound</span></span>
+<span><span class="co">#&gt; 7        target identity not_checked computation            estimate</span></span>
+<span><span class="co">#&gt; 8       gap completeness not_checked computation            estimate</span></span>
+<span><span class="co">#&gt; 9            convergence        pass computation            identity</span></span></code></pre></div>
+<p>The reported intervals use the root’s vector to validate its radius
+on the original operator, with an operation-count roundoff bound.
+<code>section</code> controls the width search;
+<code>eigs(finite_section(defect, n), ...)</code> fixes its width.</p>
+<p>A dissipative barrier adds <code>i * gamma * P</code> to the section,
+with <code>P</code> projecting onto an interior window of sites. An
+eigenvector concentrated in that window has <code>Im(z)/gamma</code>
+close to one. The barrier separates candidates by their imaginary
+displacement, as analysed by <a href="https://ems.press/content/serial-article-files/33475" class="external-link">Marletta and
+Scheichl</a>.</p>
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">barrier_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="fu"><a href="../reference/finite_section.html">finite_section</a></span><span class="op">(</span><span class="va">defect</span>, <span class="fl">100</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">1</span>, sigma <span class="op">=</span> <span class="op">-</span><span class="fl">0.58</span>,</span>
+<span>                    method <span class="op">=</span> <span class="st">"dissipative"</span>, tol <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>                    barrier <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>gamma <span class="op">=</span> <span class="fl">0.01</span>, n <span class="op">=</span> <span class="fl">40</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/certificate.html">certificate</a></span><span class="op">(</span><span class="va">barrier_fit</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">$</span><span class="va">barrier_ratio</span></span>
+<span><span class="co">#&gt; [1] 0.999864</span></span>
+<span><span class="va">barrier_fit</span><span class="op">$</span><span class="va">enclosures</span></span>
+<span><span class="co">#&gt;           lower     upper</span></span>
+<span><span class="co">#&gt; [1,] -0.5841043 -0.583871</span></span></code></pre></div>
+<p>The barrier classification carries
+<code>guarantee = "estimate"</code>. The enclosure and isolation rows
+validate existence on the original self-adjoint operator. For either
+method, <code>gap completeness</code> remains <code>not_checked</code>:
+the calculation establishes existence in its isolated intervals. The
+rest of the gap remains unresolved.</p>
+</div>
+<div class="section level2">
 <h2 id="functions-on-the-circle">Functions on the circle<a class="anchor" aria-label="anchor" href="#functions-on-the-circle"></a>
 </h2>
 <p>A function on the circle is its Fourier coefficients, a sequence on
@@ -511,32 +568,27 @@ the diagonal <code>k^2</code> and the multiplication is a band as wide
 as <code>V</code> has frequencies. With
 <code>V = a^2 sin^2 x - a cos x</code> the ground state is known
 exactly, <code>exp(a cos x)</code> at eigenvalue 0:</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fl">2</span></span>
 <span><span class="va">Hc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"fourier"</span>, multiplier <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span> <span class="op">/</span> <span class="fl">2</span>, <span class="op">-</span><span class="va">a</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">gs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">Hc</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>value <span class="op">=</span> <span class="va">gs</span><span class="op">$</span><span class="va">values</span>, width <span class="op">=</span> <span class="va">gs</span><span class="op">$</span><span class="va">n</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         value         width </span></span>
-<span><span class="co">#&gt; -4.516328e-17  1.600000e+01</span></span>
+<span><span class="co">#&gt;        value        width </span></span>
+<span><span class="co">#&gt; 3.650369e-17 1.600000e+01</span></span>
 <span><span class="va">gs</span><span class="op">$</span><span class="va">certificate</span></span>
 <span><span class="co">#&gt; solved by primme on a finite section (operator on l^2(Z); width 16, stopped because the tail is below half the tolerance)</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; arithmetic floor               pass         construction     deterministic_bound   1</span></span>
-<span><span class="co">#&gt; finite residual                fail         computation      identity              1</span></span>
+<span><span class="co">#&gt; finite residual                pass         computation      identity              1</span></span>
 <span><span class="co">#&gt; orthogonality                  pass         computation      identity              1</span></span>
 <span><span class="co">#&gt; truncation bound               pass         theorem          deterministic_bound   1</span></span>
 <span><span class="co">#&gt; target identity                not_checked  computation      identity              -</span></span>
-<span><span class="co">#&gt; convergence                    fail         computation      identity              1</span></span>
-<span><span class="co">#&gt; forward error                  fail         theorem          deterministic_bound   1</span></span>
+<span><span class="co">#&gt; convergence                    pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; forward error                  pass         theorem          deterministic_bound   1</span></span>
 <span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
-<span><span class="co">#&gt; overall                        fail   no deterministic bound on: target identity</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; failures:</span></span>
-<span><span class="co">#&gt;   finite residual: worst ||H_n u - q u|| / ||u|| = 1.553e-08 against 7.000e-10; 63 of 660 iterations</span></span>
-<span><span class="co">#&gt;   convergence: 0 of 1 requested pairs converged in 63 of at most 660 iterations; stopped early, the subspace had stopped improving</span></span>
-<span><span class="co">#&gt;   forward error: min_j |q - lambda_j(H)| &lt;= 1.553e-08 = sqrt(1.553e-08^2 + 1.284e-11^2) + 2.345e-13 against 7.000e-10; the spectrum is discrete, so lambda_j is an eigenvalue</span></span></code></pre></div>
+<span><span class="co">#&gt; overall                        qualified   no deterministic bound on: target identity</span></span></code></pre></div>
 <p>The truncation row is exact here as it is for the Jacobi operator:
 cutting the band leaves a residual on the <code>d</code> frequencies
 each side that the band reaches, and those are computed rather than
@@ -547,9 +599,75 @@ the free operator <code>-d^2/dx^2</code> is double. A Krylov method
 started from one vector reaches one copy of each, so after its search
 <code><a href="../reference/eigs.html">eigs()</a></code> deflates what it found, starts again from a fresh
 direction, and swaps in any pair that ranks better:</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort</a></span><span class="op">(</span><span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"fourier"</span><span class="op">)</span>, k <span class="op">=</span> <span class="fl">5</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 4.700446e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 3.493633e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="posing-a-problem-with-functions">Posing a problem with functions<a class="anchor" aria-label="anchor" href="#posing-a-problem-with-functions"></a>
+</h2>
+<p><code><a href="../reference/linop_space.html">linop_space()</a></code> accepts a function for its multiplier.
+Chebyshev derivative terms can each be a function, and
+<code><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve()</a></code> accepts a function for the forcing. The function
+receives physical coordinates: <code>[-1, 1]</code> for Chebyshev, a
+circle of period <code>2*pi</code> for Fourier, the line for Hermite,
+and the positive half line for Laguerre. These spaces use their existing
+unit scales.</p>
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">L</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"chebyshev"</span>, derivative <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>                 multiplier <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span>,</span>
+<span>                 boundary <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>at <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>, derivative <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, value <span class="op">=</span> <span class="va">exp</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">u</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="va">L</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">(</span><span class="fl">1</span> <span class="op">+</span> <span class="va">x</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fl">0.3</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">u</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">cos</a></span><span class="op">(</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">u</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">acos</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] -4.440892e-16</span></span>
+<span><span class="fu"><a href="../reference/certificate.html">certificate</a></span><span class="op">(</span><span class="va">u</span><span class="op">)</span></span>
+<span><span class="co">#&gt; check                          status       source           guarantee             conf</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; finite residual                pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; truncation residual            pass         theorem          deterministic_bound   1</span></span>
+<span><span class="co">#&gt; backward error                 pass         computation      identity              1</span></span>
+<span><span class="co">#&gt; forward error                  not_checked  computation      identity              -</span></span>
+<span><span class="co">#&gt; function coefficients 1: multiplier pass         computation      estimate              -</span></span>
+<span><span class="co">#&gt; function tail 1: multiplier    pass         theorem          estimate              -</span></span>
+<span><span class="co">#&gt; function coefficients 2: boundary$value pass         computation      estimate              -</span></span>
+<span><span class="co">#&gt; function tail 2: boundary$value pass         theorem          estimate              -</span></span>
+<span><span class="co">#&gt; function coefficients 3: b     pass         computation      estimate              -</span></span>
+<span><span class="co">#&gt; function tail 3: b             pass         theorem          estimate              -</span></span>
+<span><span class="co">#&gt; ------------------------------------------------------------------------------------------</span></span>
+<span><span class="co">#&gt; overall                        qualified   no deterministic bound on: finite residual, truncation residual, backward error, forward error, function coefficients 1: multiplier, function tail 1: multiplier, function coefficients 2: boundary$value, function tail 2: boundary$value, function coefficients 3: b, function tail 3: b</span></span></code></pre></div>
+<p>This problem has solution <code>exp(x)</code>. The boundary function
+supplies its values at the two endpoints. The multiplier and forcing are
+sampled on grids of 17, 33, 65, … points, with one vectorized call per
+grid. Functions that error on vector input use a detected pointwise
+evaluation mode.</p>
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">H</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"fourier"</span>, multiplier <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fl">4</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">sin</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span> <span class="op">-</span> <span class="fl">2</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Trig.html" class="external-link">cos</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">H</span>, k <span class="op">=</span> <span class="fl">1</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span><span class="op">$</span><span class="va">values</span></span>
+<span><span class="co">#&gt; [1] 4.858973e-16</span></span>
+<span><span class="va">oscillator</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/linop_space.html">linop_space</a></span><span class="op">(</span><span class="st">"hermite"</span>, multiplier <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/eigs.html">eigs</a></span><span class="op">(</span><span class="va">oscillator</span>, k <span class="op">=</span> <span class="fl">3</span>, which <span class="op">=</span> <span class="st">"smallest_algebraic"</span><span class="op">)</span><span class="op">$</span><span class="va">values</span></span>
+<span><span class="co">#&gt; [1] 1 3 5</span></span></code></pre></div>
+<p>The constructor uses the <code>standardChop</code>
+coefficient-envelope algorithm of Aurentz and Trefethen (2017, <a href="https://doi.org/10.1145/2998442" class="external-link uri">https://doi.org/10.1145/2998442</a>). Chebyshev and Fourier
+transforms use FFT; Hermite and Laguerre use Gauss quadrature in
+normalized orthogonal polynomials. On the unbounded domains this judges
+a weighted expansion. A global uniform error bound requires additional
+assumptions.</p>
+<p><code>tol</code> controls coefficient construction in
+<code><a href="../reference/linop_space.html">linop_space()</a></code> and defaults to machine epsilon.
+<code>nmax</code> limits each function’s sample grid and defaults to
+65536. An unresolved function produces an error naming the argument. For
+a function forcing in <code><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve()</a></code>, use
+<code>control = list(coefficient_tol = ..., nmax = ...)</code>. The
+solve tolerance controls the equation residual separately.</p>
+<p>Every function construction contributes a <code>computation</code> /
+<code>estimate</code> certificate row with its tail-to-value-scale
+ratio. Dependent residual and spectral rows carry that evidence in
+<code>depends_on</code>. <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> and <code><a href="../reference/explain.html">explain()</a></code>
+show the retained length and tail ratio. The computed coefficients and
+sampling record are held on the operator, and in the solve certificate
+for a function forcing.</p>
 </div>
 <div class="section level2">
 <h2 id="where-to-next">Where to next<a class="anchor" aria-label="anchor" href="#where-to-next"></a>

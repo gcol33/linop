@@ -32,7 +32,10 @@ solve(
 - b:
 
   A vector or block of right-hand sides, or missing for the exact
-  inverse.
+  inverse. For a Chebyshev operator, Chebyshev coefficients or a
+  function of \`x\` on \`\[-1, 1\]\`; function coefficients are
+  constructed adaptively and their estimated tail is recorded in the
+  certificate.
 
 - method:
 
@@ -67,7 +70,10 @@ solve(
 
   A list of arguments for the chosen method, such as \`restart\` for
   GMRES or \`conlim\` for the bidiagonal methods. A name the method does
-  not take is an error rather than being ignored.
+  not take is an error rather than being ignored. For a Chebyshev
+  right-hand side supplied as a function, \`coefficient_tol\` and
+  \`nmax\` control its adaptive construction (machine epsilon and
+  \`65536\`).
 
 - ...:
 
@@ -91,3 +97,9 @@ and products, Kronecker products, block diagonals and powers of those).
 An iterative solve is not a linear operator, since what it applies
 depends on the vector it is given, so anything else is refused with
 \`solve(a, b)\` named.
+
+## References
+
+Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev series.
+ACM Transactions on Mathematical Software 43(4).
+[doi:10.1145/2998442](https://doi.org/10.1145/2998442) .

@@ -506,6 +506,68 @@ The invented point is not refused; it comes back with a `fail` on the
 rows that are about the operator underneath, which is the information a
 refusal would have thrown away.
 
+## Enclosing a gap eigenvalue
+
+The second-order relative spectrum solves the quadratic pencil
+`P_n H^2 P_n - 2 z H_n + z^2 I`. Its first coefficient includes the two
+rows that connect the section to the rest of the sequence. For each
+exact root `z`, the interval `[Re(z) - abs(Im(z)), Re(z) + abs(Im(z))]`
+intersects the spectrum. An interval wholly inside an essential-spectrum
+gap contains a discrete eigenvalue. This is the enclosure theorem of
+[Levitin and Shargorodsky](https://arxiv.org/abs/math/0212087), also
+used by [Boulton and Levitin](https://arxiv.org/abs/math/0702420).
+
+``` r
+
+enclosed <- eigs(defect, k = 1, sigma = -0.58, method = "second_order",
+                 tol = 1e-5)
+enclosed$roots
+#> [1] -0.5839872+7.26991e-06i
+enclosed$enclosures
+#>           lower    upper
+#> [1,] -0.5839945 -0.58398
+certificate(enclosed)$checks[c("check", "status", "source", "guarantee")]
+#>                    check      status      source           guarantee
+#> 1       arithmetic floor        pass     theorem deterministic_bound
+#> 2        finite residual        pass computation            identity
+#> 3       truncation bound        pass     theorem deterministic_bound
+#> 4 second-order inclusion        pass     theorem deterministic_bound
+#> 5              isolation        pass     theorem deterministic_bound
+#> 6              enclosure        pass     theorem deterministic_bound
+#> 7        target identity not_checked computation            estimate
+#> 8       gap completeness not_checked computation            estimate
+#> 9            convergence        pass computation            identity
+```
+
+The reported intervals use the root’s vector to validate its radius on
+the original operator, with an operation-count roundoff bound. `section`
+controls the width search; `eigs(finite_section(defect, n), ...)` fixes
+its width.
+
+A dissipative barrier adds `i * gamma * P` to the section, with `P`
+projecting onto an interior window of sites. An eigenvector concentrated
+in that window has `Im(z)/gamma` close to one. The barrier separates
+candidates by their imaginary displacement, as analysed by [Marletta and
+Scheichl](https://ems.press/content/serial-article-files/33475).
+
+``` r
+
+barrier_fit <- eigs(finite_section(defect, 100), k = 1, sigma = -0.58,
+                    method = "dissipative", tol = 1e-3,
+                    barrier = list(gamma = 0.01, n = 40))
+certificate(barrier_fit)$values$barrier_ratio
+#> [1] 0.999864
+barrier_fit$enclosures
+#>           lower     upper
+#> [1,] -0.5841043 -0.583871
+```
+
+The barrier classification carries `guarantee = "estimate"`. The
+enclosure and isolation rows validate existence on the original
+self-adjoint operator. For either method, `gap completeness` remains
+`not_checked`: the calculation establishes existence in its isolated
+intervals. The rest of the gap remains unresolved.
+
 ## Functions on the circle
 
 A function on the circle is its Fourier coefficients, a sequence on the
@@ -522,27 +584,22 @@ a <- 2
 Hc <- linop_space("fourier", multiplier = c(-a^2 / 4, -a / 2, a^2 / 2, -a / 2, -a^2 / 4))
 gs <- eigs(Hc, k = 1, which = "smallest_algebraic")
 c(value = gs$values, width = gs$n)
-#>         value         width 
-#> -4.516328e-17  1.600000e+01
+#>        value        width 
+#> 3.650369e-17 1.600000e+01
 gs$certificate
 #> solved by primme on a finite section (operator on l^2(Z); width 16, stopped because the tail is below half the tolerance)
 #> ------------------------------------------------------------------------------------------
 #> check                          status       source           guarantee             conf
 #> ------------------------------------------------------------------------------------------
 #> arithmetic floor               pass         construction     deterministic_bound   1
-#> finite residual                fail         computation      identity              1
+#> finite residual                pass         computation      identity              1
 #> orthogonality                  pass         computation      identity              1
 #> truncation bound               pass         theorem          deterministic_bound   1
 #> target identity                not_checked  computation      identity              -
-#> convergence                    fail         computation      identity              1
-#> forward error                  fail         theorem          deterministic_bound   1
+#> convergence                    pass         computation      identity              1
+#> forward error                  pass         theorem          deterministic_bound   1
 #> ------------------------------------------------------------------------------------------
-#> overall                        fail   no deterministic bound on: target identity
-#> 
-#> failures:
-#>   finite residual: worst ||H_n u - q u|| / ||u|| = 1.553e-08 against 7.000e-10; 63 of 660 iterations
-#>   convergence: 0 of 1 requested pairs converged in 63 of at most 660 iterations; stopped early, the subspace had stopped improving
-#>   forward error: min_j |q - lambda_j(H)| <= 1.553e-08 = sqrt(1.553e-08^2 + 1.284e-11^2) + 2.345e-13 against 7.000e-10; the spectrum is discrete, so lambda_j is an eigenvalue
+#> overall                        qualified   no deterministic bound on: target identity
 ```
 
 The truncation row is exact here as it is for the Jacobi operator:
@@ -560,8 +617,85 @@ pair that ranks better:
 ``` r
 
 sort(eigs(linop_space("fourier"), k = 5, which = "smallest_algebraic")$values)
-#> [1] 4.700446e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00
+#> [1] 3.493633e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00
 ```
+
+## Posing a problem with functions
+
+[`linop_space()`](https://gillescolling.com/linop/reference/linop_space.md)
+accepts a function for its multiplier. Chebyshev derivative terms can
+each be a function, and [`solve()`](https://rdrr.io/r/base/solve.html)
+accepts a function for the forcing. The function receives physical
+coordinates: `[-1, 1]` for Chebyshev, a circle of period `2*pi` for
+Fourier, the line for Hermite, and the positive half line for Laguerre.
+These spaces use their existing unit scales.
+
+``` r
+
+L <- linop_space("chebyshev", derivative = c(0, 0, 1),
+                 multiplier = function(x) x,
+                 boundary = list(at = c(-1, 1), derivative = c(0, 0), value = exp))
+u <- solve(L, function(x) (1 + x) * exp(x))
+x <- 0.3
+sum(u * cos((seq_along(u) - 1) * acos(x))) - exp(x)
+#> [1] -4.440892e-16
+certificate(u)
+#> check                          status       source           guarantee             conf
+#> ------------------------------------------------------------------------------------------
+#> finite residual                pass         computation      identity              1
+#> truncation residual            pass         theorem          deterministic_bound   1
+#> backward error                 pass         computation      identity              1
+#> forward error                  not_checked  computation      identity              -
+#> function coefficients 1: multiplier pass         computation      estimate              -
+#> function tail 1: multiplier    pass         theorem          estimate              -
+#> function coefficients 2: boundary$value pass         computation      estimate              -
+#> function tail 2: boundary$value pass         theorem          estimate              -
+#> function coefficients 3: b     pass         computation      estimate              -
+#> function tail 3: b             pass         theorem          estimate              -
+#> ------------------------------------------------------------------------------------------
+#> overall                        qualified   no deterministic bound on: finite residual, truncation residual, backward error, forward error, function coefficients 1: multiplier, function tail 1: multiplier, function coefficients 2: boundary$value, function tail 2: boundary$value, function coefficients 3: b, function tail 3: b
+```
+
+This problem has solution `exp(x)`. The boundary function supplies its
+values at the two endpoints. The multiplier and forcing are sampled on
+grids of 17, 33, 65, … points, with one vectorized call per grid.
+Functions that error on vector input use a detected pointwise evaluation
+mode.
+
+``` r
+
+H <- linop_space("fourier", multiplier = function(x) 4 * sin(x)^2 - 2 * cos(x))
+eigs(H, k = 1, which = "smallest_algebraic")$values
+#> [1] 4.858973e-16
+oscillator <- linop_space("hermite", multiplier = function(x) x^2)
+eigs(oscillator, k = 3, which = "smallest_algebraic")$values
+#> [1] 1 3 5
+```
+
+The constructor uses the `standardChop` coefficient-envelope algorithm
+of Aurentz and Trefethen (2017, <https://doi.org/10.1145/2998442>).
+Chebyshev and Fourier transforms use FFT; Hermite and Laguerre use Gauss
+quadrature in normalized orthogonal polynomials. On the unbounded
+domains this judges a weighted expansion. A global uniform error bound
+requires additional assumptions.
+
+`tol` controls coefficient construction in
+[`linop_space()`](https://gillescolling.com/linop/reference/linop_space.md)
+and defaults to machine epsilon. `nmax` limits each function’s sample
+grid and defaults to 65536. An unresolved function produces an error
+naming the argument. For a function forcing in
+[`solve()`](https://rdrr.io/r/base/solve.html), use
+`control = list(coefficient_tol = ..., nmax = ...)`. The solve tolerance
+controls the equation residual separately.
+
+Every function construction contributes a `computation` / `estimate`
+certificate row with its tail-to-value-scale ratio. Dependent residual
+and spectral rows carry that evidence in `depends_on`.
+[`print()`](https://rdrr.io/r/base/print.html) and
+[`explain()`](https://gillescolling.com/linop/reference/explain.md) show
+the retained length and tail ratio. The computed coefficients and
+sampling record are held on the operator, and in the solve certificate
+for a function forcing.
 
 ## Where to next
 

@@ -13,7 +13,9 @@ linop_space(
   kind = "fourier",
   derivative = c(0, 0, -1),
   multiplier = 0,
-  boundary = NULL
+  boundary = NULL,
+  tol = .Machine$double.eps,
+  nmax = 65536L
 )
 ```
 
@@ -31,6 +33,7 @@ linop_space(
   default, \`c(0, 0, -1)\`, is \`-d^2/dx^2\`. For \`"chebyshev"\` it may
   also be a list of polynomial coefficients \`a_0(x), ..., a_p(x)\`,
   each given by its Chebyshev coefficients, for \`sum a_m(x) u^(m)\`.
+  Each entry of that list may also be a function of \`x\`.
 
 - multiplier:
 
@@ -38,7 +41,13 @@ linop_space(
   from frequency \`-d\` to \`d\` (an odd number of them) on the circle,
   Chebyshev coefficients \`a_0, a_1, ...\` on the interval, monomial
   coefficients \`v_0, v_1, ...\` of \`V(x)\` on the line and half line.
-  A single number is a constant.
+  A single number is a constant. A function of \`x\` is sampled
+  adaptively in the selected space. It must return one finite value per
+  point. Scalar functions that error on vector input are evaluated
+  pointwise after one detected fallback. Certificate construction may
+  make one cached complex vector call to estimate an analytic tail on an
+  ellipse or strip. The sampled maximum and analyticity are estimates.
+  Real-only functions retain coefficient and off-grid estimates.
 
 - boundary:
 
@@ -46,7 +55,22 @@ linop_space(
   \`value\`, and either \`derivative\` (one per condition) or
   \`weights\` (a list of weight vectors over \`u, u', ...\`, for mixed
   conditions), one condition per order of the operator. A term of a sum
-  may omit it; the problem needs it.
+  may omit it; the problem needs it. \`value\` may be a function of the
+  endpoint, or a list with a function or scalar per endpoint. Functions
+  are approximated on the interval first.
+
+- tol:
+
+  Relative tolerance for adaptive function coefficients. Defaults to
+  machine epsilon. Chopping is an estimate recorded in the certificate.
+  Solve and eigen requests may shorten stored multipliers when the
+  estimated sup-norm error fits one tenth of the request and the
+  arithmetic floor permits it.
+
+- nmax:
+
+  Maximum sample grid length for each function. An unresolved function
+  is refused by argument name. Defaults to \`65536\`.
 
 ## Value
 
@@ -96,6 +120,12 @@ diagonal: \`c\` times that operator plus a polynomial \`V(x)\`, with
 \`derivative = c\`. Both are banded operators on coefficient sequences,
 truncated and certified as on the circle.
 
+## References
+
+Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev series.
+ACM Transactions on Mathematical Software 43(4).
+[doi:10.1145/2998442](https://doi.org/10.1145/2998442) .
+
 ## Examples
 
 ``` r
@@ -105,7 +135,7 @@ a <- 2
 H <- linop_space("fourier", multiplier = c(-a^2 / 4, -a / 2, a^2 / 2, -a / 2, -a^2 / 4))
 fit <- eigs(H, k = 1, which = "smallest_algebraic")
 fit$values
-#> [1] -4.516328e-17
+#> [1] 3.650369e-17
 fit$n
 #> [1] 16
 
