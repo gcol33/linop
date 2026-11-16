@@ -7,16 +7,16 @@
 evidence_satisfies(actual, required)
 }
 \arguments{
-\item{actual}{Evidence from [evidence()], or `NULL`.}
+\item{actual}{Evidence from \code{\link[=evidence]{evidence()}}, or \code{NULL}.}
 
-\item{required}{A [requirement()].}
+\item{required}{A \code{\link[=requirement]{requirement()}}.}
 }
 \value{
-`TRUE` or `FALSE`.
+\code{TRUE} or \code{FALSE}.
 }
 \description{
-Recurses into `depends_on`, so a composite built by an unconditional rule from
+Recurses into \code{depends_on}, so a composite built by an unconditional rule from
 user-declared inputs fails any requirement the inputs would have failed
-directly. Without the recursion, `crossprod(A) + crossprod(B)` would report
-bare `construction` and launder the declarations underneath it.
+directly. Without the recursion, \code{crossprod(A) + crossprod(B)} would report
+bare \code{construction} and launder the declarations underneath it.
 }

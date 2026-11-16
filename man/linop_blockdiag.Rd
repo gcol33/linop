@@ -7,10 +7,10 @@
 linop_blockdiag(...)
 }
 \arguments{
-\item{...}{`linop`s or matrices, at least one.}
+\item{...}{\code{linop}s or matrices, at least one.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
 The operator acting on each block of its input with its own operand, blocks

@@ -7,25 +7,25 @@
 decay_rate(A, lambda)
 }
 \arguments{
-\item{A}{A `linop` from [linop_jacobi()], or a [finite_section()] of one.}
+\item{A}{A \code{linop} from \code{\link[=linop_jacobi]{linop_jacobi()}}, or a \code{\link[=finite_section]{finite_section()}} of one.}
 
 \item{lambda}{One or more real values.}
 }
 \value{
-A numeric vector in `(0, 1)`, with `NA` where `lambda` lies in the
-  essential spectrum.
+A numeric vector in \verb{(0, 1)}, with \code{NA} where \code{lambda} lies in the
+essential spectrum.
 }
 \description{
 Outside the window the eigenvalue equation is the free recurrence
-`b (u[j-1] + u[j+1]) + a u[j] = lambda u[j]`, whose solutions are `z^j` for
-the two roots of `z^2 - mu z + 1` with `mu = (lambda - a_inf) / b_inf`. The
-roots are reciprocal, so for `|mu| > 2` exactly one lies inside the unit disc, and
-membership in `l^2` forces it on each side. An eigenvector is therefore
-*exactly* geometric outside the window, at the rate this returns, rather than
+\verb{b (u[j-1] + u[j+1]) + a u[j] = lambda u[j]}, whose solutions are \code{z^j} for
+the two roots of \verb{z^2 - mu z + 1} with \code{mu = (lambda - a_inf) / b_inf}. The
+roots are reciprocal, so for \verb{|mu| > 2} exactly one lies inside the unit disc, and
+membership in \code{l^2} forces it on each side. An eigenvector is therefore
+\emph{exactly} geometric outside the window, at the rate this returns, rather than
 asymptotically so.
 }
 \details{
-`NA` for a value inside the essential spectrum: there both roots lie on the
+\code{NA} for a value inside the essential spectrum: there both roots lie on the
 unit circle, nothing decays, and there is no eigenvector to decay.
 }
 \examples{

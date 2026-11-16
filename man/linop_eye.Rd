@@ -9,10 +9,10 @@ linop_eye(n, dtype = "double")
 \arguments{
 \item{n}{Dimension.}
 
-\item{dtype}{`"double"` or `"complex"`.}
+\item{dtype}{\code{"double"} or \code{"complex"}.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
 Identity operator

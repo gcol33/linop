@@ -13,15 +13,15 @@ adjoint(x, ...)
 \method{adjoint}{default}(x, ...)
 }
 \arguments{
-\item{x}{A `linop`.}
+\item{x}{A \code{linop}.}
 
 \item{...}{Unused.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
-Distinct from [t()], which is the transpose. For a real operator the two have
+Distinct from \code{\link[=t]{t()}}, which is the transpose. For a real operator the two have
 the same action; they remain separate nodes so the printed tree keeps showing
 what was written.
 }

@@ -50,7 +50,7 @@ mode_transposes <- function(mode) mode %in% c("T", "C")
 #' @param section `function(A, n)` returning the truncation of an operator of
 #'   this type to the indices `-n` to `n`, or `NULL` when [finite_section()]
 #'   should refuse it. The truncation is a node of its own, holding this one.
-#' @param solve `function(A, b, args)` answering [solve()] on an operator of
+#' @param solve `function(A, b, args)` answering [`solve()`][solve.linop] on an operator of
 #'   this type that has no matrix, or `NULL` to be refused.
 #' @param methods Named list of `function(A, k, control, args)`, each answering
 #'   [eigs()] for the `method =` value it is named by, on an operator of this

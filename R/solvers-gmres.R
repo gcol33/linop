@@ -181,7 +181,7 @@ gmres_solve <- function(A, b, preconditioner = NULL, tol = 1e-8, restart = 30L,
 
 #' Solve A x = b by flexible GMRES
 #'
-#' The same iteration as [gmres_solve()], allowed to see a preconditioner that
+#' The same iteration as `gmres_solve()`, allowed to see a preconditioner that
 #' changes between applications. An inner solve run to a loose tolerance is the
 #' canonical case, and it is the only method in v0.1 that accepts one.
 #'

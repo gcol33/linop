@@ -7,14 +7,14 @@
 linop_perm(p)
 }
 \arguments{
-\item{p}{A permutation of `1:n`.}
+\item{p}{A permutation of \code{1:n}.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
-The operator taking `x` to `x[p]`. Its transpose is its inverse, so it is
-unitary by construction, and it is symmetric exactly when `p` is an
+The operator taking \code{x} to \code{x[p]}. Its transpose is its inverse, so it is
+unitary by construction, and it is symmetric exactly when \code{p} is an
 involution.
 }
 \examples{

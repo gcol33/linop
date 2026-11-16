@@ -11,6 +11,7 @@ Description: Linear operators defined by their action rather than their entries.
     operator satisfies the contract.
 License: MIT + file LICENSE
 Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
 Depends: R (>= 4.4.0)
 Suggests: Matrix, RSpectra, linop.primme, DelayedArray, torch, bigmemory,
     testthat (>= 3.0.0), knitr, rmarkdown

@@ -7,13 +7,13 @@
 linop_cost(A)
 }
 \arguments{
-\item{A}{A `linop`.}
+\item{A}{A \code{linop}.}
 }
 \value{
 A numeric flop estimate.
 }
 \description{
 An ordering heuristic only. S0.2 measured cases where a wider block is
-*slower* per column for memory-bound operators, which a flop count cannot
+\emph{slower} per column for memory-bound operators, which a flop count cannot
 express, so this must never be read as a predictor of wall time.
 }

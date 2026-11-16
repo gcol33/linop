@@ -7,19 +7,19 @@
 evidence(source, guarantee, confidence = NA_real_, depends_on = list())
 }
 \arguments{
-\item{source}{One of `construction`, `adapter_contract`, `user_declaration`,
-`probe`, `computation`, `theorem`.}
+\item{source}{One of \code{construction}, \code{adapter_contract}, \code{user_declaration},
+\code{probe}, \code{computation}, \code{theorem}.}
 
-\item{guarantee}{One of `identity`, `deterministic_bound`,
-`probabilistic_bound`, `estimate`, `heuristic`.}
+\item{guarantee}{One of \code{identity}, \code{deterministic_bound},
+\code{probabilistic_bound}, \code{estimate}, \code{heuristic}.}
 
-\item{confidence}{`1`, a stated probability, or `NA`.}
+\item{confidence}{\code{1}, a stated probability, or \code{NA}.}
 
 \item{depends_on}{List of evidence objects this one rests on. Empty when the
 rule is unconditional.}
 }
 \value{
-An object of class `linop_evidence`.
+An object of class \code{linop_evidence}.
 }
 \description{
 Describe the argument behind a capability value

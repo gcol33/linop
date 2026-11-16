@@ -19,51 +19,51 @@ svds(
 )
 }
 \arguments{
-\item{A}{A `linop`. Both the forward action and the adjoint are needed.}
+\item{A}{A \code{linop}. Both the forward action and the adjoint are needed.}
 
 \item{k}{How many singular triplets.}
 
-\item{which}{`"largest"` or `"smallest"`. RSpectra's `"LM"` and `"SM"` are
+\item{which}{\code{"largest"} or \code{"smallest"}. RSpectra's \code{"LM"} and \code{"SM"} are
 accepted for the same two. The algebraic forms are not separate names here
 because a singular value is non-negative.}
 
 \item{tol}{Convergence tolerance on the backward error and the relative
 residual of the augmented eigenpair, each plus the arithmetic floor: the
-certificate's `backward error` and `residual` rows.}
+certificate's \verb{backward error} and \code{residual} rows.}
 
 \item{maxit}{Total applies of the operator, in either mode, across all
-restarts. `NULL` takes `20 min(m, n)` for an `m x n` operator, the rule
-[eigs()] uses on the dimension the singular vectors are sought in.}
+restarts. \code{NULL} takes \verb{20 min(m, n)} for an \verb{m x n} operator, the rule
+\code{\link[=eigs]{eigs()}} uses on the dimension the singular vectors are sought in.}
 
-\item{ncv}{Subspace size per restart. Storage is `ncv` vectors of each
-length. `NULL` takes the engine's default.}
+\item{ncv}{Subspace size per restart. Storage is \code{ncv} vectors of each
+length. \code{NULL} takes the engine's default.}
 
-\item{v0}{Starting vector in the domain, or `NULL` for a seeded random one.
-`"golub-kahan"` only.}
+\item{v0}{Starting vector in the domain, or \code{NULL} for a seeded random one.
+\code{"golub-kahan"} only.}
 
 \item{seed}{Seed for the starting vector. The caller's random stream is
 restored afterwards.}
 
-\item{method}{`"auto"`, `"golub-kahan"`, `"primme"` or `"rspectra"`.
-`"golub-kahan"` is the reference implementation in this package; `"primme"`
-is the PRIMME library, available when the `linop.primme` package is
-installed; `"rspectra"` is the Spectra library through the RSpectra package,
+\item{method}{\code{"auto"}, \code{"golub-kahan"}, \code{"primme"} or \code{"rspectra"}.
+\code{"golub-kahan"} is the reference implementation in this package; \code{"primme"}
+is the PRIMME library, available when the \code{linop.primme} package is
+installed; \code{"rspectra"} is the Spectra library through the RSpectra package,
 for the largest singular values of a real operator, and is never chosen by
-`"auto"`. `"auto"` takes
+\code{"auto"}. \code{"auto"} takes
 PRIMME when it is available and Golub-Kahan otherwise, and the
-certificate's `dispatch` records every engine considered and why. The
-reported singular values are Rayleigh quotients `Re(u^H A v)` of the
-returned unit vectors, measured on `A`, whichever engine ran.}
+certificate's \code{dispatch} records every engine considered and why. The
+reported singular values are Rayleigh quotients \verb{Re(u^H A v)} of the
+returned unit vectors, measured on \code{A}, whichever engine ran.}
 
-\item{floor_const}{`c` in the arithmetic floor of the certificate.}
+\item{floor_const}{\code{c} in the arithmetic floor of the certificate.}
 
-\item{norm_control}{Arguments for the `||A||` estimate.}
+\item{norm_control}{Arguments for the \verb{||A||} estimate.}
 }
 \value{
-An object of class `linop_svd`, with `d`, `u`, `v` and the
-  `certificate`. A run that exhausts its budget returns the best triplets it
-  reached and a `fail` certificate rather than an error, and it may hold fewer
-  than `k` of them: nothing is padded.
+An object of class \code{linop_svd}, with \code{d}, \code{u}, \code{v} and the
+\code{certificate}. A run that exhausts its budget returns the best triplets it
+reached and a \code{fail} certificate rather than an error, and it may hold fewer
+than \code{k} of them: nothing is padded.
 }
 \description{
 Golub-Kahan-Lanczos with full reorthogonalisation, run against the operator's
@@ -73,10 +73,10 @@ values.
 }
 \details{
 The certificate is the certificate of the corresponding eigenpair of the
-hermitian augmented operator, so `residual`, `backward error` and
-`forward error` mean there exactly what they mean for [eigs()].
+hermitian augmented operator, so \code{residual}, \verb{backward error} and
+\verb{forward error} mean there exactly what they mean for \code{\link[=eigs]{eigs()}}.
 
-`which = "smallest"` is accepted and is the hard end of the problem: a Krylov
+\code{which = "smallest"} is accepted and is the hard end of the problem: a Krylov
 space reaches the largest singular values first, so the smallest need a
 subspace approaching the rank of the operator. The certificate reports what was
 reached rather than the request being refused.

@@ -9,10 +9,10 @@ linop_scaling(d, properties = NULL)
 \arguments{
 \item{d}{The diagonal.}
 
-\item{properties}{Declared capabilities, as in [linop()].}
+\item{properties}{Declared capabilities, as in \code{\link[=linop]{linop()}}.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
 Diagonal operator

@@ -7,30 +7,30 @@
 certificate(x, ...)
 }
 \arguments{
-\item{x}{A result from [solve()], [eigs()], [svds()] or [verify()].}
+\item{x}{A result from \code{\link[=solve.linop]{solve()}}, \code{\link[=eigs]{eigs()}}, \code{\link[=svds]{svds()}} or \code{\link[=verify]{verify()}}.}
 
 \item{...}{Unused.}
 }
 \value{
-An object of class `linop_certificate`.
+An object of class \code{linop_certificate}.
 }
 \description{
 Every verb in this package that computes something returns a certificate with
 it, and each puts it where its own return value has room. A solve carries it
 in an attribute, so the result stays the matrix a matrix solve returns; the
-spectral verbs carry it in a field of their result; [verify()] returns one
+spectral verbs carry it in a field of their result; \code{\link[=verify]{verify()}} returns one
 directly. This reads it off any of them.
 }
 \details{
 A certificate belongs to a result and not to an operator. An operator on its
 own has nothing to certify: the claims a certificate makes are about a
 computation, and the one claim an operator can make alone is that it satisfies
-the contract, which is [verify()] and returns a certificate of its own.
+the contract, which is \code{\link[=verify]{verify()}} and returns a certificate of its own.
 
 A solve's attribute survives arithmetic on the solution and is dropped by
-indexing, `as.numeric()`, `c()` and the reductions. So the cost of [solve()]
+indexing, \code{as.numeric()}, \code{c()} and the reductions. So the cost of \code{\link[=solve.linop]{solve()}}
 returning what a matrix solve returns is not that the certificate is easily
-lost: it is that `2 * x` still carries a certificate describing `x`.
+lost: it is that \code{2 * x} still carries a certificate describing \code{x}.
 }
 \examples{
 A <- linop(diag(c(2, 3, 4)), properties = c(hermitian = TRUE,

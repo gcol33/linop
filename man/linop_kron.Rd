@@ -7,15 +7,15 @@
 linop_kron(A, B)
 }
 \arguments{
-\item{A, B}{`linop`s or matrices.}
+\item{A, B}{\code{linop}s or matrices.}
 }
 \value{
-A `linop` of dimension `nrow(A) nrow(B)` by `ncol(A) ncol(B)`.
+A \code{linop} of dimension \verb{nrow(A) nrow(B)} by \verb{ncol(A) ncol(B)}.
 }
 \description{
-`A (x) B`, in the ordering of base R's [kronecker()]: the block in row block
-`i` and column block `j` is `A[i, j] * B`. It is applied without forming
-either factor's entries, as `vec(B X A^T)`, at one apply of each factor per
+\verb{A (x) B}, in the ordering of base R's \code{\link[base:kronecker]{base::kronecker()}}: the block in row block
+\code{i} and column block \code{j} is \code{A[i, j] * B}. It is applied without forming
+either factor's entries, as \verb{vec(B X A^T)}, at one apply of each factor per
 block of right-hand sides. Hermitian, symmetric, definite, unitary, diagonal,
 triangular and real carry over when both factors have them.
 }

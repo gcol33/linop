@@ -10,7 +10,7 @@ is_linop(x)
 \item{x}{Any object.}
 }
 \value{
-`TRUE` or `FALSE`.
+\code{TRUE} or \code{FALSE}.
 }
 \description{
 Is this a linop?

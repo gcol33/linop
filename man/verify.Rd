@@ -13,7 +13,7 @@ verify(x, ...)
 \method{verify}{linop}(x, tol = 1e-08, n_probe = 10L, seed = 1L, block = c(1L, 3L), ...)
 }
 \arguments{
-\item{x}{A `linop`, or a solver result.}
+\item{x}{A \code{linop}, or a solver result.}
 
 \item{tol}{Relative tolerance.}
 
@@ -26,7 +26,7 @@ verify(x, ...)
 \item{block}{Block widths to test.}
 }
 \value{
-An object of class `linop_certificate`.
+An object of class \code{linop_certificate}.
 }
 \description{
 Called on an operator, asks whether it satisfies the contract. Called on a

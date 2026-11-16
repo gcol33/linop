@@ -7,13 +7,13 @@
 as_preconditioner_inverse(P, ...)
 }
 \arguments{
-\item{P}{A `linop` approximating `A^-1`.}
+\item{P}{A \code{linop} approximating \code{A^-1}.}
 
-\item{...}{Passed to [preconditioner()].}
+\item{...}{Passed to \code{\link[=preconditioner]{preconditioner()}}.}
 }
 \value{
-A `preconditioner`.
+A \code{preconditioner}.
 }
 \description{
-Applied by computing `z = P r`.
+Applied by computing \verb{z = P r}.
 }

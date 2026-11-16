@@ -7,7 +7,7 @@
 explain(A)
 }
 \arguments{
-\item{A}{A `linop`.}
+\item{A}{A \code{linop}.}
 }
 \value{
 Invisibly, a data frame of nodes.

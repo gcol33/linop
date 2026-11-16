@@ -52,7 +52,7 @@
 #'   as well as `M^-1`.
 #' @param tol Relative tolerance, applied to `||b - A x|| / ||b||` where the
 #'   system is compatible and to `||A^H r|| / (||A|| ||r||)` where it is not.
-#'   Both are backward errors; see [solve_certificate()].
+#'   Both are backward errors; see `solve_certificate()`.
 #' @param maxit Iteration budget. Defaults to `10 * n`.
 #' @param x0 Starting iterate, or `NULL` for zero.
 #' @param history Record every column's estimated residual at every iteration.

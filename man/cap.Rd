@@ -7,12 +7,12 @@
 cap(A, name)
 }
 \arguments{
-\item{A}{A `linop`.}
+\item{A}{A \code{linop}.}
 
 \item{name}{A capability name.}
 }
 \value{
-The `linop_capability`, or an unknown capability if absent.
+The \code{linop_capability}, or an unknown capability if absent.
 }
 \description{
 Read a capability off an operator

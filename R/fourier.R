@@ -43,7 +43,6 @@ fourier_apply <- function(op, X, mode) {
 #' function is its Fourier coefficients, a sequence on the integers, and the
 #' operator is a constant-coefficient differential operator plus multiplication
 #' by a trigonometric polynomial,
-#'
 #' `H u = sum_m derivative[m + 1] (d/dx)^m u + V u`, with
 #' `V(x) = sum_j multiplier[j + d + 1] exp(i j x)`.
 #'
@@ -60,7 +59,7 @@ fourier_apply <- function(op, X, mode) {
 #' coefficients, the operator `sum_m c_m u^(m) + a(x) u` is held in the
 #' ultraspherical method (Olver and Townsend), mapping Chebyshev coefficients to
 #' those of the ultraspherical basis `C^(p)` where it is banded, and `boundary`
-#' gives one condition `u^(d)(+-1) = value` per order. [solve()] takes the
+#' gives one condition `u^(d)(+-1) = value` per order. [`solve()`][solve.linop] takes the
 #' Chebyshev coefficients of the right-hand side and returns those of the
 #' solution, and [eigs()] with `which = "smallest"` the eigenvalues of smallest
 #' magnitude; both choose the number of coefficients and certify the exact

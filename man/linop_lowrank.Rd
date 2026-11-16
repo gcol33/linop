@@ -7,19 +7,19 @@
 linop_lowrank(U, V = U, d = rep(1, ncol(U)))
 }
 \arguments{
-\item{U}{An `m x r` matrix.}
+\item{U}{An \verb{m x r} matrix.}
 
-\item{V}{An `n x r` matrix, by default `U`.}
+\item{V}{An \verb{n x r} matrix, by default \code{U}.}
 
-\item{d}{The `r` weights, by default all one.}
+\item{d}{The \code{r} weights, by default all one.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
-`U diag(d) V^H`, applied as three thin products, `(m + n) r` work per column
-for rank `r`. With `V` left at `U` and `d` real, it is hermitian by
-construction, and positive semidefinite when `d` is also non-negative. A rank
+\verb{U diag(d) V^H}, applied as three thin products, \verb{(m + n) r} work per column
+for rank \code{r}. With \code{V} left at \code{U} and \code{d} real, it is hermitian by
+construction, and positive semidefinite when \code{d} is also non-negative. A rank
 of zero is the zero operator.
 }
 \examples{

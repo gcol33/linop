@@ -7,9 +7,9 @@
 \method{as.matrix}{linop}(x, max_entries = 1e+07, ...)
 }
 \arguments{
-\item{x}{A `linop`.}
+\item{x}{A \code{linop}.}
 
-\item{max_entries}{Guard on `nrow * ncol`. Raise it deliberately.}
+\item{max_entries}{Guard on \code{nrow * ncol}. Raise it deliberately.}
 
 \item{...}{Unused.}
 }

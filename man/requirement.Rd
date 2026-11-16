@@ -15,10 +15,10 @@ requirement(
 
 \item{guarantees}{Acceptable guarantee kinds.}
 
-\item{min_confidence}{Minimum confidence, or `NA` to not require one.}
+\item{min_confidence}{Minimum confidence, or \code{NA} to not require one.}
 }
 \value{
-An object of class `linop_requirement`.
+An object of class \code{linop_requirement}.
 }
 \description{
 State what evidence a solver will accept

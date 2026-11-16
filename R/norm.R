@@ -37,7 +37,7 @@ expr_has_adjoint <- function(A) {
 #'
 #' @param A A `linop`.
 #' @param tol Relative change at which the power iteration stops. The arithmetic
-#'   floor of [solve_certificate()] scales linearly in the norm, so a value good
+#'   floor of `solve_certificate()` scales linearly in the norm, so a value good
 #'   to a few percent is ample and the default is loose accordingly.
 #' @param maxit Power-iteration budget.
 #' @param seed Seed for the starting vector, so the estimate is reproducible.

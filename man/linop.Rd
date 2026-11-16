@@ -39,49 +39,49 @@ linop(x, ...)
 \method{linop}{default}(x, properties = NULL, ...)
 }
 \arguments{
-\item{x}{A matrix, a `Matrix`, a function implementing the forward action, or
-any object with a `linop()` method.}
+\item{x}{A matrix, a \code{Matrix}, a function implementing the forward action, or
+any object with a \code{linop()} method.}
 
 \item{properties}{A named logical vector of declared capabilities, for
-example `c(hermitian = TRUE, positive_definite = TRUE)`. A bare character
-vector is accepted as shorthand for all-`TRUE`. Declared properties are
-recorded with `source = "user_declaration"`.}
+example \code{c(hermitian = TRUE, positive_definite = TRUE)}. A bare character
+vector is accepted as shorthand for all-\code{TRUE}. Declared properties are
+recorded with \code{source = "user_declaration"}.}
 
 \item{...}{Passed to methods.}
 
 \item{adjoint}{For the callback form, a function implementing the action of
 the conjugate transpose.}
 
-\item{dim}{For the callback form, `c(nrow, ncol)`.}
+\item{dim}{For the callback form, \code{c(nrow, ncol)}.}
 
-\item{dtype}{`"double"` or `"complex"`.}
+\item{dtype}{\code{"double"} or \code{"complex"}.}
 
 \item{cost}{Estimated flops per column.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
-One generic, dispatching on its first argument. A matrix or `Matrix` becomes
+One generic, dispatching on its first argument. A matrix or \code{Matrix} becomes
 an operator wrapping that storage; a function becomes a callback operator.
-Third-party packages implement `linop.myclass()` and nothing else.
+Third-party packages implement \code{linop.myclass()} and nothing else.
 }
 \details{
-A `DelayedMatrix` (from the DelayedArray package, which also covers
-  HDF5-backed matrices from HDF5Array) becomes a callback leaf applied by
-  DelayedArray's block-processed product, so the matrix is never read whole.
+A \code{DelayedMatrix} (from the DelayedArray package, which also covers
+HDF5-backed matrices from HDF5Array) becomes a callback leaf applied by
+DelayedArray's block-processed product, so the matrix is never read whole.
 
-A two-dimensional `torch_tensor` becomes a callback leaf applied by
-  torch's matrix product on the tensor's device, with each block copied to the
-  device and back. Only `float64` and `complex128` tensors are taken: a
-  single-precision apply carries an error near 1e-7 that the certificates'
-  arithmetic floor, written for double precision, would not see.
+A two-dimensional \code{torch_tensor} becomes a callback leaf applied by
+torch's matrix product on the tensor's device, with each block copied to the
+device and back. Only \code{float64} and \code{complex128} tensors are taken: a
+single-precision apply carries an error near 1e-7 that the certificates'
+arithmetic floor, written for double precision, would not see.
 
-A `big.matrix` (bigmemory, including a file-backed, memory-mapped
-  one) becomes a callback leaf that reads it a block of rows at a time, so at
-  most one block is in memory. bigmemory stores real numbers only.
+A \code{big.matrix} (bigmemory, including a file-backed, memory-mapped
+one) becomes a callback leaf that reads it a block of rows at a time, so at
+most one block is in memory. bigmemory stores real numbers only.
 
-A `linop` behaves like a matrix: use ordinary matrix operations.
+A \code{linop} behaves like a matrix: use ordinary matrix operations.
 }
 \examples{
 A <- linop(diag(c(3, 2, 1)))

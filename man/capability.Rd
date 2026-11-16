@@ -7,13 +7,13 @@
 capability(value, evidence = NULL)
 }
 \arguments{
-\item{value}{`TRUE`, `FALSE`, or `NA`. `NA` means unknown and is never read
-as `FALSE`.}
+\item{value}{\code{TRUE}, \code{FALSE}, or \code{NA}. \code{NA} means unknown and is never read
+as \code{FALSE}.}
 
-\item{evidence}{An object from [evidence()], or `NULL` when `value` is `NA`.}
+\item{evidence}{An object from \code{\link[=evidence]{evidence()}}, or \code{NULL} when \code{value} is \code{NA}.}
 }
 \value{
-An object of class `linop_capability`.
+An object of class \code{linop_capability}.
 }
 \description{
 A capability value together with its evidence

@@ -91,7 +91,7 @@
 
 
 <dl><dt id="arg-apply-inverse">apply_inverse<a class="anchor" aria-label="anchor" href="#arg-apply-inverse"></a></dt>
-<dd><p>`function(R)` returning `z = M^-1 r`, always this
+<dd><p><code>function(R)</code> returning <code>z = M^-1 r</code>, always this
 direction.</p></dd>
 
 
@@ -105,23 +105,23 @@ rejected by solvers that require a fixed one.</p></dd>
 
 
 <dt id="arg-side">side<a class="anchor" aria-label="anchor" href="#arg-side"></a></dt>
-<dd><p>`"left"`, `"right"` or `"split"`.</p></dd>
+<dd><p><code>"left"</code>, <code>"right"</code> or <code>"split"</code>.</p></dd>
 
 
 <dt id="arg-dim">dim<a class="anchor" aria-label="anchor" href="#arg-dim"></a></dt>
-<dd><p>`c(n, n)`.</p></dd>
+<dd><p><code>c(n, n)</code>.</p></dd>
 
 
 <dt id="arg-apply-inverse-adjoint">apply_inverse_adjoint<a class="anchor" aria-label="anchor" href="#arg-apply-inverse-adjoint"></a></dt>
-<dd><p>`function(R)` returning `M^-H r`. Needed only by
-a method that runs on `A M^-1` and has to apply its adjoint, which in v0.1
-is LSQR and LSMR. A hermitian `M` supplies it for nothing, since
-`M^-H = M^-1` there, so this is for the case where the two differ.</p></dd>
+<dd><p><code>function(R)</code> returning <code>M^-H r</code>. Needed only by
+a method that runs on <code>A M^-1</code> and has to apply its adjoint, which in v0.1
+is LSQR and LSMR. A hermitian <code>M</code> supplies it for nothing, since
+<code>M^-H = M^-1</code> there, so this is for the case where the two differ.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class `preconditioner`.</p>
+    <p>An object of class <code>preconditioner</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -15,7 +15,7 @@ preconditioner(
 )
 }
 \arguments{
-\item{apply_inverse}{`function(R)` returning `z = M^-1 r`, always this
+\item{apply_inverse}{\verb{function(R)} returning \verb{z = M^-1 r}, always this
 direction.}
 
 \item{fixed}{Is the map fixed across calls? A flexible preconditioner is
@@ -23,17 +23,17 @@ rejected by solvers that require a fixed one.}
 
 \item{hermitian, positive_definite}{Declared properties, three-valued.}
 
-\item{side}{`"left"`, `"right"` or `"split"`.}
+\item{side}{\code{"left"}, \code{"right"} or \code{"split"}.}
 
-\item{dim}{`c(n, n)`.}
+\item{dim}{\code{c(n, n)}.}
 
-\item{apply_inverse_adjoint}{`function(R)` returning `M^-H r`. Needed only by
-a method that runs on `A M^-1` and has to apply its adjoint, which in v0.1
-is LSQR and LSMR. A hermitian `M` supplies it for nothing, since
-`M^-H = M^-1` there, so this is for the case where the two differ.}
+\item{apply_inverse_adjoint}{\verb{function(R)} returning \verb{M^-H r}. Needed only by
+a method that runs on \verb{A M^-1} and has to apply its adjoint, which in v0.1
+is LSQR and LSMR. A hermitian \code{M} supplies it for nothing, since
+\code{M^-H = M^-1} there, so this is for the case where the two differ.}
 }
 \value{
-An object of class `preconditioner`.
+An object of class \code{preconditioner}.
 }
 \description{
 Build a preconditioner

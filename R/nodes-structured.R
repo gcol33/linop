@@ -55,7 +55,7 @@ kron_materialize <- function(op) {
 
 #' Kronecker product of two operators
 #'
-#' `A (x) B`, in the ordering of base R's [kronecker()]: the block in row block
+#' `A (x) B`, in the ordering of base R's [base::kronecker()]: the block in row block
 #' `i` and column block `j` is `A[i, j] * B`. It is applied without forming
 #' either factor's entries, as `vec(B X A^T)`, at one apply of each factor per
 #' block of right-hand sides. Hermitian, symmetric, definite, unitary, diagonal,

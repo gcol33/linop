@@ -7,12 +7,12 @@
 as_sparse(A, max_entries = 1e+07)
 }
 \arguments{
-\item{A}{A `linop`.}
+\item{A}{A \code{linop}.}
 
-\item{max_entries}{Guard on `nrow * ncol`.}
+\item{max_entries}{Guard on \code{nrow * ncol}.}
 }
 \value{
-A `Matrix` object.
+A \code{Matrix} object.
 }
 \description{
 Materialise an operator as a sparse matrix

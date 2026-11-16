@@ -10,7 +10,7 @@ promote(a, b)
 \item{a, b}{Scalar type labels.}
 }
 \value{
-`"complex"` if either is complex, else `"double"`.
+\code{"complex"} if either is complex, else \code{"double"}.
 }
 \description{
 Promote two scalar types

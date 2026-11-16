@@ -18,61 +18,61 @@
 )
 }
 \arguments{
-\item{a}{A `linop`.}
+\item{a}{A \code{linop}.}
 
 \item{b}{A vector or block of right-hand sides, or missing for the exact
 inverse.
-For a Chebyshev operator, Chebyshev coefficients or a function of `x` on
-`[-1, 1]`; function coefficients are constructed adaptively and their
+For a Chebyshev operator, Chebyshev coefficients or a function of \code{x} on
+\verb{[-1, 1]}; function coefficients are constructed adaptively and their
 estimated tail is recorded in the certificate.}
 
-\item{method}{`"auto"`, or one of `"cg"`, `"minres"`, `"gmres"`, `"fgmres"`,
-`"bicgstab"`, `"lsqr"`, `"lsmr"`. Naming a method is the caller asserting
-their own declaration and is not filtered by evidence; `"auto"` is the
+\item{method}{\code{"auto"}, or one of \code{"cg"}, \code{"minres"}, \code{"gmres"}, \code{"fgmres"},
+\code{"bicgstab"}, \code{"lsqr"}, \code{"lsmr"}. Naming a method is the caller asserting
+their own declaration and is not filtered by evidence; \code{"auto"} is the
 package choosing, and applies each method's declared evidence minimum.}
 
-\item{preconditioner}{A `preconditioner`, or `NULL`.}
+\item{preconditioner}{A \code{preconditioner}, or \code{NULL}.}
 
 \item{tol}{Relative tolerance.}
 
 \item{maxit}{Iteration budget. Defaults to the method's own default.}
 
-\item{x0}{Starting iterate, or `NULL` for zero.}
+\item{x0}{Starting iterate, or \code{NULL} for zero.}
 
 \item{details}{Return the full solve object rather than the solution with the
 certificate attached.}
 
-\item{control}{A list of arguments for the chosen method, such as `restart`
-for GMRES or `conlim` for the bidiagonal methods. A name the method does not
+\item{control}{A list of arguments for the chosen method, such as \code{restart}
+for GMRES or \code{conlim} for the bidiagonal methods. A name the method does not
 take is an error rather than being ignored.
-For a Chebyshev right-hand side supplied as a function, `coefficient_tol`
-and `nmax` control its adaptive construction (machine epsilon and `65536`).}
+For a Chebyshev right-hand side supplied as a function, \code{coefficient_tol}
+and \code{nmax} control its adaptive construction (machine epsilon and \code{65536}).}
 
 \item{...}{Unused.}
 }
 \value{
-By default the solution, a vector for a vector `b` and a matrix
-  otherwise, carrying the certificate in its `"certificate"` attribute.
-  Arithmetic on the result drops that attribute, which is the documented cost
-  of behaving like a matrix. With `details = TRUE`, the full object.
+By default the solution, a vector for a vector \code{b} and a matrix
+otherwise, carrying the certificate in its \code{"certificate"} attribute.
+Arithmetic on the result drops that attribute, which is the documented cost
+of behaving like a matrix. With \code{details = TRUE}, the full object.
 }
 \description{
-Solves `a x = b`. If the operator declares a capability that makes a direct
+Solves \verb{a x = b}. If the operator declares a capability that makes a direct
 solve available, that is used; otherwise one of the seven Krylov methods of
 the package runs. Either way the result records which happened, what residual
 was reached, and what argument establishes it.
 }
 \details{
-With `b` missing, `solve(a)` returns the inverse as a `linop`, but only where
+With \code{b} missing, \code{solve(a)} returns the inverse as a \code{linop}, but only where
 it is exact and fixed before any vector is seen: a stored matrix inverted
 once, or a structure whose inverse is known (identity, nonzero diagonal,
 permutation, unitary, scale, transpose and adjoint, and products, Kronecker
 products, block diagonals and powers of those). An iterative solve is not a
 linear operator, since what it applies depends on the vector it is given, so
-anything else is refused with `solve(a, b)` named.
+anything else is refused with \code{solve(a, b)} named.
 }
 \references{
 Aurentz, J. L. and Trefethen, L. N. (2017). Chopping a Chebyshev
-  series. ACM Transactions on Mathematical Software 43(4).
-  \doi{10.1145/2998442}.
+series. ACM Transactions on Mathematical Software 43(4).
+\doi{10.1145/2998442}.
 }

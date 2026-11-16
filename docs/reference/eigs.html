@@ -114,7 +114,7 @@ bound on the eigenvalues.</p>
 
 
 <dl><dt id="arg-a">A<a class="anchor" aria-label="anchor" href="#arg-a"></a></dt>
-<dd><p>A square `linop`. No adjoint is required.</p></dd>
+<dd><p>A square <code>linop</code>. No adjoint is required.</p></dd>
 
 
 <dt id="arg-k">k<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
@@ -122,64 +122,64 @@ bound on the eigenvalues.</p>
 
 
 <dt id="arg-which">which<a class="anchor" aria-label="anchor" href="#arg-which"></a></dt>
-<dd><p>Which end of the spectrum: `"largest"` or `"smallest"` by
-magnitude, `"largest_algebraic"` or `"smallest_algebraic"` by value (by real
-part for a complex spectrum, also spelled `"largest_real"` and
-`"smallest_real"`), and `"largest_imaginary"` or `"smallest_imaginary"` by
-the magnitude of the imaginary part. RSpectra's `"LM"`, `"SM"`, `"LA"`,
-`"SA"`, `"LR"`, `"SR"`, `"LI"` and `"SI"` are accepted for the same orders.
+<dd><p>Which end of the spectrum: <code>"largest"</code> or <code>"smallest"</code> by
+magnitude, <code>"largest_algebraic"</code> or <code>"smallest_algebraic"</code> by value (by real
+part for a complex spectrum, also spelled <code>"largest_real"</code> and
+<code>"smallest_real"</code>), and <code>"largest_imaginary"</code> or <code>"smallest_imaginary"</code> by
+the magnitude of the imaginary part. RSpectra's <code>"LM"</code>, <code>"SM"</code>, <code>"LA"</code>,
+<code>"SA"</code>, <code>"LR"</code>, <code>"SR"</code>, <code>"LI"</code> and <code>"SI"</code> are accepted for the same orders.
 A hermitian spectrum is real, so the two imaginary orders are refused for an
 operator established hermitian.</p></dd>
 
 
 <dt id="arg-sigma">sigma<a class="anchor" aria-label="anchor" href="#arg-sigma"></a></dt>
-<dd><p>A shift. Given one, the eigenvalues nearest `sigma` are sought,
-by running the same recurrence on `(A - sigma I)^-1` through the package's
+<dd><p>A shift. Given one, the eigenvalues nearest <code>sigma</code> are sought,
+by running the same recurrence on <code>(A - sigma I)^-1</code> through the package's
 own solvers: MINRES for a hermitian operator and a real shift, GMRES
 otherwise. A complex shift is accepted for any operator and runs Arnoldi.
-`which` does not apply and passing both is an error.</p></dd>
+<code>which</code> does not apply and passing both is an error.</p></dd>
 
 
 <dt id="arg-b">B<a class="anchor" aria-label="anchor" href="#arg-b"></a></dt>
-<dd><p>For the generalized problem `A x = lambda B x`: a square `linop` or
-matrix of the same shape as `A`, or `NULL` for the standard problem. With
-`A` established hermitian and `B` established hermitian positive definite,
-Lanczos runs on `B^-1 A` in the `B` inner product, the returned vectors are
-`B`-orthonormal and the `forward error` row bounds each value; otherwise
-Arnoldi runs on `B^-1 A`. A shift runs on `(A - sigma B)^-1 B`. Each step
-solves with `B`, or with `A - sigma B`, through the package's own solvers,
-and `inner` carries the arguments. Values are measured as
-`x^H A x / x^H B x` and the backward error perturbs both operators,
-`||A x - mu B x|| / ((||A|| + |mu| ||B||) ||x||)`.</p></dd>
+<dd><p>For the generalized problem <code>A x = lambda B x</code>: a square <code>linop</code> or
+matrix of the same shape as <code>A</code>, or <code>NULL</code> for the standard problem. With
+<code>A</code> established hermitian and <code>B</code> established hermitian positive definite,
+Lanczos runs on <code>B^-1 A</code> in the <code>B</code> inner product, the returned vectors are
+<code>B</code>-orthonormal and the <code>forward error</code> row bounds each value; otherwise
+Arnoldi runs on <code>B^-1 A</code>. A shift runs on <code>(A - sigma B)^-1 B</code>. Each step
+solves with <code>B</code>, or with <code>A - sigma B</code>, through the package's own solvers,
+and <code>inner</code> carries the arguments. Values are measured as
+<code>x^H A x / x^H B x</code> and the backward error perturbs both operators,
+<code>||A x - mu B x|| / ((||A|| + |mu| ||B||) ||x||)</code>.</p></dd>
 
 
 <dt id="arg-tol">tol<a class="anchor" aria-label="anchor" href="#arg-tol"></a></dt>
 <dd><p>Convergence tolerance. Every method holds each pair, measured on
-`A`, to the backward error `||A x - mu x|| / (||A|| ||x||)` and to the
-relative residual `||A x - mu x|| / (|mu| ||x||)` wherever `|mu|` is above
+<code>A</code>, to the backward error <code>||A x - mu x|| / (||A|| ||x||)</code> and to the
+relative residual <code>||A x - mu x|| / (|mu| ||x||)</code> wherever <code>|mu|</code> is above
 the arithmetic floor, each plus that floor: the certificate's
-`backward error` and `residual` rows.</p></dd>
+<code>backward error</code> and <code>residual</code> rows.</p></dd>
 
 
 <dt id="arg-maxit">maxit<a class="anchor" aria-label="anchor" href="#arg-maxit"></a></dt>
 <dd><p>Budget of applies across all restarts, of the operator the
-iteration runs on: `A`, or under `sigma` the inner solve. `NULL` takes
-`20 n` for an `n x n` operator, twenty times what forming it column by
-column would cost. Hard ends of a spectrum need applies that grow with `n`
-at a fixed `ncv` (seven times `n` for the largest eigenvalue of the 1-D
-Laplacian at `n = 2000`), so the default grows with it. A run that stops
+iteration runs on: <code>A</code>, or under <code>sigma</code> the inner solve. <code>NULL</code> takes
+<code>20 n</code> for an <code>n x n</code> operator, twenty times what forming it column by
+column would cost. Hard ends of a spectrum need applies that grow with <code>n</code>
+at a fixed <code>ncv</code> (seven times <code>n</code> for the largest eigenvalue of the 1-D
+Laplacian at <code>n = 2000</code>), so the default grows with it. A run that stops
 improving ends before the budget does, and a run that exhausts it returns a
-`fail` certificate.</p></dd>
+<code>fail</code> certificate.</p></dd>
 
 
 <dt id="arg-ncv">ncv<a class="anchor" aria-label="anchor" href="#arg-ncv"></a></dt>
-<dd><p>Subspace size per restart. Storage is `ncv` vectors. `NULL`
-takes the engine's default: `max(2k + 1, k + 20)` for `"lanczos"` and
-`"arnoldi"`, and PRIMME's own basis size for `"primme"`.</p></dd>
+<dd><p>Subspace size per restart. Storage is <code>ncv</code> vectors. <code>NULL</code>
+takes the engine's default: <code>max(2k + 1, k + 20)</code> for <code>"lanczos"</code> and
+<code>"arnoldi"</code>, and PRIMME's own basis size for <code>"primme"</code>.</p></dd>
 
 
 <dt id="arg-v-">v0<a class="anchor" aria-label="anchor" href="#arg-v-"></a></dt>
-<dd><p>Starting vector, or `NULL` for a seeded random one.</p></dd>
+<dd><p>Starting vector, or <code>NULL</code> for a seeded random one.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -188,116 +188,116 @@ restored afterwards.</p></dd>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>`"auto"`, `"lanczos"`, `"arnoldi"`, `"primme"` or `"rspectra"`.
-`"lanczos"` is the reference implementation for a hermitian operator and
-`"arnoldi"` for any square one. `"primme"` is the PRIMME library, available
-for a hermitian operator when the `linop.primme` package is installed, which
-restarts implicitly and so keeps a basis of fixed small size. `"rspectra"` is
+<dd><p><code>"auto"</code>, <code>"lanczos"</code>, <code>"arnoldi"</code>, <code>"primme"</code> or <code>"rspectra"</code>.
+<code>"lanczos"</code> is the reference implementation for a hermitian operator and
+<code>"arnoldi"</code> for any square one. <code>"primme"</code> is the PRIMME library, available
+for a hermitian operator when the <code>linop.primme</code> package is installed, which
+restarts implicitly and so keeps a basis of fixed small size. <code>"rspectra"</code> is
 the Spectra library through the RSpectra package, for a real operator only,
-and stops on its own convergence rule; `"auto"` never takes it. `"auto"` takes PRIMME
+and stops on its own convergence rule; <code>"auto"</code> never takes it. <code>"auto"</code> takes PRIMME
 when it is available and the operator is established hermitian, Lanczos when
 only the second holds, and Arnoldi otherwise. Established means computed,
-constructed or proven: a bare `hermitian = TRUE` declaration on a callback
-is acted on only by naming `"lanczos"` or `"primme"`, as `solve()` acts on
-one only for a named method. The certificate's `dispatch`
+constructed or proven: a bare <code>hermitian = TRUE</code> declaration on a callback
+is acted on only by naming <code>"lanczos"</code> or <code>"primme"</code>, as <code><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve()</a></code> acts on
+one only for a named method. The certificate's <code>dispatch</code>
 records every engine considered and why. Whichever runs, the reported
-values are Rayleigh quotients measured on `A` and the certificate is the
-same. For a Jacobi operator with periodic limits, `"second_order"`
-solves the quadratic relative-spectrum pencil and `"dissipative"` solves
+values are Rayleigh quotients measured on <code>A</code> and the certificate is the
+same. For a Jacobi operator with periodic limits, <code>"second_order"</code>
+solves the quadratic relative-spectrum pencil and <code>"dissipative"</code> solves
 the section with an imaginary projection barrier. Both require a real
-`sigma` strictly inside a gap between essential bands. They use dense
-base R eigenproblems and the section width budget; `maxit`, `ncv`, `v0`,
-`B`, `inner` and `norm_control` are refused. Their extraction is
-deterministic and independent of `seed`. Values are real parts of the
-computed roots. Each returned `enclosures` row is validated on the original
+<code>sigma</code> strictly inside a gap between essential bands. They use dense
+base R eigenproblems and the section width budget; <code>maxit</code>, <code>ncv</code>, <code>v0</code>,
+<code>B</code>, <code>inner</code> and <code>norm_control</code> are refused. Their extraction is
+deterministic and independent of <code>seed</code>. Values are real parts of the
+computed roots. Each returned <code>enclosures</code> row is validated on the original
 operator. An interval wholly inside the gap contains a discrete eigenvalue.
 The certificate reports its precision separately from its isolation.</p></dd>
 
 
 <dt id="arg-inner">inner<a class="anchor" aria-label="anchor" href="#arg-inner"></a></dt>
-<dd><p>Arguments for the inner solve when `sigma` or `B` is given,
-such as `method` or `tol`.</p></dd>
+<dd><p>Arguments for the inner solve when <code>sigma</code> or <code>B</code> is given,
+such as <code>method</code> or <code>tol</code>.</p></dd>
 
 
 <dt id="arg-section">section<a class="anchor" aria-label="anchor" href="#arg-section"></a></dt>
-<dd><p>Arguments for the truncation, when `A` is an operator on a
-sequence space and has no matrix: `n_start` for how much free tail the first
-section leaves beyond the window, and `n_max` for the widest section the
+<dd><p>Arguments for the truncation, when <code>A</code> is an operator on a
+sequence space and has no matrix: <code>n_start</code> for how much free tail the first
+section leaves beyond the window, and <code>n_max</code> for the widest section the
 search may reach. The width itself is not among them, because
-`eigs(finite_section(A, n))` is already how a caller fixes it.</p></dd>
+<code>eigs(finite_section(A, n))</code> is already how a caller fixes it.</p></dd>
 
 
 <dt id="arg-floor-const">floor_const<a class="anchor" aria-label="anchor" href="#arg-floor-const"></a></dt>
-<dd><p>`c` in the arithmetic floor of the certificate.</p></dd>
+<dd><p><code>c</code> in the arithmetic floor of the certificate.</p></dd>
 
 
 <dt id="arg-norm-control">norm_control<a class="anchor" aria-label="anchor" href="#arg-norm-control"></a></dt>
-<dd><p>Arguments for the `||A||` estimate.</p></dd>
+<dd><p>Arguments for the <code>||A||</code> estimate.</p></dd>
 
 
 <dt id="arg-barrier">barrier<a class="anchor" aria-label="anchor" href="#arg-barrier"></a></dt>
-<dd><p>For `method = "dissipative"`, a list with positive `gamma`
-(default `0.01`) and projection half-width `n`. The projection is onto
-sites `abs(j) &lt;= n`, must cover the perturbation and must end strictly
-inside the section. With `n = NULL`, it covers half the free tail and
-grows with the section. `Im(root)/gamma &gt; 1/2` is the barrier separation
+<dd><p>For <code>method = "dissipative"</code>, a list with positive <code>gamma</code>
+(default <code>0.01</code>) and projection half-width <code>n</code>. The projection is onto
+sites <code>abs(j) &lt;= n</code>, must cover the perturbation and must end strictly
+inside the section. With <code>n = NULL</code>, it covers half the free tail and
+grows with the section. <code>Im(root)/gamma &gt; 1/2</code> is the barrier separation
 diagnostic, recorded as an estimate. Spectral inclusion is independently
 validated on the original operator. A finite calculation establishes
 existence in its isolated intervals; completeness of the gap stays
-unchecked. For these two methods `floor_const` adds to a mandatory
+unchecked. For these two methods <code>floor_const</code> adds to a mandatory
 operation-count roundoff bound.</p></dd>
 
 
 <dt id="arg-extraction">extraction<a class="anchor" aria-label="anchor" href="#arg-extraction"></a></dt>
-<dd><p>`"ritz"` (ordinary Rayleigh-Ritz) or `"harmonic"`.
-Harmonic extraction requires `target` and uses the plain Krylov space of
-`A`, with harmonic Schur vectors retained at restarts. Each reported value
-is the Rayleigh quotient of its harmonic Ritz vector, measured on `A`.
-Available for the finite standard problem with `"lanczos"` and `"arnoldi"`.</p></dd>
+<dd><p><code>"ritz"</code> (ordinary Rayleigh-Ritz) or <code>"harmonic"</code>.
+Harmonic extraction requires <code>target</code> and uses the plain Krylov space of
+<code>A</code>, with harmonic Schur vectors retained at restarts. Each reported value
+is the Rayleigh quotient of its harmonic Ritz vector, measured on <code>A</code>.
+Available for the finite standard problem with <code>"lanczos"</code> and <code>"arnoldi"</code>.</p></dd>
 
 
 <dt id="arg-target">target<a class="anchor" aria-label="anchor" href="#arg-target"></a></dt>
 <dd><p>A finite number selecting the eigenvalues nearest it, using
-the extraction selected by `extraction`. Every expansion applies `A`
-directly. `sigma`, `which`, `B` and `inner` are refused with `target`.
+the extraction selected by <code>extraction</code>. Every expansion applies <code>A</code>
+directly. <code>sigma</code>, <code>which</code>, <code>B</code> and <code>inner</code> are refused with <code>target</code>.
 For a real operator or a hermitian operator the target must be real.
-`sigma` independently requests shift-invert and a linear solve per step;
+<code>sigma</code> independently requests shift-invert and a linear solve per step;
 it cannot be combined with harmonic extraction. Ordinary extraction with
-`target` is accepted and can converge slowly at interior eigenvalues.</p></dd>
+<code>target</code> is accepted and can converge slowly at interior eigenvalues.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class `linop_eigen`, with `values`, `vectors` and the
-  `certificate`. A run that exhausts its budget returns the best pairs it
-  reached and a `fail` certificate rather than an error, and it may hold fewer
-  than `k` of them: nothing is padded. On a sequence space it also carries the
-  width `n` that was chosen and the `widths` that were tried. The gap methods
-  also return `roots`, `enclosures` (columns `lower`, `upper`) and
-  `all_roots` from the extraction. For `"second_order"`, `all_roots` holds
-  the upper-half-plane representatives. The exact second-order enclosure
-  radius is `abs(Im(root))`; the returned radius is recomputed from its
-  vector to validate floating-point roots, including near-real pairs.
-  `certificate(fit)$values$relative_enclosures` additionally holds the
-  second-order theorem's intervals enlarged by the checked pencil defect.</p>
+    <p>An object of class <code>linop_eigen</code>, with <code>values</code>, <code>vectors</code> and the
+<code>certificate</code>. A run that exhausts its budget returns the best pairs it
+reached and a <code>fail</code> certificate rather than an error, and it may hold fewer
+than <code>k</code> of them: nothing is padded. On a sequence space it also carries the
+width <code>n</code> that was chosen and the <code>widths</code> that were tried. The gap methods
+also return <code>roots</code>, <code>enclosures</code> (columns <code>lower</code>, <code>upper</code>) and
+<code>all_roots</code> from the extraction. For <code>"second_order"</code>, <code>all_roots</code> holds
+the upper-half-plane representatives. The exact second-order enclosure
+radius is <code>abs(Im(root))</code>; the returned radius is recomputed from its
+vector to validate floating-point roots, including near-real pairs.
+<code>certificate(fit)$values$relative_enclosures</code> additionally holds the
+second-order theorem's intervals enlarged by the checked pencil defect.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The eigenvalue reported for each pair is the Rayleigh quotient
-`x^H A x / (x^H x)`, measured on `A` itself. It is the value that minimises
-`||A x - mu x||`, so no other choice of `mu` certifies better.</p>
+<code>x^H A x / (x^H x)</code>, measured on <code>A</code> itself. It is the value that minimises
+<code>||A x - mu x||</code>, so no other choice of <code>mu</code> certifies better.</p>
 <p>For an operator that is not established hermitian the values are complex
 wherever the spectrum is, and a real operator's non-real eigenvalues come in
 conjugate pairs that are computed together. The eigenvectors of a non-normal
 operator are not orthogonal, and a small residual places a value in the
 operator's pseudospectrum rather than near an eigenvalue: the certificate's
-`forward error` row says so instead of claiming a bound. An operator with no
-declaration at all runs too, through Arnoldi; declaring `hermitian = TRUE`
+<code>forward error</code> row says so instead of claiming a bound. An operator with no
+declaration at all runs too, through Arnoldi; declaring <code>hermitian = TRUE</code>
 buys the real recurrence and Weyl's bound.</p>
-<p>`target identity` is `not_checked`, always. A small residual proves the pair is
+<p><code>target identity</code> is <code>not_checked</code>, always. A small residual proves the pair is
 an approximate eigenpair; that it is the largest, smallest or nearest one
 requires an inertia count, an enclosure or a separation bound, and matrix-free
-there is generally none. See `vignette("certificates")`.</p>
+there is generally none. See <code><a href="../articles/certificates.html">vignette("certificates")</a></code>.</p>
     </div>
 
     <div class="section level2">

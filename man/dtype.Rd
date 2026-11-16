@@ -7,10 +7,10 @@
 dtype(A)
 }
 \arguments{
-\item{A}{A `linop`.}
+\item{A}{A \code{linop}.}
 }
 \value{
-`"double"` or `"complex"`.
+\code{"double"} or \code{"complex"}.
 }
 \description{
 The scalar type of an operator

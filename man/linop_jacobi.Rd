@@ -17,45 +17,45 @@ linop_jacobi(
 discrete Schrodinger operator is this argument alone: it is the potential.}
 
 \item{offdiagonal}{The couplings, as a real vector of length 1 for a constant
-off-diagonal, or `length(diagonal) + 1` for a perturbed one. Zero is not
+off-diagonal, or \code{length(diagonal) + 1} for a perturbed one. Zero is not
 allowed as the limiting value.}
 
-\item{from}{The index of `diagonal[1]`. The default centres the window on the
+\item{from}{The index of \code{diagonal[1]}. The default centres the window on the
 origin.}
 
 \item{diagonal_limit}{The value the diagonal takes outside the window, or one
-period of values: outside the window `a_j = diagonal_limit[(j mod P) + 1]`.
+period of values: outside the window \verb{a_j = diagonal_limit[(j mod P) + 1]}.
 With periodic limits the essential spectrum is a union of bands with gaps
 between them, and the certificate measures isolation against the nearest
 band.}
 
 \item{offdiagonal_limit}{The value the off-diagonal takes outside the window,
-or one period of values, anchored the same way. Defaults to `offdiagonal`
+or one period of values, anchored the same way. Defaults to \code{offdiagonal}
 when that is a single number.}
 }
 \value{
-A `linop` of dimension `Inf x Inf`.
+A \code{linop} of dimension \verb{Inf x Inf}.
 }
 \description{
-A self-adjoint operator on `l^2(Z)`, tridiagonal in the standard basis, given
+A self-adjoint operator on \code{l^2(Z)}, tridiagonal in the standard basis, given
 by its diagonal and off-diagonal sequences. Both are real and eventually
 constant: they take the values you supply on a finite window and their limiting
 values everywhere else.
 }
 \details{
 The operator has infinite dimensions, so it has no matrix and nothing numeric
-runs on it directly. [finite_section()] truncates it to an operator that does,
+runs on it directly. \code{\link[=finite_section]{finite_section()}} truncates it to an operator that does,
 and the certificate that comes back describes the operator here rather than the
 truncation.
 
-The window is `from` to `from + length(diagonal) - 1`. `offdiagonal[i]` couples
-index `from + i - 2` to `from + i - 1`, so the couplings incident to the
+The window is \code{from} to \code{from + length(diagonal) - 1}. \code{offdiagonal[i]} couples
+index \code{from + i - 2} to \code{from + i - 1}, so the couplings incident to the
 diagonal window run from the one on its left edge to the one on its right, and
 there are one more of them than there are diagonal entries.
 
-A constructor knows the operator is self-adjoint the way [linop_eye()] knows it
-about the identity, so `hermitian` and `symmetric` are recorded with
-`source = "construction"` rather than as declarations.
+A constructor knows the operator is self-adjoint the way \code{\link[=linop_eye]{linop_eye()}} knows it
+about the identity, so \code{hermitian} and \code{symmetric} are recorded with
+\code{source = "construction"} rather than as declarations.
 }
 \examples{
 ## the potential v at the origin, whose top eigenvalue is sign(v) sqrt(v^2 + 4)

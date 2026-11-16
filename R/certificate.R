@@ -38,7 +38,7 @@ CERT_COLUMNS <- c("check", "status", "source", "guarantee", "confidence", "detai
 #' @param checks A data frame with columns `check`, `status`, `source`,
 #'   `guarantee`, `confidence` and `detail`, one row per check in the order the
 #'   checks were made. `status` is one of `"pass"`, `"qualified"`, `"fail"` or
-#'   `"not_checked"`. [cert_rows()] collects such a frame.
+#'   `"not_checked"`. `cert_rows()` collects such a frame.
 #' @param subject What was certified, as a single string: `"operator"`,
 #'   `"solve"`, `"eigen"`, and `"finite section"` once that shape lands.
 #' @param probes Optional record of the probes a check was made with.
@@ -48,7 +48,7 @@ CERT_COLUMNS <- c("check", "status", "source", "guarantee", "confidence", "detai
 #'   name, for rows resting on a declaration. [evidence_satisfies()] reads
 #'   through the `depends_on` of these, so a bound resting on a bare
 #'   `user_declaration` fails a requirement the declaration would have failed
-#'   directly. [cert_rows()] collects this list.
+#'   directly. `cert_rows()` collects this list.
 #' @return An object of class `linop_certificate`.
 #' @noRd
 build_certificate <- function(checks, subject, probes = NULL, values = NULL,
@@ -166,11 +166,11 @@ function_certificate <- function(cert, records, operator = NULL) {
 #' the contract, which is [verify()] and returns a certificate of its own.
 #'
 #' A solve's attribute survives arithmetic on the solution and is dropped by
-#' indexing, `as.numeric()`, `c()` and the reductions. So the cost of [solve()]
+#' indexing, `as.numeric()`, `c()` and the reductions. So the cost of [`solve()`][solve.linop]
 #' returning what a matrix solve returns is not that the certificate is easily
 #' lost: it is that `2 * x` still carries a certificate describing `x`.
 #'
-#' @param x A result from [solve()], [eigs()], [svds()] or [verify()].
+#' @param x A result from [`solve()`][solve.linop], [eigs()], [svds()] or [verify()].
 #' @param ... Unused.
 #' @return An object of class `linop_certificate`.
 #' @examples
@@ -249,7 +249,7 @@ print.linop_certificate <- function(x, ...) {
 #'
 #' Collects checks in the order they are added, so a certificate reads top to
 #' bottom in the order the checks were made. Hand the result of `$collect()` and
-#' `$collect_evidence()` to [build_certificate()].
+#' `$collect_evidence()` to `build_certificate()`.
 #'
 #' The returned list holds three functions:
 #'

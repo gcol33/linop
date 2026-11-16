@@ -16,21 +16,21 @@ as_preconditioner(x, ...)
 \method{as_preconditioner}{default}(x, ...)
 }
 \arguments{
-\item{x}{A `linop` approximating `A`, or a `linsolve`.}
+\item{x}{A \code{linop} approximating \code{A}, or a \code{linsolve}.}
 
-\item{...}{Passed to [preconditioner()].}
+\item{...}{Passed to \code{\link[=preconditioner]{preconditioner()}}.}
 
-\item{solver}{`function(M, R)` performing the solve. `linop` method only.}
+\item{solver}{\verb{function(M, R)} performing the solve. \code{linop} method only.}
 
-\item{side}{`"left"`, `"right"` or `"split"`. Defaults by contract; see
+\item{side}{\code{"left"}, \code{"right"} or \code{"split"}. Defaults by contract; see
 details.}
 }
 \value{
-A `preconditioner`.
+A \code{preconditioner}.
 }
 \description{
-A `linop` `M ~ A` is applied by solving `M z = r`, so it needs a solver; the
-inverse is never formed here. A `linsolve` already applies `A^-1`, so it needs
+A \code{linop} \code{M ~ A} is applied by solving \verb{M z = r}, so it needs a solver; the
+inverse is never formed here. A \code{linsolve} already applies \code{A^-1}, so it needs
 nothing further, and its contract (section 4.2) determines whether the
 resulting preconditioner is fixed.
 }

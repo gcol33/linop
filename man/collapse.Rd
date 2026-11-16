@@ -7,14 +7,14 @@
 collapse(A, expected_applies = 100, max_entries = 1e+06)
 }
 \arguments{
-\item{A}{A `linop`.}
+\item{A}{A \code{linop}.}
 
 \item{expected_applies}{How many times the operator will be applied.}
 
 \item{max_entries}{Largest leaf this is allowed to build.}
 }
 \value{
-A `linop` carrying a `report` attribute.
+A \code{linop} carrying a \code{report} attribute.
 }
 \description{
 Cost optimisation as an inspectable transformation rather than hidden

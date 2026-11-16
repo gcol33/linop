@@ -7,16 +7,16 @@
 linop_power(A, k)
 }
 \arguments{
-\item{A}{A square `linop` or matrix.}
+\item{A}{A square \code{linop} or matrix.}
 
 \item{k}{A whole number.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
-`A^k`, applied as `k` applies of `A`. `k = 0` is the identity; a negative `k`
-is a power of the exact inverse, so it needs an operator `solve(A)` can invert.
+\code{A^k}, applied as \code{k} applies of \code{A}. \code{k = 0} is the identity; a negative \code{k}
+is a power of the exact inverse, so it needs an operator \code{solve(A)} can invert.
 A hermitian operator to an even power is positive semidefinite, and positive
 definite when it is also established of full rank.
 }

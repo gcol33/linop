@@ -7,27 +7,27 @@
 finite_section(A, n)
 }
 \arguments{
-\item{A}{An operator on a sequence space, from [linop_jacobi()] or
-[linop_space()].}
+\item{A}{An operator on a sequence space, from \code{\link[=linop_jacobi]{linop_jacobi()}} or
+\code{\link[=linop_space]{linop_space()}}.}
 
-\item{n}{Half-width of the window. The result is `2n + 1` by `2n + 1`.}
+\item{n}{Half-width of the window. The result is \verb{2n + 1} by \verb{2n + 1}.}
 }
 \value{
-A `linop`.
+A \code{linop}.
 }
 \description{
-`P_n A P_n` on the indices `-n` to `n`, as an operator of dimension
-`2n + 1`. The result is an ordinary `linop`: it has a matrix, [eigs()] runs on
+\verb{P_n A P_n} on the indices \code{-n} to \code{n}, as an operator of dimension
+\verb{2n + 1}. The result is an ordinary \code{linop}: it has a matrix, \code{\link[=eigs]{eigs()}} runs on
 it, and the arithmetic composes with anything else.
 }
 \details{
 What it returns holds the operator it truncates, so the printed tree shows the
 infinite operator underneath the finite one. That is also where the certificate
-comes from: [eigs()] on a finite section certifies a statement about `A`, not
+comes from: \code{\link[=eigs]{eigs()}} on a finite section certifies a statement about \code{A}, not
 about the truncation, because the truncation is not the thing anyone wanted to
 know about.
 
-`n` has to be large enough that the window sits strictly inside it. Outside the
+\code{n} has to be large enough that the window sits strictly inside it. Outside the
 window the coefficients are at their limits and the eigenvalue equation is the
 free recurrence, and every closed form in the certificate reads the tail that
 way; a truncation that cuts through the perturbation has none of them.
