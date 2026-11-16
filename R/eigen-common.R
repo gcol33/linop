@@ -11,8 +11,6 @@
 ## own choosing rather than removing the orthogonalisation: it still
 ## orthogonalises every new vector against that basis, and recomputes the Ritz
 ## vectors and residuals every iteration rather than at a restart.
-## dev_notes/primme-and-the-basis-that-is-bounded-not-removed.md has the
-## measurements.
 ##
 ## What is not reference-grade about them is the certificate, which is the same
 ## object every solver in the package returns and rests on the same measurements.
@@ -148,7 +146,7 @@ eigen_random_vector <- function(n, dtype, seed, round) {
 ## on the potential v = 0.1 at k = 1, 460 against 604 at n = 400 and 480 against
 ## 626 at n = 800. The saving does not grow with n, so 40 is a floor rather than a
 ## formula, and a request for many pairs still widens the subspace by the ordinary
-## rule. dev_notes/spikes/section-ncv-probe.R.
+## rule.
 SECTION_NCV_MIN <- 40L
 
 ## Each column of X measured on A: its Rayleigh quotient x^H A x / (x^H x), the
@@ -243,7 +241,7 @@ default_ncv <- function(A, k) {
 ## spectrum spread over four decades, 100n at n = 500, a shift-invert problem: sigma
 ## near that end turns it into a well-separated one. A run that stops making
 ## progress ends on the stalled rule long before the budget, so the budget bounds
-## the cost of a slow run and hides no failure. dev_notes/spikes/eigs-budget-sweep.R.
+## the cost of a slow run and hides no failure.
 EIGEN_MAXIT_PER_DIM <- 20L
 
 ## The preamble both verbs share: the operator is a linop of the right shape, the

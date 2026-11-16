@@ -236,7 +236,7 @@ graph.
   Laplacians, random and clustered spectra and difference operators by
   1.6x for the reference engine and 1.7x for PRIMME. The small end of a
   spectrum spread over four decades needs up to 100 `n` and is left to
-  `sigma` (`dev_notes/spikes/eigs-budget-sweep.R`).
+  `sigma`.
 - The reference
   [`eigs()`](https://gillescolling.com/linop/reference/eigs.md) and
   [`svds()`](https://gillescolling.com/linop/reference/svds.md) build

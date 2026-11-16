@@ -717,8 +717,7 @@ test_that("reorthogonalisation changes the iterates it is asked about", {
   ## reorthogonalisation improves the answer: over 12 seeds on two ill-conditioned
   ## fixtures the drift of the recurrence scalar from the true residual improves
   ## by a median factor of 1.6 and gets worse on 4 of 12, so the accuracy claim
-  ## that would read well here is not one the measurements support. The reasoning
-  ## and the numbers are in dev_notes/gmres-and-the-second-pass.md.
+  ## that would read well here is not one the measurements support.
   n <- 50
   M <- badly_scaled(n, 0.2, 1e6)
   A <- linop(M)

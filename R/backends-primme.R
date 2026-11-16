@@ -32,8 +32,7 @@
 ## a block of k returned every copy every time; a block of one returned 6 or 7
 ## of an 8-fold one at orders 30 and 60, and the reference, which restarts from
 ## a random vector, 3 to 6. On the n = 1e6 well the block costs 32.6 s and 166
-## applies against 15.1 s and 121. dev_notes/spikes/primme-block-probe.R and
-## primme-variants-probe.R.
+## applies against 15.1 s and 121.
 ##
 ## A PRIMME return code other than 0 (converged) or a budget exhausted is an
 ## engine failure and is raised as an error naming the code. The eigensolver
@@ -64,7 +63,6 @@ primme_supports <- function(request) {
   ## smallest basis it runs with was measured at 2k + 1 for k = 1 to 8 at every
   ## target of both solvers, except a single eigenpair at largest or smallest
   ## magnitude, an interior target for PRIMME, where it is 4.
-  ## dev_notes/spikes/primme-block-probe.R.
   ncv <- request$ncv
   if (!is.null(ncv)) {
     need <- if (request$k == 1L && isTRUE(request$interior)) 4L else 2L * request$k + 1L

@@ -16,8 +16,7 @@
 ## cost nothing either.
 ##
 ## Eleven names came OUT in the one-package redesign, which is the first time this
-## budget has moved down. dev_notes/one-package-and-the-abstractions-that-were-holding-a-boundary.md
-## records the reassessment; the short version is that every one of them existed to
+## budget has moved down. Every one of them existed to
 ## hold a package boundary that no longer exists:
 ##
 ##   provenance, set_provenance, strip_provenance and the four generics
@@ -48,7 +47,7 @@ BUDGET <- list(
   sequence_space = c("linop_jacobi", "finite_section", "decay_rate"),
 
   ## Section 5.7's structured node types, decided 2026-11-15 with the cap raised
-  ## from 25 to 30 (dev_notes/the-structured-nodes-and-the-budget-that-moved-up.md).
+  ## from 25 to 30.
   ## Five constructors, because base R has no generic to hang them on; the
   ## stacks come through cbind() and rbind() methods and the exact inverse
   ## through solve(a), at no export cost.
@@ -57,8 +56,7 @@ BUDGET <- list(
 
   ## Phase 6's one front door to operators on function spaces, decided
   ## 2026-11-15 with the cap raised from 30 to 31: every space is a kind of it,
-  ## so later spaces add arguments rather than names
-  ## (dev_notes/phase6-function-spaces-design.md).
+  ## so later spaces add arguments rather than names.
   function_space = "linop_space",
 
   advanced = c("preconditioner", "as_preconditioner", "as_preconditioner_inverse",

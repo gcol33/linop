@@ -1,6 +1,6 @@
 ## Phase 6 step 2: functions on [-1, 1] held as Chebyshev coefficients, and the
 ## ultraspherical method for differential operators on them (Olver and Townsend,
-## SIAM Review 2013). dev_notes/phase6-function-spaces-design.md, section 4.
+## SIAM Review 2013).
 ##
 ## u = sum_k c_k T_k. Differentiation is banded only between different spaces:
 ## D_m maps Chebyshev coefficients to coefficients in the ultraspherical basis

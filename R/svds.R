@@ -9,8 +9,8 @@
 ## It is also not the same code as solvers-bidiag.R, and that is worth saying
 ## because the recurrence is. LSQR and LSMR build this bidiagonalisation and store
 ## none of it: neither method keeps a basis, which is why both lose orthogonality
-## after a handful of steps and why dev_notes/lsqr-and-the-least-squares-
-## certificate.md can only assert four. A singular triplet is read off the basis
+## after a handful of steps and why a reference test of LSQR can only assert
+## four. A singular triplet is read off the basis
 ## rather than off the projection alone, so here the basis has to be kept and kept
 ## orthogonal, and the reorthogonalisation that a least-squares solve has no use
 ## for is the load-bearing part. The step is shared in shape and not in code:

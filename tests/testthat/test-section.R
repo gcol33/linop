@@ -240,7 +240,7 @@ test_that("the convergence row names the knob that is short", {
 
 test_that("a section gets a wider default subspace than any other operator", {
   ## Enlarging n densifies the cluster the value has to be told apart from, and
-  ## the wider subspace separates it in fewer applies. dev_notes/spikes/section-ncv-probe.R.
+  ## the wider subspace separates it in fewer applies.
   expect_equal(linop:::default_ncv(sect(1, 8), 1L), 40L)
   expect_equal(linop:::default_ncv(linop(diag(50)), 1L), 21L)
   ## and it is a floor rather than a formula, so a large request still widens it

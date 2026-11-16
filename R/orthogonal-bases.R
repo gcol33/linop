@@ -1,5 +1,5 @@
 ## Phase 6 step 5: functions on the line and the half line, held as coefficients
-## in the Hermite and Laguerre functions. dev_notes/phase6-function-spaces-design.md.
+## in the Hermite and Laguerre functions.
 ##
 ## Both bases make multiplication by x tridiagonal, and each has a differential
 ## operator that is diagonal in it. For the Hermite functions psi_n on R,

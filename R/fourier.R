@@ -1,6 +1,5 @@
 ## Phase 6's first function space: operators on functions on the circle, held as
 ## operators on their Fourier coefficients, a sequence on Z.
-## dev_notes/phase6-function-spaces-design.md has the design.
 ##
 ##     (H u)_k = s(k) u_k + sum_{|j| <= d} vhat_j u_{k-j}
 ##

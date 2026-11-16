@@ -523,7 +523,7 @@ generalized_operator <- function(A, B, inner) {
 ## lanczos_run() measures both rather than assuming them.
 ## Where a request fits in one round there is no restart to differ over and the
 ## two agree to the last digit, which is the control that confines the difference
-## to this block; dev_notes/spikes/restart-comparison.R runs both.
+## to this block.
 lanczos_core <- function(Op, A, k, sel, tol, maxit, ncv, v0, seed, floor_const,
                          B = NULL, prelocked = NULL, extraction = "ritz", target = NULL) {
   n <- Op$dim[1L]

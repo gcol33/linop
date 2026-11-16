@@ -191,7 +191,7 @@ test_that("svds with a starting vector is the reference's, since primme needs bo
 test_that("PRIMME's Arnoldi preset and the reference agree at every step count tried", {
   ## Both keep a fully orthogonalised basis of the Krylov space of the same
   ## starting vector, so the Ritz values after m applies are the same numbers.
-  ## Measured in dev_notes/spikes/primme-agreement-probe.R at 1 to 40 steps on
+  ## Measured at 1 to 40 steps on
   ## four fixtures and five seeds: worst 4.7e-16 relative, no drift with m.
   ## Like BiCGSTAB and unlike LSQR, LSMR or MINRES, there is no step count at
   ## which this stops holding, because there is no orthogonality to lose.
@@ -351,7 +351,7 @@ test_that("singular triplets through primme, real and complex", {
 
 test_that("a repeated eigenvalue comes back with every copy, through a block of k", {
   ## An 8-fold eigenvalue at order 30: a block of one returned 6 or 7 copies on
-  ## every one of ten seeds in dev_notes/spikes/primme-block-probe.R, and a
+  ## every one of ten seeds, and a
   ## block of k all eight on every seed.
   skip_if_not_installed("linop.primme")
   n <- 30

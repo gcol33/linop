@@ -1,7 +1,7 @@
 ## Gate 1: the flag propagation table checked by brute force, including the
 ## A^H A versus A^T A distinction on complex inputs.
 ##
-## The table is the corrected one from dev_notes/S0.1-dispatch.md section 6:
+## The table follows base R:
 ## base R's crossprod(A) is A^T A, which is symmetric and generally not
 ## hermitian. The plan's original table had these swapped.
 

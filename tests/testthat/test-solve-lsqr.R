@@ -222,8 +222,7 @@ test_that("the iteration is the published one, step for step", {
   ## reaches 1e-2 by step 12 of a 15-column problem, because the bidiagonal
   ## vectors lose orthogonality and what fills the lost direction is whichever
   ## rounding noise arrived first. It closes again as both converge on the same
-  ## least-squares solution, which the recovery tests above check. The numbers
-  ## are in dev_notes/lsqr-and-the-least-squares-certificate.md, and they are the
+  ## least-squares solution, which the recovery tests above check. This is the
   ## reason the certificate recomputes rather than reporting the recurrence.
   for (seed in 1:5) {
     f <- lsq_prescribed(45, 15, exp(seq(log(0.5), log(20), length.out = 15)),

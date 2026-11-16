@@ -24,8 +24,8 @@ KRYLOV_CONDITION_LIMIT <- 1 / .Machine$double.eps
 ## The factor a direction has to lose in the first Gram-Schmidt pass before a
 ## second one is worth taking, from Daniel, Gragg, Kaufman and Stewart. At
 ## 1/sqrt(2) a direction that kept more than about 71% of its length is left
-## alone, which is the usual setting and is where the measurements in
-## dev_notes/gmres-and-the-second-pass.md were taken.
+## alone, which is the usual setting and is where GMRES's reorthogonalisation
+## was measured.
 ##
 ## Both families need it and for the same reason. GMRES orthogonalises against a
 ## stored Krylov basis to build the Hessenberg it minimises over; the two

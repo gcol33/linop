@@ -617,7 +617,7 @@ pair that ranks better:
 ``` r
 
 sort(eigs(linop_space("fourier"), k = 5, which = "smallest_algebraic")$values)
-#> [1] 3.493633e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00
+#> [1] 2.779301e-24 1.000000e+00 1.000000e+00 4.000000e+00 4.000000e+00
 ```
 
 ## Posing a problem with functions

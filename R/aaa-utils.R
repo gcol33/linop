@@ -22,8 +22,7 @@ stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 ## Im(x).Im(y), which is the only part of the inner product the Krylov scalars
 ## use, since the quantities they form are real for a hermitian operator.
 ## x * x rather than x^2, which is the same bits at about twice the speed,
-## measured 1.76x to 1.98x over n = 1e4 to 1e6 by
-## dev_notes/spikes/allocation-sweep.R.
+## measured 1.76x to 1.98x over n = 1e4 to 1e6.
 col_norms <- function(X) {
   if (is.complex(X)) {
     re <- Re(X); im <- Im(X)
@@ -65,8 +64,7 @@ col_cdot <- function(X, Y) {
 ## The copy is worth avoiding because these sit on apply and orthogonalisation
 ## paths where X is the largest array in the run. Orthogonalising against a
 ## stored basis duplicates the whole basis once per pass, 610 Mb at n = 1e6 and
-## ncv = 80, measured at 18 to 26 per cent of eigs() runtime in self time by
-## dev_notes/spikes/eigs-orth-crossover.R.
+## ncv = 80, measured at 18 to 26 per cent of eigs() runtime in self time.
 cross_adjoint <- function(X, Y) {
   if (is.complex(X)) crossprod(Conj(X), Y) else crossprod(X, Y)
 }
@@ -82,7 +80,7 @@ conj_prod <- function(X, Y) {
 ## express a scalar multiply. The guarded branch is the same arithmetic, bitwise,
 ## and a single right-hand side is the shape most solves have: this sits at 23 to
 ## 47 per cent of self time across the six solver loops, and the guard measures
-## 3.6x to 8.9x on the helper (dev_notes/spikes/allocation-sweep.R).
+## 3.6x to 8.9x on the helper.
 scale_cols <- function(X, v) {
   if (length(v) == 1L) X * v else X * rep(v, each = nrow(X))
 }

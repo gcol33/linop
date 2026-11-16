@@ -204,8 +204,7 @@ test_that("the iteration is the published one, step for step", {
   ## measured gap here grows from 1e-15 at step 4 to 3e-11 at step 8 and past
   ## 1e-2 by step 12 of a 15-column problem, then closes again as both converge
   ## on the same least-squares solution. SciPy's own LSMR diverges from this one
-  ## on the same schedule; the numbers are in
-  ## dev_notes/lsmr-and-the-monotone-backward-error.md.
+  ## on the same schedule.
   for (seed in 1:5) {
     f <- lsq_prescribed(45, 15, exp(seq(log(0.5), log(20), length.out = 15)),
                         seed = seed)

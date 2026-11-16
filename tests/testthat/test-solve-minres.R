@@ -243,8 +243,8 @@ test_that("columns run in lockstep are the iterates of per-column minres", {
 ## the implementation and no idea with krylov_argmin above: one is a short
 ## recurrence, the other a variational characterisation of the same iterate.
 ##
-## The transcription is checked against SciPy 1.17.1's minres by
-## dev_notes/spikes/minres_export.R, which is what makes it a reference rather
+## The transcription was checked against SciPy 1.17.1's minres, which is what
+## makes it a reference rather
 ## than a second copy of the same beliefs. Over four conditionings and both
 ## breakdown fixtures it tracks SciPy to the accuracy this implementation does:
 ## 6.9e-15 at eight steps at kappa 1e2, 4.3e-12 at kappa 1e10.
@@ -304,8 +304,7 @@ test_that("the iterate agrees with both references on ill-conditioned problems",
   ##
   ## The tolerance tracks the conditioning rather than being one constant,
   ## because the gap between two computations of the same iterate grows with it.
-  ## Measured over five seeds at eight steps in
-  ## dev_notes/spikes/minres_reference.R: 3.7e-15 at kappa 1e2, 2.2e-14 at 1e4,
+  ## Measured over five seeds at eight steps: 3.7e-15 at kappa 1e2, 2.2e-14 at 1e4,
   ## 3.0e-13 at 1e6, 1.1e-12 at 1e8 and 1.7e-11 at 1e10.
   cases <- list(list(kappa = 1e2,  tol = 1e-13),
                 list(kappa = 1e4,  tol = 1e-12),
@@ -718,8 +717,8 @@ test_that("a jacobi preconditioner turns an indefinite system minres cannot fini
 })
 
 test_that("minres accepts a preconditioner on any of the three sides", {
-  ## Section 4.3 leaves the MINRES row unrestricted, pending the sourced pass
-  ## dev_notes/fgmres-and-preconditioner-sides.md records as open. What this
+  ## The MINRES row is unrestricted, pending a sourced pass over the
+  ## preconditioner sides. What this
   ## asserts is the contract as it currently stands, so narrowing the row is a
   ## deliberate edit that changes a passing test.
   n <- 20

@@ -146,7 +146,7 @@ test_that("the thick restart is what makes a small subspace converge", {
   ## This exact configuration, with the restart taken from one vector instead,
   ## spends 240 of its 300 iterations over 9 rounds and converges none of the
   ## four, stalling at a backward error of 5.7e-4. The shipped restart reaches
-  ## 5.1e-13 in 96. Measured in dev_notes/spikes/restart-comparison.R, which
+  ## 5.1e-13 in 96. Measured by a variant that
   ## swaps only the block that chooses what the next round starts from. The
   ## count below also holds the check for missed copies (deflation_sweep()),
   ## one further request for k = 1 that finds nothing better, capped at what the

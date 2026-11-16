@@ -176,8 +176,7 @@ First development release. The finite object model and the expression graph.
   rule covers the worst converging run of a sweep over Laplacians, random and
   clustered spectra and difference operators by 1.6x for the reference engine
   and 1.7x for PRIMME. The small end of a spectrum spread over four decades
-  needs up to 100 `n` and is left to `sigma`
-  (`dev_notes/spikes/eigs-budget-sweep.R`).
+  needs up to 100 `n` and is left to `sigma`.
 * The reference `eigs()` and `svds()` build the projected matrix from the
   coefficients their reorthogonalisation removes, `V^H A V` and `U^H A V` as
   measured, instead of the tridiagonal and arrow form exact arithmetic gives

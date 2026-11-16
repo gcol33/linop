@@ -2,7 +2,7 @@
 ## from materialised leaves.
 ##
 ## The gate calls for 1e4 trees. That is what LINOP_FUZZ_N controls, and the full
-## count is run and recorded in dev_notes/GATE1.md. The default here is smaller
+## count is run before a release. The default here is smaller
 ## so routine R CMD check stays inside CRAN's time budget; nothing about the
 ## check changes with the count, only how much of the space it covers.
 

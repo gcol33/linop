@@ -1,6 +1,6 @@
 ## Shared fixtures. Every node type, real and complex where the backing storage
 ## admits it. Sparse is real-only: Matrix 1.7.5 declares the zMatrix virtual
-## classes but not the concrete ones (see dev_notes/S0.1-dispatch.md section 7).
+## classes but not the concrete ones.
 
 rmat <- function(m, n, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
