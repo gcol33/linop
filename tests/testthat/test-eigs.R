@@ -456,3 +456,8 @@ test_that("a repeated eigenvalue comes back with every copy it has among the k",
   expect_equal(fa$method, "arnoldi")
   expect_equal(fa$values, truth, tolerance = 1e-10)
 })
+
+test_that("summary() names the engine and why auto chose it", {
+  out <- capture.output(summary(eigs(linop(as.matrix(laplacian_1d(30))), k = 2)))
+  expect_true(any(grepl("^solved by lanczos \\(hermitian operator, .+\\)$", out)))
+})

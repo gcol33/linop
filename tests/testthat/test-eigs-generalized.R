@@ -183,6 +183,97 @@ test_that("a hermitian pencil with B not definite has no real-spectrum guarantee
   expect_lt(nearest_error(fit$values, ev), 1e-10)
 })
 
+## ------------------------------------------------------- preconditioned --
+
+## A mass matrix whose density rho_j spans `spread`, so kappa(B) is near it and
+## ||B^-1|| is far from 1/||B||: the case a Jacobi preconditioner on the inner
+## solve is for. The pencil's eigenvalues come from the symmetric reduction
+## L^-1 K L^-T with B = L L^T.
+graded_mass <- function(n, spread) {
+  rho <- spread^seq(0, 1, length.out = n)
+  M <- diag(4 * rho)
+  off <- sqrt(rho[-1] * rho[-n])
+  M[cbind(1:(n - 1), 2:n)] <- off
+  M[cbind(2:n, 1:(n - 1))] <- off
+  M / 6
+}
+graded_truth <- function(Kd, Md) {
+  Li <- solve(t(chol(Md)))
+  sort(eigen(Li %*% Kd %*% t(Li), symmetric = TRUE, only.values = TRUE)$values)
+}
+counted_mass <- function(Md, env) {
+  linop(function(X) { env$B <- env$B + ncol(X); Md %*% X },
+        adjoint = function(X) Md %*% X, dim = dim(Md),
+        properties = c(hermitian = TRUE, positive_definite = TRUE))
+}
+counted_jacobi <- function(d, env) {
+  preconditioner(function(X) { env$P <- env$P + 1L; X / d },
+                 hermitian = TRUE, positive_definite = TRUE)
+}
+
+test_that("a preconditioner reaches the solve with B through inner", {
+  n <- 100
+  Md <- graded_mass(n, 1e4)
+  truth <- rev(graded_truth(as.matrix(laplacian_1d(n)), Md))[1:3]
+  plain <- new.env(); plain$B <- 0L
+  pre <- new.env(); pre$B <- 0L; pre$P <- 0L
+  f0 <- eigs(laplacian_1d(n), k = 3, which = "largest_algebraic",
+             B = counted_mass(Md, plain), method = "lanczos",
+             inner = list(method = "cg"))
+  f1 <- eigs(laplacian_1d(n), k = 3, which = "largest_algebraic",
+             B = counted_mass(Md, pre), method = "lanczos",
+             inner = list(method = "cg", preconditioner = counted_jacobi(diag(Md), pre)))
+  expect_gt(pre$P, 0L)
+  for (f in list(f0, f1)) {
+    expect_equal(f$nconv, 3L)
+    expect_equal(f$values, truth, tolerance = 1e-12)
+    expect_equal(cert_status(f$certificate, "residual"), "pass")
+    expect_equal(cert_status(f$certificate, "forward error"), "pass")
+  }
+  ## the same answer at a fifth of the applies of B, at the same budget
+  expect_identical(f0$maxit, f1$maxit)
+  expect_lt(pre$B, plain$B / 3)
+})
+
+test_that("a preconditioner reaches the shift-invert solve with A - sigma B", {
+  n <- 100
+  Kd <- as.matrix(laplacian_1d(n))
+  Md <- graded_mass(n, 1e4)
+  truth <- graded_truth(Kd, Md)
+  sigma <- (truth[5] + truth[6]) / 2
+  env <- new.env(); env$B <- 0L; env$P <- 0L
+  pc <- counted_jacobi(abs(diag(Kd - sigma * Md)), env)
+  fit <- eigs(laplacian_1d(n), k = 2, sigma = sigma, B = counted_mass(Md, env),
+              method = "lanczos", inner = list(method = "minres", preconditioner = pc))
+  expect_gt(env$P, 0L)
+  expect_equal(fit$nconv, 2L)
+  expect_equal(sort(fit$values), truth[5:6], tolerance = 1e-10)
+  expect_false(fit$certificate$overall == "fail")
+})
+
+test_that("the forward row allows for ||B^-1|| beyond 1/||B||, and never past it", {
+  n <- 60
+  Kd <- as.matrix(laplacian_1d(n))
+  Md <- graded_mass(n, 1e6)
+  truth <- graded_truth(Kd, Md)
+  sigma <- (truth[5] + truth[6]) / 2
+  M <- linop(Md, properties = c(positive_definite = TRUE))
+  fit <- eigs(laplacian_1d(n), k = 2, sigma = sigma, B = M, method = "lanczos")
+  cert <- fit$certificate
+  cv <- cert$values
+  expect_equal(sort(fit$values), truth[5:6], tolerance = 1e-12)
+  ## read with ||B^-1|| as 1/||B||, this converged pair fails the row; the
+  ## bound is at rounding level, so by a factor that varies between 7 and 35
+  expect_gt(max(cv$forward_bound / (1e-10 * (cv$norm / cv$norm_B + abs(fit$values)))), 2)
+  expect_equal(cert_status(cert, "forward error"), "pass")
+  detail <- cert$checks$detail[cert$checks$check == "forward error"]
+  binv <- as.numeric(sub(".*\\|\\|B\\^-1\\|\\| >= ([^;]+);.*", "\\1", detail))
+  true_binv <- 1 / min(eigen(Md, symmetric = TRUE, only.values = TRUE)$values)
+  ## a lower bound on ||B^-1||, and here a long way above 1/||B||
+  expect_lte(binv, true_binv * (1 + 1e-6))
+  expect_gt(binv, 100 / cert$values$norm_B)
+})
+
 ## ------------------------------------------------------------ refusals --
 
 test_that("what eigs() refuses about B", {

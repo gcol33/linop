@@ -71,6 +71,37 @@ test_that("svds recovers a complex spectrum and keeps complex vectors", {
   expect_lte(triplet_backward(A, fit$d, fit$u, fit$v, max(sigma)), 1e-10)
 })
 
+test_that("svds recovers a complex spectrum from a callback that never shows its matrix", {
+  m <- 40; n <- 24
+  sigma <- c(30, 12, 6, seq(3, 0.5, length.out = n - 3L))
+  f <- lsq_prescribed(m, n, sigma, seed = 11L, dtype = "complex")
+  calls <- c(apply = 0L, adjoint = 0L)
+  A <- linop(function(X) { calls[["apply"]] <<- calls[["apply"]] + 1L; f$A %*% X },
+             adjoint = function(X) {
+               calls[["adjoint"]] <<- calls[["adjoint"]] + 1L
+               Conj(t(f$A)) %*% X
+             },
+             dim = c(m, n), dtype = "complex")
+  expect_identical(A$node, "fun")
+
+  fit <- svds(A, k = 3)
+  ## both halves of the bidiagonalisation went through the callbacks
+  expect_gt(calls[["apply"]], 0L)
+  expect_gt(calls[["adjoint"]], 0L)
+  expect_equal(fit$nconv, 3L)
+  expect_equal(fit$d, sigma[1:3], tolerance = 1e-10)
+  expect_true(is.complex(fit$u) && is.complex(fit$v))
+  expect_gt(max(abs(Im(fit$u))), 0.1)
+  expect_lte(triplet_backward(A, fit$d, fit$u, fit$v, max(sigma)), 1e-10)
+  expect_false(fit$certificate$overall == "fail")
+})
+
+test_that("summary() names the engine and why it was chosen", {
+  f <- lsq_prescribed(20, 10, seq(5, 1, length.out = 10), seed = 2L)
+  out <- capture.output(summary(svds(linop(f$A), k = 2)))
+  expect_true(any(grepl("^solved by golub-kahan \\(.+\\)$", out)))
+})
+
 test_that("the smallest singular values are reachable and are not the largest relabelled", {
   n <- 16
   sigma <- seq(20, 1, length.out = n)

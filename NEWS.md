@@ -141,7 +141,11 @@ First development release. The finite object model and the expression graph.
   the `B` inner product and returns `B`-orthonormal vectors, with a forward
   error bound through a solve with `B`; otherwise Arnoldi on `B^-1 A`. A shift
   runs on `(A - sigma B)^-1 B`. The backward error perturbs both operators,
-  `||A x - theta B x|| / ((||A|| + |theta| ||B||) ||x||)`.
+  `||A x - theta B x|| / ((||A|| + |theta| ||B||) ||x||)`. The forward bound is
+  held against `tol ||B^-1|| (||A|| + |theta| ||B||)` with the largest of three
+  free lower bounds on `||B^-1||`, so an ill-conditioned `B` no longer fails a
+  converged pair. `inner = list(preconditioner = )` reaches the solve with `B`
+  or with `A - sigma B`.
 * `eigs(method = "rspectra")` and `svds(method = "rspectra")` run the Spectra
   library through RSpectra, when it is installed, on a real operator: its
   implicitly restarted Arnoldi, or Lanczos for an operator established

@@ -896,9 +896,15 @@ eigen_certificate_empty <- function(r, requested, iterations, maxit,
 ## (Parlett, The Symmetric Eigenvalue Problem, ch. 15). ||r||_{B^-1} needs
 ## r^H B^-1 r, a solve with B per pair, so the row is the theorem's bound
 ## through an inner solve: an estimate, held against the eigenvalue change a
-## backward error of tol allows on a pencil with ||B^-1|| near 1/||B||,
-## tol (||A|| / ||B|| + |theta|). Without definiteness the residual places theta
-## in a pseudospectrum of the pencil and no distance is claimed.
+## backward error of tol allows on a definite pencil,
+## tol ||B^-1|| (||A|| + |theta| ||B||). ||B^-1|| is not computed; three lower
+## bounds on it are free here, 1/||B||, r^H B^-1 r / r^H r from the solve the
+## row already runs, and x^H x / x^H B x, and the largest of them is used, so
+## the threshold can only be tighter than the true one. 1/||B|| alone is short
+## by up to kappa(B), which on a mass matrix whose density spans four orders of
+## magnitude fails a converged pair. Without
+## definiteness the residual places theta in a pseudospectrum of the pencil and
+## no distance is claimed.
 eigen_forward_generalized <- function(r, A, B, X, BX, R, theta, tol, nA, nB,
                                       hermitian_evidence, definite_evidence) {
   if (is.null(hermitian_evidence)) {
@@ -915,11 +921,13 @@ eigen_forward_generalized <- function(r, A, B, X, BX, R, theta, tol, nA, nB,
   rB <- sqrt(pmax(col_dot(R, Z), 0))
   xB <- sqrt(pmax(col_dot(X, BX), .Machine$double.xmin))
   bound <- rB / xB
-  allowed <- tol * (nA / nB + abs(theta))
+  rn <- col_norms(R)
+  binv <- max(1 / nB, (rB[rn > 0] / rn[rn > 0])^2, col_norms(X)^2 / xB^2)
+  allowed <- tol * binv * (nA + abs(theta) * nB)
   r$add("forward error", if (all(bound <= allowed)) "pass" else "fail",
-        sprintf(paste0("min_j |theta - lambda_j(A, B)| <= ||r||_{B^-1} / ||x||_B = %.3e, against %.3e; ",
-                       "the B^-1 norm is from an inner solve with B"),
-                max(bound), max(allowed)),
+        sprintf(paste0("min_j |theta - lambda_j(A, B)| <= ||r||_{B^-1} / ||x||_B = %.3e, against %.3e ",
+                       "with ||B^-1|| >= %.4g; the B^-1 norm is from an inner solve with B"),
+                max(bound), max(allowed), binv),
         evidence = evidence("theorem", "estimate", NA_real_,
                             depends_on = c(list(hermitian_evidence), definite_evidence)))
   bound
